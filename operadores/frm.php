@@ -1,3 +1,95 @@
+<?php
+/* =========================================================
+   EMPRESAS DISPONIBLES SEGÚN EL USUARIO EN SESIÓN
+   ========================================================= */
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+$rolSesion          = strtoupper($_SESSION['rol'] ?? '');
+$idUsuarioSesion    = (int)($_SESSION['id_usuario'] ?? 0);
+$idEmpresaSesion    = !empty($_SESSION['id_empresa']) ? (int)$_SESSION['id_empresa'] : 0;
+$multiempresaSesion = (int)($_SESSION['multiempresa'] ?? 0);
+
+$empresasPermitidas = [];
+$conexionFrmLocal = false;
+
+/*
+ * Si frm.php fue incluido desde operadores/index.php, reutilizamos
+ * la conexión existente. Si se abre por separado, creamos una.
+ */
+if (isset($dbtransportistas)) {
+    $dbFrm = $dbtransportistas;
+} elseif (isset($db)) {
+    $dbFrm = $db;
+} else {
+    include_once "../db/db.php";
+    $dbFrm = new db();
+    $dbFrm->conectar();
+    $conexionFrmLocal = true;
+}
+
+$sqlEmpresas = "";
+
+/* ADMIN: puede elegir cualquiera de las empresas. */
+if ($rolSesion === 'ADMIN') {
+    $sqlEmpresas = "
+        SELECT id_empresa, nombre_empresa
+        FROM empresas
+        ORDER BY nombre_empresa ASC
+    ";
+}
+
+/* PROPIETARIO: una empresa o solamente sus empresas asignadas. */
+elseif ($rolSesion === 'PROPIETARIO') {
+
+    if ($multiempresaSesion === 1 && $idUsuarioSesion > 0) {
+        $sqlEmpresas = "
+            SELECT e.id_empresa, e.nombre_empresa
+            FROM empresas e
+            INNER JOIN usuario_empresas ue
+                ON ue.id_empresa = e.id_empresa
+            WHERE ue.id_usuario = $idUsuarioSesion
+            ORDER BY e.nombre_empresa ASC
+        ";
+    } elseif ($idEmpresaSesion > 0) {
+        $sqlEmpresas = "
+            SELECT id_empresa, nombre_empresa
+            FROM empresas
+            WHERE id_empresa = $idEmpresaSesion
+            LIMIT 1
+        ";
+    }
+}
+
+/* RRHH: por ahora trabaja con su empresa asignada. */
+elseif ($rolSesion === 'RRHH' && $idEmpresaSesion > 0) {
+    $sqlEmpresas = "
+        SELECT id_empresa, nombre_empresa
+        FROM empresas
+        WHERE id_empresa = $idEmpresaSesion
+        LIMIT 1
+    ";
+}
+
+if ($sqlEmpresas !== "") {
+    $empresasPermitidas = $dbFrm->obtenerRegistros($sqlEmpresas);
+}
+
+if ($conexionFrmLocal) {
+    $dbFrm->desconectar();
+}
+
+$puedeElegirEmpresa =
+    $rolSesion === 'ADMIN' ||
+    ($rolSesion === 'PROPIETARIO' && $multiempresaSesion === 1);
+
+$empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
+    ? $empresasPermitidas[0]
+    : null;
+?>
+
 <!-- CABECERA DE LA TABLA CON EL BOTÓN AGREGAR -->
 <div class="table-header-title">
     <div class="table-tabs-wrapper">
@@ -146,6 +238,64 @@
                             <option value="0">Inactivo</option>
 
                         </select>
+                    </div>
+
+                </div>
+
+
+                <!-- =====================================================
+                     EMPRESA / TRANSPORTISTA
+                     ===================================================== -->
+
+                <div class="form-row">
+
+                    <div class="form-group">
+                        <label class="form-label">Empresa *</label>
+
+                        <?php if ($puedeElegirEmpresa): ?>
+
+                            <select
+                                class="form-control"
+                                name="id_empresa"
+                                id="id_empresa"
+                                required>
+
+                                <option value="">Seleccione una empresa</option>
+
+                                <?php foreach ($empresasPermitidas as $empresa): ?>
+                                    <option value="<?php echo (int)$empresa['id_empresa']; ?>">
+                                        <?php echo htmlspecialchars($empresa['nombre_empresa']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+
+                            </select>
+
+                        <?php elseif ($empresaFija): ?>
+
+                            <!-- Para propietario de una empresa o RRHH:
+                                 se muestra la empresa, pero no puede cambiarla. -->
+                            <input
+                                type="text"
+                                class="form-control"
+                                value="<?php echo htmlspecialchars($empresaFija['nombre_empresa']); ?>"
+                                readonly>
+
+                            <input
+                                type="hidden"
+                                name="id_empresa"
+                                id="id_empresa"
+                                value="<?php echo (int)$empresaFija['id_empresa']; ?>">
+
+                        <?php else: ?>
+
+                            <input
+                                type="text"
+                                class="form-control"
+                                value="No hay una empresa asignada a este usuario"
+                                readonly>
+
+                        <?php endif; ?>
+
                     </div>
 
                 </div>
