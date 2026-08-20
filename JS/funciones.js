@@ -883,17 +883,18 @@ function editar(id, tb, pfrm) {
 
 
 // Elimina un registro.
-function eliminar(id, tb) {
-    let contenedor = '#contenedor3';
+function eliminar(id, tb) { 
 
-    if (tb === 'detalles_compra') {
-        contenedor = '#contenedor_detalle';
-    }
-
-    const contenedorElemento =
-        document.querySelector(contenedor);
-
-    if (!contenedorElemento) {
+    let contenedor = '#contenedor3'; 
+ 
+    if (tb === 'detalles_compra') { 
+        contenedor = '#contenedor_detalle'; 
+    } 
+ 
+    const contenedorElemento = 
+        document.querySelector(contenedor); 
+ 
+    if (!contenedorElemento) { 
 
         console.error(
             "No se encontró el contenedor objetivo:",
@@ -903,45 +904,130 @@ function eliminar(id, tb) {
         return;
     }
 
-    fetch(
-        "/" +
-        tb +
-        "/eliminar.php?id=" +
-        encodeURIComponent(id) +
-        "&tb=" +
-        encodeURIComponent(tb)
-    )
-    .then(response => {
 
-        if (!response.ok) {
-            throw new Error(
-                "Error HTTP: " +
-                response.status
-            );
-        }
+    /* =====================================================
+       FUNCIÓN QUE REALIZA LA ELIMINACIÓN
+       ===================================================== */
 
-        return response.text();
-    })
-    .then(data => {
+    function ejecutarEliminacion() {
 
-        contenedorElemento.innerHTML = data;
-
-        mostrarToast(
-            "Registro eliminado correctamente"
-        );
-    })
-    .catch(error => {
-
-        console.error(
-            "Error al eliminar en " +
+        fetch(
+            "/" +
             tb +
-            ":",
-            error
+            "/eliminar.php?id=" +
+            encodeURIComponent(id) +
+            "&tb=" +
+            encodeURIComponent(tb)
+        )
+        .then(async response => {
+
+            const data = await response.text();
+
+
+            /* =================================================
+               PHP BLOQUEÓ LA ELIMINACIÓN
+               ================================================= */
+
+            if (!response.ok) {
+
+                if (typeof Swal !== 'undefined') {
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'No se puede eliminar',
+                        text: data,
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#e67e00',
+                        background: '#1e293b',
+                        color: '#ffffff'
+                    });
+
+                } else {
+
+                    alert(data);
+                }
+
+                return null;
+            }
+
+
+            return data;
+        })
+        .then(data => {
+
+            /* Si PHP rechazó la eliminación */
+            if (data === null) {
+                return;
+            }
+
+
+            /* Actualizar tabla */
+            contenedorElemento.innerHTML = data;
+
+
+            /* Mensaje de éxito */
+            mostrarToast(
+                "Registro eliminado correctamente"
+            );
+        })
+        .catch(error => {
+
+            console.error(
+                "Error al eliminar en " +
+                tb +
+                ":",
+                error
+            );
+
+        });
+    }
+
+
+    /* =====================================================
+       CONFIRMACIÓN ANTES DE ELIMINAR
+       ===================================================== */
+
+    if (typeof Swal !== 'undefined') {
+
+        Swal.fire({
+            icon: 'question',
+            title: '¿Deseas eliminar este registro?',
+            text: 'Esta acción no se puede deshacer.',
+            showCancelButton: true,
+
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#475569',
+
+            background: '#1e293b',
+            color: '#ffffff',
+
+            reverseButtons: true
+        })
+        .then(resultado => {
+
+            if (resultado.isConfirmed) {
+
+                ejecutarEliminacion();
+            }
+
+        });
+
+    } else {
+
+        /* Respaldo por si SweetAlert no carga */
+        const confirmar = confirm(
+            "¿Deseas eliminar este registro?"
         );
-    });
+
+        if (confirmar) {
+
+            ejecutarEliminacion();
+        }
+    }
 }
-
-
 
 /* =========================================================
    8. NOTIFICACIONES

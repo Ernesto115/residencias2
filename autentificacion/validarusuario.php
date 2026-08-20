@@ -4,60 +4,38 @@
    VALIDACIÓN DE USUARIO E INICIO DE SESIÓN
    ========================================================= */
 
-// Evita que errores PHP dañen la respuesta JSON.
 ini_set('display_errors', 0);
 
-// Iniciar sesión.
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// La respuesta de este archivo siempre será JSON.
 header('Content-Type: application/json; charset=utf-8');
-
 
 try {
 
-    /* =====================================================
-       1. CONEXIÓN A BASE DE DATOS
-       ===================================================== */
-
+    /* 1. CONEXIÓN */
     require_once "../DB/db.php";
 
     $dbtransportistas = new db();
     $dbtransportistas->conectar();
 
 
-    /* =====================================================
-       2. RECIBIR DATOS DEL LOGIN
-       ===================================================== */
-
+    /* 2. DATOS DEL LOGIN */
     $usuario = trim($_POST['usuario'] ?? '');
-    $clave   = $_POST['clave'] ?? '';
+    $clave = $_POST['clave'] ?? '';
 
-
-    // Validar campos vacíos.
     if ($usuario === '' || $clave === '') {
-
         echo json_encode([
-            "status"  => "error",
+            "status" => "error",
             "message" => "Debes ingresar usuario y contraseña."
         ]);
-
         exit;
     }
 
 
-    /* =====================================================
-       3. BUSCAR USUARIO
-       ===================================================== */
-
-    $sql = "
-        SELECT *
-        FROM usuarios
-        WHERE nombre_usuario = :usuario
-        LIMIT 1
-    ";
+    /* 3. BUSCAR USUARIO */
+    $sql = "SELECT * FROM usuarios WHERE nombre_usuario = :usuario LIMIT 1";
 
     $stmt = $dbtransportistas->conn->prepare($sql);
     $stmt->bindParam(':usuario', $usuario);
@@ -65,129 +43,80 @@ try {
 
     $usuarioDB = $stmt->fetch(PDO::FETCH_ASSOC);
 
-
-    // Usuario no encontrado.
-    if (!$usuarioDB) {
-
+    if (!$usuarioDB || $clave !== $usuarioDB['contrasena']) {
         echo json_encode([
-            "status"  => "error",
+            "status" => "error",
             "message" => "Usuario o contraseña incorrectos."
         ]);
-
         exit;
     }
 
 
-    /* =====================================================
-       4. VALIDAR CONTRASEÑA
-       ===================================================== */
+    /* 4. ROL */
+    $rolNormalizado = strtoupper(trim($usuarioDB['rol']));
 
-    if ($clave !== $usuarioDB['contrasena']) {
-
-        echo json_encode([
-            "status"  => "error",
-            "message" => "Usuario o contraseña incorrectos."
-        ]);
-
-        exit;
-    }
-
-
-    /* =====================================================
-       5. NORMALIZAR ROL
-       ===================================================== */
-
-    $rolNormalizado = strtoupper(
-        trim($usuarioDB['rol'])
-    );
-
-
-    // Internamente ADMINISTRADOR se manejará como ADMIN.
     if ($rolNormalizado === 'ADMINISTRADOR') {
         $rolNormalizado = 'ADMIN';
     }
 
-
-    // Roles permitidos.
-    $rolesPermitidos = [
-        'ADMIN',
-        'PROPIETARIO',
-        'RRHH'
-    ];
-
-
-    if (!in_array($rolNormalizado, $rolesPermitidos, true)) {
-
+    if (!in_array($rolNormalizado, ['ADMIN', 'PROPIETARIO', 'RRHH'], true)) {
         echo json_encode([
-            "status"  => "error",
+            "status" => "error",
             "message" => "Tu rol no tiene acceso asignado a este sistema."
         ]);
-
         exit;
     }
 
 
-    /* =====================================================
-       6. CREAR SESIÓN
-       ===================================================== */
+    /* 5. NOMBRE COMPLETO */
+    $nombreCompleto = trim(
+        ($usuarioDB['nombres'] ?? '') . ' ' .
+        ($usuarioDB['primer_apellido'] ?? '') . ' ' .
+        ($usuarioDB['segundo_apellido'] ?? '')
+    );
 
-    // Regenerar ID de sesión.
+    // Si todavía no tiene nombre registrado, mostrar el usuario.
+    if ($nombreCompleto === '') {
+        $nombreCompleto = $usuarioDB['nombre_usuario'];
+    }
+
+
+    /* 6. CREAR SESIÓN */
     session_regenerate_id(true);
 
+    $_SESSION['id_usuario'] = (int)$usuarioDB['id_usuario'];
+    $_SESSION['nombre_usuario'] = $usuarioDB['nombre_usuario'];
+    $_SESSION['nombre_completo'] = $nombreCompleto;
+    $_SESSION['rol'] = $rolNormalizado;
 
-    $_SESSION['id_usuario'] =
-        (int)$usuarioDB['id_usuario'];
+    $_SESSION['id_empresa'] = !empty($usuarioDB['id_empresa'])
+        ? (int)$usuarioDB['id_empresa']
+        : null;
 
-
-    $_SESSION['nombre_usuario'] =
-        $usuarioDB['nombre_usuario'];
-
-
-    $_SESSION['rol'] =
-        $rolNormalizado;
-
-
-    // Empresa principal del usuario.
-    $_SESSION['id_empresa'] =
-        !empty($usuarioDB['id_empresa'])
-            ? (int)$usuarioDB['id_empresa']
-            : null;
+    $_SESSION['multiempresa'] = isset($usuarioDB['multiempresa'])
+        ? (int)$usuarioDB['multiempresa']
+        : 0;
 
 
-    /*
-       multiempresa se utilizará principalmente
-       para usuarios PROPIETARIO.
-
-       0 = una empresa
-       1 = varias empresas
-    */
-    $_SESSION['multiempresa'] =
-        isset($usuarioDB['multiempresa'])
-            ? (int)$usuarioDB['multiempresa']
-            : 0;
-
-
-    /* =====================================================
-       7. RESPUESTA AL JAVASCRIPT
-       ===================================================== */
-
+    /* 7. RESPUESTA */
     echo json_encode([
-        "status"       => "success",
-        "message"      => "Inicio de sesión correcto.",
-        "rol"          => $_SESSION['rol'],
-        "id_empresa"   => $_SESSION['id_empresa'],
+        "status" => "success",
+        "message" => "Inicio de sesión correcto.",
+        "nombre_completo" => $_SESSION['nombre_completo'],
+        "rol" => $_SESSION['rol'],
+        "id_empresa" => $_SESSION['id_empresa'],
         "multiempresa" => $_SESSION['multiempresa']
     ]);
 
     exit;
 
-
 } catch (Throwable $e) {
 
     echo json_encode([
-        "status"  => "error",
+        "status" => "error",
         "message" => "Error interno del servidor."
     ]);
 
     exit;
 }
+?>
