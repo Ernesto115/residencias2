@@ -1974,9 +1974,393 @@ const cerrarModalEmpresa = () => cerrarModal('empresa');
 const abrirModalUsuario = () => abrirModal('usuario');
 const cerrarModalUsuario = () => cerrarModal('usuario');
 
-const abrirModalReporte = () => abrirModal('reporte');
-const cerrarModalReporte = () => cerrarModal('reporte');
+function abrirModalReporte() {
+    const modal = document.getElementById('modalReporte');
 
+    if (!modal) {
+        console.error('No se encontró modalReporte');
+        return;
+    }
+
+    modal.classList.add('active', 'show', 'open');
+    modal.style.display = 'flex';
+}
+
+function cerrarModalReporte() {
+    const modal = document.getElementById('modalReporte');
+
+    if (!modal) return;
+
+    modal.classList.remove('active', 'show', 'open');
+    modal.style.display = 'none';
+}
+
+/* =========================================================
+   REVISIÓN DE BAJA POR PROPIETARIO
+   ========================================================= */
+
+function abrirRevisionBaja(
+    idReporte,
+    operador,
+    empresa,
+    motivo
+) {
+
+    const modal =
+        document.getElementById(
+            'modalRevisionBaja'
+        );
+
+    if (!modal) {
+
+        console.error(
+            'No se encontró el modal de revisión de baja.'
+        );
+
+        return;
+    }
+
+
+    /* ID DEL REPORTE */
+    const inputId =
+        document.getElementById(
+            'revision_id_reporte'
+        );
+
+    if (inputId) {
+        inputId.value = idReporte;
+    }
+
+
+    /* OPERADOR */
+    const txtOperador =
+        document.getElementById(
+            'revision_operador'
+        );
+
+    if (txtOperador) {
+        txtOperador.value = operador;
+    }
+
+
+    /* EMPRESA */
+    const txtEmpresa =
+        document.getElementById(
+            'revision_empresa'
+        );
+
+    if (txtEmpresa) {
+        txtEmpresa.value = empresa;
+    }
+
+
+    /* MOTIVO */
+    const txtMotivo =
+        document.getElementById(
+            'revision_motivo'
+        );
+
+    if (txtMotivo) {
+        txtMotivo.value = motivo;
+    }
+
+
+    /* REINICIAR CALIFICACIÓN */
+    const inputCalificacion =
+        document.getElementById(
+            'calificacion_cuantitativa'
+        );
+
+    if (inputCalificacion) {
+        inputCalificacion.value = '';
+    }
+
+
+    /* QUITAR BOTÓN ACTIVO */
+    modal
+        .querySelectorAll('.rating-btn')
+        .forEach(btn => {
+
+            btn.classList.remove('active');
+
+        });
+
+
+    /* LIMPIAR COMENTARIO */
+    const comentario =
+        document.getElementById(
+            'comentario_propietario'
+        );
+
+    if (comentario) {
+        comentario.value = '';
+    }
+
+
+    /* ABRIR MODAL */
+    modal.classList.add(
+        'active',
+        'show',
+        'open'
+    );
+
+    modal.style.display = 'flex';
+}
+
+
+/* =========================================================
+   CERRAR REVISIÓN
+   ========================================================= */
+
+function cerrarRevisionBaja() {
+
+    const modal =
+        document.getElementById(
+            'modalRevisionBaja'
+        );
+
+    if (!modal) {
+        return;
+    }
+
+
+    modal.classList.remove(
+        'active',
+        'show',
+        'open'
+    );
+
+    modal.style.display = 'none';
+}
+
+
+/* =========================================================
+   CONFIRMAR BAJA DEL OPERADOR
+   ========================================================= */
+
+function confirmarBaja() {
+
+    const idReporte =
+        document.getElementById(
+            'revision_id_reporte'
+        ).value;
+
+    const calificacion =
+        document.getElementById(
+            'calificacion_cuantitativa'
+        ).value;
+
+    const modal =
+        document.getElementById(
+            'modalRevisionBaja'
+        );
+
+
+    /* VALIDAR CALIFICACIÓN */
+    if (!calificacion) {
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Falta la calificación',
+            text: 'Selecciona una calificación del 1 al 10.',
+            confirmButtonText: 'Entendido',
+            background: '#1e293b',
+            color: '#ffffff'
+        });
+
+        return;
+    }
+
+
+    /* FUNCIÓN PARA VOLVER A ABRIR EL MODAL */
+    const reabrirModal = () => {
+
+        modal.classList.add(
+            'active',
+            'show',
+            'open'
+        );
+
+        modal.style.display = 'flex';
+    };
+
+
+    /* CERRAMOS EL MODAL AUTOMÁTICAMENTE */
+    cerrarRevisionBaja();
+
+
+    /* CONFIRMACIÓN */
+    Swal.fire({
+        icon: 'warning',
+        title: '¿Confirmar baja?',
+        text: 'El operador será marcado como inactivo y la baja quedará finalizada.',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, confirmar baja',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#475569',
+        background: '#1e293b',
+        color: '#ffffff',
+        reverseButtons: true
+
+    }).then(resultado => {
+
+        /* SI CANCELA, REABRIR EL MODAL */
+        if (!resultado.isConfirmed) {
+
+            reabrirModal();
+
+            return;
+        }
+
+
+        const datos = new FormData();
+
+        datos.append(
+            'id_reporte',
+            idReporte
+        );
+
+        datos.append(
+            'calificacion_cuantitativa',
+            calificacion
+        );
+
+
+        fetch('/reporte_baja/finalizar.php', {
+            method: 'POST',
+            body: datos
+        })
+
+        .then(response => response.json())
+
+        .then(data => {
+
+            /* ERROR */
+            if (!data.ok) {
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No se pudo confirmar',
+                    text: data.mensaje,
+                    confirmButtonText: 'Entendido',
+                    background: '#1e293b',
+                    color: '#ffffff'
+                }).then(() => {
+
+                    reabrirModal();
+
+                });
+
+                return;
+            }
+
+
+            /* =============================================
+               ACTUALIZAR TABLA SIN RECARGAR PÁGINA
+               ============================================= */
+
+            const celdaEstado =
+                document.getElementById(
+                    'estado-reporte-' + idReporte
+                );
+
+            const celdaCalificacion =
+                document.getElementById(
+                    'calificacion-reporte-' + idReporte
+                );
+
+            const celdaAccion =
+                document.getElementById(
+                    'accion-reporte-' + idReporte
+                );
+
+
+            if (celdaEstado) {
+
+                celdaEstado.innerHTML = `
+                    <span style="
+                        border:1px solid #10b981;
+                        color:#34d399;
+                        padding:5px 12px;
+                        border-radius:20px;
+                        font-weight:bold;
+                    ">
+                        ✅ COMPLETADA
+                    </span>
+                `;
+            }
+
+
+            if (celdaCalificacion) {
+
+                let color =
+                    calificacion <= 3 ? '#ff6b6b' :
+                    calificacion <= 5 ? '#ffa502' :
+                    calificacion <= 7 ? '#eccc68' :
+                    '#2ed573';
+
+                celdaCalificacion.innerHTML = `
+                    <span style="
+                        border:1px solid ${color};
+                        color:${color};
+                        padding:4px 12px;
+                        border-radius:20px;
+                        font-weight:bold;
+                    ">
+                        ⭐ ${calificacion} / 10
+                    </span>
+                `;
+            }
+
+
+            if (celdaAccion) {
+
+                celdaAccion.innerHTML = `
+                    <span style="
+                        color:#34d399;
+                        font-weight:600;
+                    ">
+                        ✅ Baja finalizada
+                    </span>
+                `;
+            }
+
+
+            /* MENSAJE FINAL */
+            Swal.fire({
+                icon: 'success',
+                title: 'Baja completada',
+                text: data.mensaje,
+                confirmButtonText: 'Aceptar',
+                confirmButtonColor: '#16a34a',
+                background: '#1e293b',
+                color: '#ffffff'
+            });
+
+        })
+
+        .catch(error => {
+
+            console.error(error);
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Ocurrió un error al procesar la baja.',
+                confirmButtonText: 'Entendido',
+                background: '#1e293b',
+                color: '#ffffff'
+            }).then(() => {
+
+                reabrirModal();
+
+            });
+
+        });
+
+    });
+}
 
 // Cierra el modal del operador al hacer clic afuera.
 window.addEventListener(
@@ -2524,37 +2908,33 @@ function eliminarOperador(id, estatus) {
 
 // Selecciona una calificación del 1 al 10.
 function seleccionarCalificacion(valor, elemento) {
-    const inputHidden =
+
+    document.getElementById(
+        'calificacion_cuantitativa'
+    ).value = valor;
+
+    document
+        .querySelectorAll('#modalRevisionBaja .rating-btn')
+        .forEach(btn => {
+            btn.classList.remove('active');
+            btn.textContent = btn.dataset.value;
+        });
+
+    elemento.classList.add('active');
+    elemento.textContent = '✓ ' + valor;
+
+    const texto =
         document.getElementById(
-            'calificacion_cuantitativa'
+            'calificacionSeleccionada'
         );
 
-
-    if (inputHidden) {
-        inputHidden.value = valor;
+    if (texto) {
+        texto.textContent =
+            'Calificación seleccionada: ' +
+            valor +
+            ' / 10';
     }
-
-
-    const botones =
-        elemento.parentElement
-            .querySelectorAll(
-                '.rating-btn'
-            );
-
-
-    botones.forEach(btn =>
-        btn.classList.remove(
-            'active'
-        )
-    );
-
-
-    elemento.classList.add(
-        'active'
-    );
 }
-
-
 // Carga la calificación cuando se edita un reporte.
 function cargarDatosEnFormulario(data) {
 

@@ -1811,3 +1811,11 @@ textarea:focus {
         display: none;
     }
 }
+
+#modalRevisionBaja .rating-btn.active {
+    border: 2px solid #22c55e;
+    background: #16a34a;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.20);
+}
