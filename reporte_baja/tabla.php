@@ -219,22 +219,22 @@ $motivosTexto = [
                                                     <?= $jsEmpresa ?>,
                                                     <?= $jsMotivo ?>
                                                 )">
-
                                             ⭐ Revisar y Calificar
-
                                         </button>
 
                                     <?php endif; ?>
 
+
                                 <?php elseif ($estatus === 'COMPLETADA'): ?>
 
-                                    <span style="
-                                        color:#34d399;
-                                        font-weight:600;
-                                        font-size:.85rem;
-                                    ">
-                                        ✅ Baja finalizada
-                                    </span>
+                                    <button type="button"
+                                            class="btn-action btn-edit"
+                                            onclick="window.open(
+                                                '/reporte_baja/constancia.php?id=<?= $id_reporte ?>',
+                                                '_blank'
+                                            )">
+                                        📄 Constancia Laboral
+                                    </button>
 
                                 <?php endif; ?>
 
@@ -251,9 +251,7 @@ $motivosTexto = [
                 <tr>
                     <td colspan="<?= $esRRHH ? 4 : 6 ?>"
                         class="text-center">
-
                         No hay reportes de baja registrados.
-
                     </td>
                 </tr>
 

@@ -1819,3 +1819,183 @@ textarea:focus {
     transform: translateY(-2px);
     box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.20);
 }
+
+/* =========================================================
+   CONSTANCIA LABORAL
+   ========================================================= */
+
+.pagina-constancia {
+    font-family: Arial, sans-serif;
+    background: #e9e9e9;
+    margin: 0;
+    padding: 35px;
+    color: #222;
+}
+
+.constancia-documento {
+    width: 800px;
+    min-height: 950px;
+    margin: auto;
+    background: #fff;
+    padding: 70px;
+    box-sizing: border-box;
+}
+
+.constancia-encabezado {
+    text-align: center;
+    margin-bottom: 60px;
+}
+
+.constancia-encabezado h1 {
+    margin: 0;
+    font-size: 27px;
+}
+
+.constancia-encabezado p {
+    color: #555;
+}
+
+.constancia-titulo {
+    text-align: center;
+    font-size: 24px;
+    margin-bottom: 45px;
+}
+
+.constancia-texto {
+    font-size: 17px;
+    line-height: 1.9;
+    text-align: justify;
+}
+
+.constancia-fecha {
+    text-align: right;
+    margin-top: 50px;
+}
+
+.constancia-firma {
+    text-align: center;
+    margin-top: 120px;
+}
+
+.constancia-linea-firma {
+    width: 320px;
+    border-top: 1px solid #222;
+    margin: auto;
+    padding-top: 10px;
+}
+
+.constancia-acciones {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.btn-constancia {
+    background: #e11d48;
+    color: #fff;
+    border: 0;
+    padding: 12px 22px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.btn-constancia:hover {
+    opacity: .9;
+}
+
+
+/* =========================================================
+   IMPRESIÓN / PDF
+   ========================================================= */
+
+@media print {
+
+    .pagina-constancia {
+        background: #fff;
+        padding: 0;
+    }
+
+    .constancia-acciones {
+        display: none;
+    }
+
+    .constancia-documento {
+        width: 100%;
+        margin: 0;
+        padding: 60px;
+    }
+}
+
+/* =========================================================
+   PDF - CONSTANCIA LABORAL
+   ========================================================= */
+
+@page {
+    margin: 35px 45px;
+}
+
+.pdf-body {
+    font-family: DejaVu Sans, Arial, sans-serif;
+    color: #172033;
+    font-size: 13px;
+}
+
+.pdf-marco {
+    border: 2px solid #253858;
+    padding: 35px 45px;
+    min-height: 850px;
+}
+
+.pdf-encabezado {
+    text-align: center;
+    padding-bottom: 18px;
+    border-bottom: 2px solid #253858;
+    line-height: 1.6;
+}
+
+.pdf-empresa {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.pdf-titulo {
+    text-align: center;
+    font-size: 26px;
+    margin: 55px 0 45px;
+}
+
+.pdf-texto {
+    font-size: 16px;
+    line-height: 2;
+    text-align: justify;
+}
+
+.pdf-texto p {
+    margin-bottom: 25px;
+}
+
+.pdf-fecha {
+    text-align: right;
+    margin-top: 45px;
+    font-size: 14px;
+}
+
+.pdf-firma {
+    text-align: center;
+    margin-top: 110px;
+    font-size: 14px;
+}
+
+.pdf-linea {
+    width: 330px;
+    margin: 0 auto 10px;
+    border-top: 1px solid #172033;
+}
+
+.pdf-pie {
+    text-align: center;
+    margin-top: 90px;
+    font-size: 10px;
+    color: #6b7280;
+}
