@@ -90,7 +90,8 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
 
     <div class="modal-body-scroll">
 
-    <form id="frm" class="form-grid" action="javascript:void(0);"
+    <form id="frm" class="form-grid"
+          action="javascript:void(0);"
           enctype="multipart/form-data"
           onsubmit="guardar('operadores', 'frm', event)">
 
@@ -142,6 +143,7 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
 
             <div class="form-group">
                 <label class="form-label">Estatus del Operador</label>
+
                 <select class="form-control" name="estatus" id="estatus">
                     <option value="1" selected>Activo</option>
                     <option value="0">Inactivo</option>
@@ -172,7 +174,8 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
                 <?php elseif ($empresaFija): ?>
 
                     <input type="text" class="form-control"
-                           value="<?= htmlspecialchars($empresaFija['nombre_empresa']) ?>" readonly>
+                           value="<?= htmlspecialchars($empresaFija['nombre_empresa']) ?>"
+                           readonly>
 
                     <input type="hidden" name="id_empresa" id="id_empresa"
                            value="<?= (int)$empresaFija['id_empresa'] ?>">
@@ -180,16 +183,24 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
                 <?php else: ?>
 
                     <input type="text" class="form-control"
-                           value="No hay una empresa asignada a este usuario" readonly>
+                           value="No hay una empresa asignada a este usuario"
+                           readonly>
 
                 <?php endif; ?>
             </div>
 
 
+            <!-- FECHA BLOQUEADA -->
             <div class="form-group">
                 <label class="form-label">Fecha de Ingreso *</label>
-                <input type="date" class="form-control" name="fecha_ingreso"
-                       id="fecha_ingreso" value="<?= date('Y-m-d') ?>" required>
+
+                <input type="date"
+                       class="form-control"
+                       name="fecha_ingreso"
+                       id="fecha_ingreso"
+                       value="<?= date('Y-m-d') ?>"
+                       readonly
+                       title="La fecha de ingreso es asignada automáticamente por el sistema">
             </div>
 
         </div>
@@ -307,6 +318,7 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
             🇺🇸 Cruce Internacional - (Rellenar si se cuenta con la información)
         </p>
 
+
         <!-- VISA -->
         <div class="form-row">
 
@@ -314,7 +326,8 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
                 <label class="form-label">No. VISA Laser / LPR</label>
                 <input type="text" class="form-control"
                        name="visa" id="visa"
-                       maxlength="20" placeholder="Ej. 12 o 13 dígitos">
+                       maxlength="20"
+                       placeholder="Ej. 12 o 13 dígitos">
             </div>
 
             <div class="form-group">

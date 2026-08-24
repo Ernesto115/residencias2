@@ -1999,3 +1999,14 @@ textarea:focus {
     font-size: 10px;
     color: #6b7280;
 }
+
+/* =========================================================
+   SWEETALERT SOBRE MODALES
+   ========================================================= */
+.swal2-container {
+    z-index: 999999 !important;
+}
+
+.swal2-popup {
+    z-index: 1000000 !important;
+}
