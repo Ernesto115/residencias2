@@ -2160,6 +2160,10 @@ function confirmarBaja() {
         );
 
 
+    /* =====================================================
+       VALIDAR REPORTE
+       ===================================================== */
+
     if (!inputId || !inputId.value) {
 
         Swal.fire({
@@ -2167,8 +2171,9 @@ function confirmarBaja() {
             title: 'Reporte no válido',
             text: 'No fue posible identificar el reporte de baja.',
             confirmButtonText: 'Entendido',
-            background: '#1e293b',
-            color: '#ffffff'
+            customClass: {
+                popup: 'swal-eval-popup'
+            }
         });
 
         return;
@@ -2177,6 +2182,29 @@ function confirmarBaja() {
 
     const idReporte =
         inputId.value;
+
+
+    /* =====================================================
+       DATOS DEL OPERADOR
+       LOS GUARDAMOS ANTES DE CERRAR EL MODAL
+       ===================================================== */
+
+    const operador =
+        document.getElementById(
+            'revision_operador'
+        )?.value || '';
+
+    const empresa =
+        document.getElementById(
+            'revision_empresa'
+        )?.value || '';
+
+    const motivo =
+        modal?.dataset.motivo ||
+        document.getElementById(
+            'revision_motivo'
+        )?.value ||
+        'No especificado';
 
 
     /* =====================================================
@@ -2240,9 +2268,12 @@ function confirmarBaja() {
                 document.getElementById(campo);
 
             const valor =
-                parseInt(input?.value || 0);
+                parseInt(
+                    input?.value || 0
+                );
 
-            valores[campo] = valor;
+            valores[campo] =
+                valor;
 
 
             if (
@@ -2250,6 +2281,7 @@ function confirmarBaja() {
                 valor < config.min ||
                 valor > config.max
             ) {
+
                 faltantes.push(
                     config.nombre
                 );
@@ -2259,7 +2291,7 @@ function confirmarBaja() {
 
 
     /* =====================================================
-       VALIDAR QUE TODA LA EVALUACIÓN ESTÉ COMPLETA
+       VALIDAR EVALUACIÓN COMPLETA
        ===================================================== */
 
     if (faltantes.length > 0) {
@@ -2273,8 +2305,9 @@ function confirmarBaja() {
                 '</strong>',
             confirmButtonText: 'Entendido',
             confirmButtonColor: '#f59e0b',
-            background: '#1e293b',
-            color: '#ffffff'
+            customClass: {
+                popup: 'swal-eval-popup'
+            }
         });
 
         return;
@@ -2282,25 +2315,38 @@ function confirmarBaja() {
 
 
     /* =====================================================
-       PUNTUACIÓN LOCAL SOLO PARA MOSTRARLA EN PANTALLA
-       PHP LA VUELVE A CALCULAR POR SEGURIDAD
+       PUNTUACIÓN LOCAL
+
+       PHP LA VUELVE A CALCULAR POR SEGURIDAD.
        ===================================================== */
 
     const puntuacionLocal = (
+
         (valores.eval_distancia * 2) +
+
         (valores.eval_tiempo * 2) +
+
         (valores.eval_ganancias * 2) +
+
         valores.eval_cuidado_vehiculo +
+
         valores.eval_productividad +
+
         valores.eval_rendimiento +
+
         valores.eval_cuidado_fisico
+
     ) / 7;
 
 
-    /* FUNCIÓN PARA VOLVER A ABRIR EL MODAL */
+    /* =====================================================
+       REABRIR MODAL SI CANCELA O HAY ERROR
+       ===================================================== */
+
     const reabrirModal = () => {
 
-        if (!modal) return;
+        if (!modal)
+            return;
 
         modal.classList.add(
             'active',
@@ -2308,38 +2354,58 @@ function confirmarBaja() {
             'open'
         );
 
-        modal.style.display = 'flex';
+        modal.style.display =
+            'flex';
     };
 
 
-    /* CERRAR MODAL ANTES DE LA CONFIRMACIÓN */
+    /* CERRAR MODAL ANTES DE CONFIRMAR */
     cerrarRevisionBaja();
 
 
     /* =====================================================
-       CONFIRMACIÓN
+       CONFIRMACIÓN FINAL
        ===================================================== */
 
     Swal.fire({
+
         icon: 'warning',
+
         title: '¿Confirmar baja?',
+
         html:
             'Puntuación general: <strong>⭐ ' +
             puntuacionLocal.toFixed(2) +
             ' / 10</strong><br><br>' +
             'El operador será marcado como inactivo y la evaluación quedará finalizada.',
+
         showCancelButton: true,
-        confirmButtonText: 'Sí, confirmar baja',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#475569',
-        background: '#1e293b',
-        color: '#ffffff',
-        reverseButtons: true
+
+        confirmButtonText:
+            'Sí, confirmar baja',
+
+        cancelButtonText:
+            'Cancelar',
+
+        confirmButtonColor:
+            '#dc2626',
+
+        cancelButtonColor:
+            '#475569',
+
+        reverseButtons: true,
+
+        customClass: {
+            popup: 'swal-eval-popup'
+        }
 
     }).then(resultado => {
 
-        /* SI CANCELA, REABRIR EL MODAL */
+
+        /* =================================================
+           CANCELÓ
+           ================================================= */
+
         if (!resultado.isConfirmed) {
 
             reabrirModal();
@@ -2358,6 +2424,7 @@ function confirmarBaja() {
         );
 
 
+        /* ENVIAR LOS 7 CRITERIOS */
         Object.entries(valores).forEach(
             ([campo, valor]) => {
 
@@ -2381,12 +2448,18 @@ function confirmarBaja() {
             }
         )
 
+
+        /* =================================================
+           PROCESAR RESPUESTA
+           ================================================= */
+
         .then(async response => {
 
             const texto =
                 await response.text();
 
             let data;
+
 
             try {
 
@@ -2418,18 +2491,34 @@ function confirmarBaja() {
             return data;
         })
 
+
+        /* =================================================
+           RESPUESTA CORRECTA
+           ================================================= */
+
         .then(data => {
+
 
             /* ERROR CONTROLADO POR PHP */
             if (!data.ok) {
 
                 Swal.fire({
+
                     icon: 'error',
-                    title: 'No se pudo confirmar',
-                    text: data.mensaje,
-                    confirmButtonText: 'Entendido',
-                    background: '#1e293b',
-                    color: '#ffffff'
+
+                    title:
+                        'No se pudo confirmar',
+
+                    text:
+                        data.mensaje,
+
+                    confirmButtonText:
+                        'Entendido',
+
+                    customClass: {
+                        popup: 'swal-eval-popup'
+                    }
+
                 }).then(() => {
 
                     reabrirModal();
@@ -2441,7 +2530,7 @@ function confirmarBaja() {
 
 
             /* =============================================
-               PUNTUACIÓN DEVUELTA POR EL SERVIDOR
+               PUNTUACIÓN DEFINITIVA DEL SERVIDOR
                ============================================= */
 
             const calificacionGeneral =
@@ -2450,8 +2539,29 @@ function confirmarBaja() {
                     puntuacionLocal
                 );
 
+
             const calificacionTexto =
                 calificacionGeneral.toFixed(2);
+
+
+            /* =============================================
+               PROMEDIO DE SERVICIO
+               ============================================= */
+
+            const promedioServicio =
+                Number(
+
+                    data.promedio_servicio ??
+
+                    (
+                        (
+                            valores.eval_distancia +
+                            valores.eval_tiempo +
+                            valores.eval_ganancias
+                        ) / 3
+                    )
+
+                ).toFixed(2);
 
 
             /* =============================================
@@ -2464,11 +2574,6 @@ function confirmarBaja() {
                     idReporte
                 );
 
-            const celdaCalificacion =
-                document.getElementById(
-                    'calificacion-reporte-' +
-                    idReporte
-                );
 
             const celdaAccion =
                 document.getElementById(
@@ -2477,9 +2582,14 @@ function confirmarBaja() {
                 );
 
 
+            /* =============================================
+               ESTADO → COMPLETADA
+               ============================================= */
+
             if (celdaEstado) {
 
                 celdaEstado.innerHTML = `
+
                     <span style="
                         background:rgba(16,185,129,.12);
                         border:1px solid #10b981;
@@ -2489,167 +2599,189 @@ function confirmarBaja() {
                         font-weight:bold;
                         font-size:.82rem;
                     ">
+
                         ✅ COMPLETADA
+
                     </span>
                 `;
             }
 
 
-            if (celdaCalificacion) {
+            /* =============================================
+               ACCIONES
 
-                let color;
+               YA NO ACTUALIZAMOS LA ANTIGUA COLUMNA
+               "CALIFICACIÓN" PORQUE YA NO EXISTE.
+               ============================================= */
 
-                if (calificacionGeneral >= 8) {
+            if (celdaAccion) {
 
-                    color = '#2ed573';
+                celdaAccion.innerHTML = `
 
-                } else if (
-                    calificacionGeneral >= 7
-                ) {
+                    <button
+                        type="button"
+                        class="
+                            btn-action
+                            btn-edit
+                            btn-ver-evaluacion
+                        "
+                    >
+                        📊 Ver Evaluación
+                    </button>
 
-                    color = '#60a5fa';
 
-                } else if (
-                    calificacionGeneral >= 6
-                ) {
+                    <button
+                        type="button"
+                        class="
+                            btn-action
+                            btn-edit
+                            btn-constancia-laboral
+                        "
+                        onclick="
+                            window.open(
+                                '/reporte_baja/constancia.php?id=${idReporte}',
+                                '_blank'
+                            )
+                        "
+                    >
+                        📄 Constancia Laboral
+                    </button>
+                `;
 
-                    color = '#ffa502';
 
-                } else {
+                /* =========================================
+                   DATOS DEL BOTÓN VER EVALUACIÓN
+                   ========================================= */
 
-                    color = '#ff6b6b';
+                const botonEvaluacion =
+                    celdaAccion.querySelector(
+                        '.btn-ver-evaluacion'
+                    );
+
+
+                if (botonEvaluacion) {
+
+
+                    /* ESTE REPORTE YA USA EL NUEVO FORMATO */
+                    botonEvaluacion.dataset.tipo =
+                        'nueva';
+
+
+                    /* INFORMACIÓN GENERAL */
+                    botonEvaluacion.dataset.operador =
+                        operador;
+
+                    botonEvaluacion.dataset.empresa =
+                        empresa;
+
+                    botonEvaluacion.dataset.motivo =
+                        motivo;
+
+
+                    /* RESULTADOS */
+                    botonEvaluacion.dataset.general =
+                        calificacionTexto;
+
+                    botonEvaluacion.dataset.promedio =
+                        promedioServicio;
+
+
+                    /* SERVICIO */
+                    botonEvaluacion.dataset.distancia =
+                        valores.eval_distancia;
+
+                    botonEvaluacion.dataset.tiempo =
+                        valores.eval_tiempo;
+
+                    botonEvaluacion.dataset.ganancias =
+                        valores.eval_ganancias;
+
+
+                    /* DESEMPEÑO */
+                    botonEvaluacion.dataset.cuidado =
+                        valores.eval_cuidado_vehiculo;
+
+                    botonEvaluacion.dataset.productividad =
+                        valores.eval_productividad;
+
+                    botonEvaluacion.dataset.rendimiento =
+                        valores.eval_rendimiento;
+
+                    botonEvaluacion.dataset.fisico =
+                        valores.eval_cuidado_fisico;
+
+
+                    /* ABRIR EVALUACIÓN */
+                    botonEvaluacion.onclick =
+                        function() {
+
+                            verEvaluacionBaja(
+                                this
+                            );
+                        };
                 }
-
-
-                celdaCalificacion.innerHTML = `
-                    <span style="
-                        border:1px solid ${color};
-                        color:${color};
-                        padding:4px 12px;
-                        border-radius:20px;
-                        font-weight:bold;
-                        font-size:.85rem;
-                    ">
-                        ⭐ ${calificacionTexto} / 10
-                    </span>
-                `;
             }
 
 
-            /*
-               CONSERVAR CONSTANCIA LABORAL.
-               Cuando adaptemos tabla.php añadiremos también
-               el botón "Ver Evaluación".
-            */
-           if (celdaAccion) {
+            /* =============================================
+               LIMPIAR EVALUACIÓN
+               ============================================= */
 
-    const operador =
-        document.getElementById('revision_operador')?.value || '';
-
-    const empresa =
-        document.getElementById('revision_empresa')?.value || '';
-
-    const promedioServicio =
-        Number(
-            data.promedio_servicio ??
-            (
-                (
-                    valores.eval_distancia +
-                    valores.eval_tiempo +
-                    valores.eval_ganancias
-                ) / 3
-            )
-        ).toFixed(2);
-
-
-    celdaAccion.innerHTML = `
-        <button
-            type="button"
-            class="btn-action btn-edit btn-ver-evaluacion">
-            📊 Ver Evaluación
-        </button>
-
-        <button
-            type="button"
-            class="btn-action btn-edit"
-            onclick="window.open(
-                '/reporte_baja/constancia.php?id=${idReporte}',
-                '_blank'
-            )">
-            📄 Constancia Laboral
-        </button>
-    `;
-
-
-    const botonEvaluacion =
-        celdaAccion.querySelector('.btn-ver-evaluacion');
-
-
-    if (botonEvaluacion) {
-
-        botonEvaluacion.dataset.operador = operador;
-        botonEvaluacion.dataset.empresa = empresa;
-
-        botonEvaluacion.dataset.general =
-            calificacionTexto;
-
-        botonEvaluacion.dataset.promedio =
-            promedioServicio;
-
-        botonEvaluacion.dataset.distancia =
-            valores.eval_distancia;
-
-        botonEvaluacion.dataset.tiempo =
-            valores.eval_tiempo;
-
-        botonEvaluacion.dataset.ganancias =
-            valores.eval_ganancias;
-
-        botonEvaluacion.dataset.cuidado =
-            valores.eval_cuidado_vehiculo;
-
-        botonEvaluacion.dataset.productividad =
-            valores.eval_productividad;
-
-        botonEvaluacion.dataset.rendimiento =
-            valores.eval_rendimiento;
-
-        botonEvaluacion.dataset.fisico =
-            valores.eval_cuidado_fisico;
-
-
-        botonEvaluacion.onclick = function() {
-            verEvaluacionBaja(this);
-        };
-    }
-}
-
-
-            /* LIMPIAR EVALUACIÓN */
             if (
                 typeof reiniciarEvaluacion ===
                 'function'
             ) {
+
                 reiniciarEvaluacion();
             }
 
 
-            /* MENSAJE FINAL */
+            /* =============================================
+               LIMPIAR MOTIVO TEMPORAL
+               ============================================= */
+
+            if (modal) {
+
+                delete modal.dataset.motivo;
+            }
+
+
+            /* =============================================
+               MENSAJE FINAL
+               ============================================= */
+
             Swal.fire({
+
                 icon: 'success',
-                title: 'Baja completada',
+
+                title:
+                    'Baja completada',
+
                 html:
                     data.mensaje +
-                    '<br><br><strong>⭐ ' +
+                    '<br><br>' +
+                    '<strong>⭐ ' +
                     calificacionTexto +
                     ' / 10</strong>',
-                confirmButtonText: 'Aceptar',
-                confirmButtonColor: '#16a34a',
-                background: '#1e293b',
-                color: '#ffffff'
+
+                confirmButtonText:
+                    'Aceptar',
+
+                confirmButtonColor:
+                    '#16a34a',
+
+                customClass: {
+                    popup: 'swal-eval-popup'
+                }
+
             });
 
         })
+
+
+        /* =================================================
+           ERROR DE RED / SERVIDOR
+           ================================================= */
 
         .catch(error => {
 
@@ -2658,15 +2790,24 @@ function confirmarBaja() {
                 error
             );
 
+
             Swal.fire({
+
                 icon: 'error',
+
                 title: 'Error',
+
                 text:
                     error.message ||
                     'Ocurrió un error al procesar la baja.',
-                confirmButtonText: 'Entendido',
-                background: '#1e293b',
-                color: '#ffffff'
+
+                confirmButtonText:
+                    'Entendido',
+
+                customClass: {
+                    popup: 'swal-eval-popup'
+                }
+
             }).then(() => {
 
                 reabrirModal();
@@ -3712,148 +3853,452 @@ function reiniciarEvaluacion() {
    VER EVALUACIÓN COMPLETADA
    ========================================================= */
 
+/* =========================================================
+   VER EVALUACIÓN COMPLETADA
+   ========================================================= */
+
 function verEvaluacionBaja(boton) {
 
     const d = boton.dataset;
-    const general = Number(d.general) || 0;
-    const promedio = Number(d.promedio) || 0;
-    const resultado = obtenerResultadoGeneral(general);
+
+    const general =
+        Number(d.general) || 0;
+
+    const promedio =
+        Number(d.promedio) || 0;
+
+    const resultado =
+        obtenerResultadoGeneral(general);
+
+
+    /* =====================================================
+       PROTEGER TEXTOS QUE VIENEN DE LA BD
+       ===================================================== */
+
+    const escaparHTML = texto => {
+
+        const div =
+            document.createElement('div');
+
+        div.textContent =
+            texto || '';
+
+        return div.innerHTML;
+    };
+
+
+    const operador =
+        escaparHTML(
+            d.operador || 'Operador no disponible'
+        );
+
+    const empresa =
+        escaparHTML(
+            d.empresa || 'Empresa no disponible'
+        );
+
+    const motivo =
+        escaparHTML(
+            d.motivo || 'No especificado'
+        );
+
+
+    /* =====================================================
+       COLOR DE LOS CRITERIOS
+       ===================================================== */
 
     const claseValor = (valor, max) => {
-        valor = Number(valor) || 0;
 
+        valor =
+            Number(valor) || 0;
+
+
+        /* ESCALA 1 - 5 */
         if (max === 5) {
-            if (valor <= 1) return 'red';
-            if (valor <= 2) return 'orange';
-            if (valor <= 3) return 'yellow';
+
+            if (valor <= 1)
+                return 'red';
+
+            if (valor <= 2)
+                return 'orange';
+
+            if (valor <= 3)
+                return 'yellow';
+
             return 'green';
         }
 
-        if (valor <= 3) return 'red';
-        if (valor <= 5) return 'orange';
-        if (valor <= 7) return 'yellow';
+
+        /* ESCALA 1 - 10 */
+        if (valor <= 3)
+            return 'red';
+
+        if (valor <= 5)
+            return 'orange';
+
+        if (valor <= 7)
+            return 'yellow';
+
         return 'green';
     };
 
-    const fila = (icono, nombre, valor, max) => `
-        <div class="eval-fila">
-            <div class="eval-fila-izq">
-                <span class="eval-fila-icono">${icono}</span>
-                <span>${nombre}</span>
+
+    /* =====================================================
+       FILA DE CRITERIO
+       ===================================================== */
+
+    const fila =
+        (icono, nombre, valor, max) => `
+
+            <div class="eval-fila">
+
+                <div class="eval-fila-izq">
+
+                    <span class="eval-fila-icono">
+                        ${icono}
+                    </span>
+
+                    <span>
+                        ${nombre}
+                    </span>
+
+                </div>
+
+                <span
+                    class="
+                        eval-pill-valor
+                        ${claseValor(valor, max)}
+                    "
+                >
+                    ${valor} / ${max}
+                </span>
+
             </div>
-            <span class="eval-pill-valor ${claseValor(valor, max)}">
-                ${valor} / ${max}
-            </span>
+        `;
+
+
+    /* =====================================================
+       INFORMACIÓN PRINCIPAL
+       ===================================================== */
+
+    const encabezado = `
+
+        <div class="eval-head">
+
+            <h3>
+                📊 Evaluación del Operador
+            </h3>
+
+            <div class="eval-operador">
+                ${operador}
+            </div>
+
+            <div class="eval-empresa">
+                ${empresa}
+            </div>
+
+        </div>
+
+
+        <div class="eval-motivo-box">
+
+            <div class="eval-motivo-icono">
+                📌
+            </div>
+
+            <div class="eval-motivo-info">
+
+                <span class="eval-motivo-label">
+                    Motivo de Baja
+                </span>
+
+                <strong class="eval-motivo-valor">
+                    ${motivo}
+                </strong>
+
+            </div>
+
         </div>
     `;
 
-    /* =========================================
+
+    /* =====================================================
        REPORTE ANTERIOR
-       ========================================= */
+       ===================================================== */
+
     if (d.tipo === 'anterior') {
+
         Swal.fire({
+
             title: '',
+
             width: 760,
+
+            customClass: {
+                popup: 'swal-eval-popup',
+                confirmButton: 'swal-eval-btn'
+            },
+
             html: `
+
                 <div class="eval-vista">
 
-                    <div class="eval-head">
-                        <h3>📊 Evaluación del Operador</h3>
-                        <div class="eval-operador">${d.operador}</div>
-                        <div class="eval-empresa">${d.empresa}</div>
-                    </div>
+                    ${encabezado}
 
-                    <div class="eval-score-grid">
+
+                    <div class="eval-score-grid single">
+
                         <div class="eval-score-card">
-                            <div class="eval-score-label">Puntuación General</div>
-                            <div class="eval-score-value">⭐ ${general.toFixed(2)} / 10</div>
+
+                            <div class="eval-score-label">
+                                Puntuación General
+                            </div>
+
+                            <div class="eval-score-value">
+                                ⭐ ${general.toFixed(2)} / 10
+                            </div>
+
+                            <div class="eval-score-sub">
+                                ${resultado.texto}
+                            </div>
+
                         </div>
+
                     </div>
 
-                    <div class="eval-badge-general ${resultado.clase}">
+
+                    <div
+                        class="
+                            eval-badge-general
+                            ${resultado.clase}
+                        "
+                    >
+
+                        Resultado final:
                         ${resultado.texto}
+
                     </div>
 
-                    <div class="eval-bloque">
-                        <div class="eval-bloque-titulo">ℹ️ Información del Reporte</div>
-                        <div style="text-align:center; color:#cbd5e1; line-height:1.7;">
-                            Este reporte fue evaluado con el formato anterior del sistema.<br>
-                            No existe un desglose de los siete criterios para esta evaluación.
-                        </div>
+
+                    <div class="eval-aviso-antiguo">
+
+                        <strong>
+                            ℹ️ Evaluación de versión anterior
+                        </strong>
+
+                        Este reporte fue evaluado con el
+                        formato anterior del sistema.
+
+                        <br><br>
+
+                        La puntuación general fue conservada,
+                        pero no existe un desglose de los siete
+                        criterios utilizados actualmente.
+
                     </div>
 
                 </div>
             `,
-            confirmButtonText: 'Cerrar',
-            confirmButtonColor: '#e11d48'
+
+            confirmButtonText: 'Cerrar'
         });
+
         return;
     }
 
-    /* =========================================
+
+    /* =====================================================
        REPORTE NUEVO
-       ========================================= */
+       ===================================================== */
+
     Swal.fire({
+
         title: '',
+
         width: 820,
+
+        customClass: {
+            popup: 'swal-eval-popup',
+            confirmButton: 'swal-eval-btn'
+        },
+
         html: `
+
             <div class="eval-vista">
 
-                <div class="eval-head">
-                    <h3>📊 Evaluación del Operador</h3>
-                    <div class="eval-operador">${d.operador}</div>
-                    <div class="eval-empresa">${d.empresa}</div>
-                </div>
+                ${encabezado}
+
+
+                <!-- =========================================
+                     RESUMEN
+                     ========================================= -->
 
                 <div class="eval-score-grid">
+
+
+                    <!-- PUNTUACIÓN GENERAL -->
                     <div class="eval-score-card">
-                        <div class="eval-score-label">Puntuación General</div>
-                        <div class="eval-score-value">⭐ ${general.toFixed(2)} / 10</div>
-                        <div class="eval-score-sub">${resultado.texto}</div>
+
+                        <div class="eval-score-label">
+                            Puntuación General
+                        </div>
+
+                        <div class="eval-score-value">
+                            ⭐ ${general.toFixed(2)} / 10
+                        </div>
+
+                        <div class="eval-score-sub">
+                            ${resultado.texto}
+                        </div>
+
                     </div>
 
+
+                    <!-- PROMEDIO SERVICIO -->
                     <div class="eval-score-card">
-                        <div class="eval-score-label">Promedio de Servicio</div>
-                        <div class="eval-score-value">📊 ${promedio.toFixed(2)} / 5</div>
-                        <div class="eval-score-sub">Base parcial del resultado</div>
+
+                        <div class="eval-score-label">
+                            Promedio de Servicio
+                        </div>
+
+                        <div class="eval-score-value">
+                            📊 ${promedio.toFixed(2)} / 5
+                        </div>
+
+                        <div class="eval-score-sub">
+                            Promedio de 3 criterios
+                        </div>
+
                     </div>
+
                 </div>
 
-                <div class="eval-badge-general ${resultado.clase}">
-                    Resultado final: ${resultado.texto}
+
+                <!-- RESULTADO FINAL -->
+                <div
+                    class="
+                        eval-badge-general
+                        ${resultado.clase}
+                    "
+                >
+
+                    Resultado final:
+                    ${resultado.texto}
+
                 </div>
+
+
+                <!-- =========================================
+                     SERVICIO
+                     ========================================= -->
 
                 <div class="eval-bloque">
-                    <div class="eval-bloque-titulo">📊 Evaluación del Servicio</div>
+
+                    <div class="eval-bloque-titulo">
+                        📊 Evaluación del Servicio
+                    </div>
+
 
                     <div class="eval-lista">
-                        ${fila('🛣️', 'Distancia (KM)', d.distancia, 5)}
-                        ${fila('⏱️', 'Horas de Servicio', d.tiempo, 5)}
-                        ${fila('💰', 'Ganancias', d.ganancias, 5)}
+
+                        ${fila(
+                            '🛣️',
+                            'Distancia (KM)',
+                            d.distancia,
+                            5
+                        )}
+
+                        ${fila(
+                            '⏱️',
+                            'Horas de Servicio',
+                            d.tiempo,
+                            5
+                        )}
+
+                        ${fila(
+                            '💰',
+                            'Ganancias',
+                            d.ganancias,
+                            5
+                        )}
+
                     </div>
+
 
                     <div class="eval-promedio-final">
-                        Promedio de Servicio: ${promedio.toFixed(2)} / 5
+
+                        Promedio de Servicio:
+                        ${promedio.toFixed(2)} / 5
+
                     </div>
+
                 </div>
 
+
+                <!-- =========================================
+                     DESEMPEÑO
+                     ========================================= -->
+
                 <div class="eval-bloque">
-                    <div class="eval-bloque-titulo">🚛 Evaluación de Desempeño</div>
+
+                    <div class="eval-bloque-titulo">
+                        🚛 Evaluación de Desempeño
+                    </div>
+
 
                     <div class="eval-lista">
-                        ${fila('🚛', 'Cuidado del Camión', d.cuidado, 10)}
-                        ${fila('📋', 'Productividad', d.productividad, 10)}
-                        ${fila('⛽', 'Rendimiento de Combustible', d.rendimiento, 10)}
-                        ${fila('🛡️', 'Antidoping / Cuidado Físico', d.fisico, 10)}
+
+                        ${fila(
+                            '🚛',
+                            'Cuidado del Camión',
+                            d.cuidado,
+                            10
+                        )}
+
+                        ${fila(
+                            '📋',
+                            'Productividad',
+                            d.productividad,
+                            10
+                        )}
+
+                        ${fila(
+                            '⛽',
+                            'Rendimiento de Combustible',
+                            d.rendimiento,
+                            10
+                        )}
+
+                        ${fila(
+                            '🛡️',
+                            'Antidoping / Cuidado Físico',
+                            d.fisico,
+                            10
+                        )}
+
                     </div>
+
+                </div>
+
+
+                <!-- EXPLICACIÓN -->
+                <div class="eval-calculo-info">
+
+                    <span>ℹ️</span>
+
+                    <span>
+                        La puntuación general considera los siete
+                        criterios. Los tres criterios de servicio
+                        se convierten proporcionalmente de una
+                        escala de 5 a una escala de 10.
+                    </span>
+
                 </div>
 
             </div>
         `,
-        confirmButtonText: 'Cerrar',
-        confirmButtonColor: '#e11d48',
-        background: '#0f172a',
-        color: '#ffffff'
+
+        confirmButtonText: 'Cerrar'
     });
 }
 // Selecciona una calificación del 1 al 10.
