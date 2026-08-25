@@ -1029,6 +1029,7 @@ function eliminar(id, tb) {
     }
 }
 
+
 /* =========================================================
    8. NOTIFICACIONES
    ========================================================= */
@@ -1995,6 +1996,7 @@ function cerrarModalReporte() {
     modal.style.display = 'none';
 }
 
+
 /* =========================================================
    REVISIÓN DE BAJA POR PROPIETARIO
    ========================================================= */
@@ -2003,7 +2005,7 @@ function abrirRevisionBaja(
     idReporte,
     operador,
     empresa,
-    motivo
+    motivo = ''
 ) {
 
     const modal =
@@ -2054,7 +2056,10 @@ function abrirRevisionBaja(
     }
 
 
-    /* MOTIVO */
+    /*
+       Compatibilidad con el formulario anterior.
+       Si revision_motivo ya no existe, simplemente no hace nada.
+    */
     const txtMotivo =
         document.getElementById(
             'revision_motivo'
@@ -2065,7 +2070,19 @@ function abrirRevisionBaja(
     }
 
 
-    /* REINICIAR CALIFICACIÓN */
+    /* LIMPIAR LA NUEVA EVALUACIÓN */
+    if (
+        typeof reiniciarEvaluacion ===
+        'function'
+    ) {
+        reiniciarEvaluacion();
+    }
+
+
+    /*
+       Compatibilidad temporal con la calificación anterior.
+       No afecta al nuevo formulario si ese campo ya no existe.
+    */
     const inputCalificacion =
         document.getElementById(
             'calificacion_cuantitativa'
@@ -2076,25 +2093,17 @@ function abrirRevisionBaja(
     }
 
 
-    /* QUITAR BOTÓN ACTIVO */
     modal
         .querySelectorAll('.rating-btn')
         .forEach(btn => {
 
             btn.classList.remove('active');
 
+            if (btn.dataset.value) {
+                btn.textContent =
+                    btn.dataset.value;
+            }
         });
-
-
-    /* LIMPIAR COMENTARIO */
-    const comentario =
-        document.getElementById(
-            'comentario_propietario'
-        );
-
-    if (comentario) {
-        comentario.value = '';
-    }
 
 
     /* ABRIR MODAL */
@@ -2140,15 +2149,10 @@ function cerrarRevisionBaja() {
 
 function confirmarBaja() {
 
-    const idReporte =
+    const inputId =
         document.getElementById(
             'revision_id_reporte'
-        ).value;
-
-    const calificacion =
-        document.getElementById(
-            'calificacion_cuantitativa'
-        ).value;
+        );
 
     const modal =
         document.getElementById(
@@ -2156,13 +2160,12 @@ function confirmarBaja() {
         );
 
 
-    /* VALIDAR CALIFICACIÓN */
-    if (!calificacion) {
+    if (!inputId || !inputId.value) {
 
         Swal.fire({
-            icon: 'warning',
-            title: 'Falta la calificación',
-            text: 'Selecciona una calificación del 1 al 10.',
+            icon: 'error',
+            title: 'Reporte no válido',
+            text: 'No fue posible identificar el reporte de baja.',
             confirmButtonText: 'Entendido',
             background: '#1e293b',
             color: '#ffffff'
@@ -2172,8 +2175,132 @@ function confirmarBaja() {
     }
 
 
+    const idReporte =
+        inputId.value;
+
+
+    /* =====================================================
+       OBTENER LAS 7 EVALUACIONES
+       ===================================================== */
+
+    const campos = {
+
+        eval_distancia: {
+            min: 1,
+            max: 5,
+            nombre: 'Distancia (KM)'
+        },
+
+        eval_tiempo: {
+            min: 1,
+            max: 5,
+            nombre: 'Horas de Servicio'
+        },
+
+        eval_ganancias: {
+            min: 1,
+            max: 5,
+            nombre: 'Ganancias'
+        },
+
+        eval_cuidado_vehiculo: {
+            min: 1,
+            max: 10,
+            nombre: 'Cuidado del Camión'
+        },
+
+        eval_productividad: {
+            min: 1,
+            max: 10,
+            nombre: 'Productividad'
+        },
+
+        eval_rendimiento: {
+            min: 1,
+            max: 10,
+            nombre: 'Rendimiento de Combustible'
+        },
+
+        eval_cuidado_fisico: {
+            min: 1,
+            max: 10,
+            nombre: 'Antidoping / Cuidado Físico'
+        }
+    };
+
+
+    const valores = {};
+    const faltantes = [];
+
+
+    Object.entries(campos).forEach(
+        ([campo, config]) => {
+
+            const input =
+                document.getElementById(campo);
+
+            const valor =
+                parseInt(input?.value || 0);
+
+            valores[campo] = valor;
+
+
+            if (
+                !input ||
+                valor < config.min ||
+                valor > config.max
+            ) {
+                faltantes.push(
+                    config.nombre
+                );
+            }
+        }
+    );
+
+
+    /* =====================================================
+       VALIDAR QUE TODA LA EVALUACIÓN ESTÉ COMPLETA
+       ===================================================== */
+
+    if (faltantes.length > 0) {
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Evaluación incompleta',
+            html:
+                'Falta calificar:<br><strong>' +
+                faltantes.join(', ') +
+                '</strong>',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#f59e0b',
+            background: '#1e293b',
+            color: '#ffffff'
+        });
+
+        return;
+    }
+
+
+    /* =====================================================
+       PUNTUACIÓN LOCAL SOLO PARA MOSTRARLA EN PANTALLA
+       PHP LA VUELVE A CALCULAR POR SEGURIDAD
+       ===================================================== */
+
+    const puntuacionLocal = (
+        (valores.eval_distancia * 2) +
+        (valores.eval_tiempo * 2) +
+        (valores.eval_ganancias * 2) +
+        valores.eval_cuidado_vehiculo +
+        valores.eval_productividad +
+        valores.eval_rendimiento +
+        valores.eval_cuidado_fisico
+    ) / 7;
+
+
     /* FUNCIÓN PARA VOLVER A ABRIR EL MODAL */
     const reabrirModal = () => {
+
+        if (!modal) return;
 
         modal.classList.add(
             'active',
@@ -2185,15 +2312,22 @@ function confirmarBaja() {
     };
 
 
-    /* CERRAMOS EL MODAL AUTOMÁTICAMENTE */
+    /* CERRAR MODAL ANTES DE LA CONFIRMACIÓN */
     cerrarRevisionBaja();
 
 
-    /* CONFIRMACIÓN */
+    /* =====================================================
+       CONFIRMACIÓN
+       ===================================================== */
+
     Swal.fire({
         icon: 'warning',
         title: '¿Confirmar baja?',
-        text: 'El operador será marcado como inactivo y la baja quedará finalizada.',
+        html:
+            'Puntuación general: <strong>⭐ ' +
+            puntuacionLocal.toFixed(2) +
+            ' / 10</strong><br><br>' +
+            'El operador será marcado como inactivo y la evaluación quedará finalizada.',
         showCancelButton: true,
         confirmButtonText: 'Sí, confirmar baja',
         cancelButtonText: 'Cancelar',
@@ -2214,29 +2348,79 @@ function confirmarBaja() {
         }
 
 
-        const datos = new FormData();
+        const datos =
+            new FormData();
+
 
         datos.append(
             'id_reporte',
             idReporte
         );
 
-        datos.append(
-            'calificacion_cuantitativa',
-            calificacion
+
+        Object.entries(valores).forEach(
+            ([campo, valor]) => {
+
+                datos.append(
+                    campo,
+                    valor
+                );
+            }
         );
 
 
-        fetch('/reporte_baja/finalizar.php', {
-            method: 'POST',
-            body: datos
-        })
+        /* =================================================
+           ENVIAR A FINALIZAR.PHP
+           ================================================= */
 
-        .then(response => response.json())
+        fetch(
+            '/reporte_baja/finalizar.php',
+            {
+                method: 'POST',
+                body: datos
+            }
+        )
+
+        .then(async response => {
+
+            const texto =
+                await response.text();
+
+            let data;
+
+            try {
+
+                data =
+                    JSON.parse(texto);
+
+            } catch (error) {
+
+                console.error(
+                    'Respuesta no válida de finalizar.php:',
+                    texto
+                );
+
+                throw new Error(
+                    'El servidor devolvió una respuesta no válida.'
+                );
+            }
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.mensaje ||
+                    'Error al procesar la baja.'
+                );
+            }
+
+
+            return data;
+        })
 
         .then(data => {
 
-            /* ERROR */
+            /* ERROR CONTROLADO POR PHP */
             if (!data.ok) {
 
                 Swal.fire({
@@ -2257,22 +2441,39 @@ function confirmarBaja() {
 
 
             /* =============================================
-               ACTUALIZAR TABLA SIN RECARGAR PÁGINA
+               PUNTUACIÓN DEVUELTA POR EL SERVIDOR
+               ============================================= */
+
+            const calificacionGeneral =
+                Number(
+                    data.calificacion_general ??
+                    puntuacionLocal
+                );
+
+            const calificacionTexto =
+                calificacionGeneral.toFixed(2);
+
+
+            /* =============================================
+               ACTUALIZAR TABLA SIN RECARGAR
                ============================================= */
 
             const celdaEstado =
                 document.getElementById(
-                    'estado-reporte-' + idReporte
+                    'estado-reporte-' +
+                    idReporte
                 );
 
             const celdaCalificacion =
                 document.getElementById(
-                    'calificacion-reporte-' + idReporte
+                    'calificacion-reporte-' +
+                    idReporte
                 );
 
             const celdaAccion =
                 document.getElementById(
-                    'accion-reporte-' + idReporte
+                    'accion-reporte-' +
+                    idReporte
                 );
 
 
@@ -2280,11 +2481,13 @@ function confirmarBaja() {
 
                 celdaEstado.innerHTML = `
                     <span style="
+                        background:rgba(16,185,129,.12);
                         border:1px solid #10b981;
                         color:#34d399;
                         padding:5px 12px;
                         border-radius:20px;
                         font-weight:bold;
+                        font-size:.82rem;
                     ">
                         ✅ COMPLETADA
                     </span>
@@ -2294,11 +2497,29 @@ function confirmarBaja() {
 
             if (celdaCalificacion) {
 
-                let color =
-                    calificacion <= 3 ? '#ff6b6b' :
-                    calificacion <= 5 ? '#ffa502' :
-                    calificacion <= 7 ? '#eccc68' :
-                    '#2ed573';
+                let color;
+
+                if (calificacionGeneral >= 8) {
+
+                    color = '#2ed573';
+
+                } else if (
+                    calificacionGeneral >= 7
+                ) {
+
+                    color = '#60a5fa';
+
+                } else if (
+                    calificacionGeneral >= 6
+                ) {
+
+                    color = '#ffa502';
+
+                } else {
+
+                    color = '#ff6b6b';
+                }
+
 
                 celdaCalificacion.innerHTML = `
                     <span style="
@@ -2307,23 +2528,109 @@ function confirmarBaja() {
                         padding:4px 12px;
                         border-radius:20px;
                         font-weight:bold;
+                        font-size:.85rem;
                     ">
-                        ⭐ ${calificacion} / 10
+                        ⭐ ${calificacionTexto} / 10
                     </span>
                 `;
             }
 
 
-            if (celdaAccion) {
+            /*
+               CONSERVAR CONSTANCIA LABORAL.
+               Cuando adaptemos tabla.php añadiremos también
+               el botón "Ver Evaluación".
+            */
+           if (celdaAccion) {
 
-                celdaAccion.innerHTML = `
-                    <span style="
-                        color:#34d399;
-                        font-weight:600;
-                    ">
-                        ✅ Baja finalizada
-                    </span>
-                `;
+    const operador =
+        document.getElementById('revision_operador')?.value || '';
+
+    const empresa =
+        document.getElementById('revision_empresa')?.value || '';
+
+    const promedioServicio =
+        Number(
+            data.promedio_servicio ??
+            (
+                (
+                    valores.eval_distancia +
+                    valores.eval_tiempo +
+                    valores.eval_ganancias
+                ) / 3
+            )
+        ).toFixed(2);
+
+
+    celdaAccion.innerHTML = `
+        <button
+            type="button"
+            class="btn-action btn-edit btn-ver-evaluacion">
+            📊 Ver Evaluación
+        </button>
+
+        <button
+            type="button"
+            class="btn-action btn-edit"
+            onclick="window.open(
+                '/reporte_baja/constancia.php?id=${idReporte}',
+                '_blank'
+            )">
+            📄 Constancia Laboral
+        </button>
+    `;
+
+
+    const botonEvaluacion =
+        celdaAccion.querySelector('.btn-ver-evaluacion');
+
+
+    if (botonEvaluacion) {
+
+        botonEvaluacion.dataset.operador = operador;
+        botonEvaluacion.dataset.empresa = empresa;
+
+        botonEvaluacion.dataset.general =
+            calificacionTexto;
+
+        botonEvaluacion.dataset.promedio =
+            promedioServicio;
+
+        botonEvaluacion.dataset.distancia =
+            valores.eval_distancia;
+
+        botonEvaluacion.dataset.tiempo =
+            valores.eval_tiempo;
+
+        botonEvaluacion.dataset.ganancias =
+            valores.eval_ganancias;
+
+        botonEvaluacion.dataset.cuidado =
+            valores.eval_cuidado_vehiculo;
+
+        botonEvaluacion.dataset.productividad =
+            valores.eval_productividad;
+
+        botonEvaluacion.dataset.rendimiento =
+            valores.eval_rendimiento;
+
+        botonEvaluacion.dataset.fisico =
+            valores.eval_cuidado_fisico;
+
+
+        botonEvaluacion.onclick = function() {
+            verEvaluacionBaja(this);
+        };
+    }
+}
+
+
+            /* LIMPIAR EVALUACIÓN */
+            if (
+                typeof reiniciarEvaluacion ===
+                'function'
+            ) {
+                reiniciarEvaluacion();
             }
 
 
@@ -2331,7 +2638,11 @@ function confirmarBaja() {
             Swal.fire({
                 icon: 'success',
                 title: 'Baja completada',
-                text: data.mensaje,
+                html:
+                    data.mensaje +
+                    '<br><br><strong>⭐ ' +
+                    calificacionTexto +
+                    ' / 10</strong>',
                 confirmButtonText: 'Aceptar',
                 confirmButtonColor: '#16a34a',
                 background: '#1e293b',
@@ -2342,12 +2653,17 @@ function confirmarBaja() {
 
         .catch(error => {
 
-            console.error(error);
+            console.error(
+                'Error al confirmar la baja:',
+                error
+            );
 
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: 'Ocurrió un error al procesar la baja.',
+                text:
+                    error.message ||
+                    'Ocurrió un error al procesar la baja.',
                 confirmButtonText: 'Entendido',
                 background: '#1e293b',
                 color: '#ffffff'
@@ -2361,6 +2677,7 @@ function confirmarBaja() {
 
     });
 }
+
 
 // Cierra el modal del operador al hacer clic afuera.
 window.addEventListener(
@@ -2906,39 +3223,761 @@ function eliminarOperador(id, estatus) {
    19. CALIFICACIONES
    ========================================================= */
 
+
+/* =========================================================
+   NUEVA EVALUACIÓN DE 7 CRITERIOS
+   ========================================================= */
+
+
+/* =========================================================
+   COLORES DE EVALUACIÓN
+   ========================================================= */
+
+function obtenerClaseEvaluacion(valor, maximo) {
+
+    valor = Number(valor);
+
+    /* ESCALA 1 - 5 */
+    if (maximo === 5) {
+
+        if (valor === 1) {
+            return 'score-red';
+        }
+
+        if (valor === 2) {
+            return 'score-orange';
+        }
+
+        if (valor === 3) {
+            return 'score-yellow';
+        }
+
+        return 'score-green';
+    }
+
+
+    /* ESCALA 1 - 10 */
+    if (valor <= 3) {
+        return 'score-red';
+    }
+
+    if (valor <= 5) {
+        return 'score-orange';
+    }
+
+    if (valor <= 7) {
+        return 'score-yellow';
+    }
+
+    return 'score-green';
+}
+
+
+
+/* =========================================================
+   RESULTADO GENERAL
+   ========================================================= */
+
+function obtenerResultadoGeneral(puntuacion) {
+
+    puntuacion = Number(puntuacion);
+
+
+    if (puntuacion >= 9) {
+
+        return {
+            clase: 'resumen-green',
+            texto: '⭐ EXCELENTE'
+        };
+    }
+
+
+    if (puntuacion >= 8) {
+
+        return {
+            clase: 'resumen-green',
+            texto: '🟢 MUY BUENO'
+        };
+    }
+
+
+    if (puntuacion >= 7) {
+
+        return {
+            clase: 'resumen-yellow',
+            texto: '🟡 BUENO'
+        };
+    }
+
+
+    if (puntuacion >= 6) {
+
+        return {
+            clase: 'resumen-orange',
+            texto: '🟠 REGULAR'
+        };
+    }
+
+
+    return {
+        clase: 'resumen-red',
+        texto: '🔴 BAJO'
+    };
+}
+
+
+
+/* =========================================================
+   SELECCIONAR EVALUACIÓN
+   ========================================================= */
+
+function seleccionarEvaluacion(campo, valor, boton) {
+
+    const input =
+        document.getElementById(campo);
+
+
+    if (!input) {
+        return;
+    }
+
+
+    /* GUARDAR VALOR */
+    input.value = valor;
+
+
+    /* BOTONES DEL MISMO CRITERIO */
+    const botones =
+        document.querySelectorAll(
+            `.eval-btn[data-campo="${campo}"]`
+        );
+
+
+    /* QUITAR SELECCIÓN ANTERIOR */
+    botones.forEach(btn => {
+
+        btn.classList.remove(
+            'seleccionado',
+            'score-red',
+            'score-orange',
+            'score-yellow',
+            'score-green'
+        );
+    });
+
+
+    /* DETERMINAR COLOR */
+    const clase =
+        obtenerClaseEvaluacion(
+            Number(valor),
+            botones.length
+        );
+
+
+    /* MARCAR BOTÓN */
+    if (boton) {
+
+        boton.classList.add(
+            'seleccionado',
+            clase
+        );
+    }
+
+
+    /* RECALCULAR */
+    calcularEvaluacion();
+}
+
+
+
+/* =========================================================
+   CALCULAR EVALUACIÓN
+   ========================================================= */
+
+function calcularEvaluacion() {
+
+    /* FUNCIÓN PARA OBTENER VALORES */
+    const valor = id =>
+
+        parseInt(
+            document.getElementById(id)?.value
+        ) || 0;
+
+
+    /* SERVICIO */
+    const distancia =
+        valor('eval_distancia');
+
+    const tiempo =
+        valor('eval_tiempo');
+
+    const ganancias =
+        valor('eval_ganancias');
+
+
+    /* DESEMPEÑO */
+    const cuidado =
+        valor('eval_cuidado_vehiculo');
+
+    const productividad =
+        valor('eval_productividad');
+
+    const rendimiento =
+        valor('eval_rendimiento');
+
+    const fisico =
+        valor('eval_cuidado_fisico');
+
+
+    /* ELEMENTOS VISUALES */
+    const promedioVista =
+        document.getElementById(
+            'promedioServicioVista'
+        );
+
+    const puntuacionVista =
+        document.getElementById(
+            'puntuacionGeneral'
+        );
+
+    const clasificacionVista =
+        document.getElementById(
+            'clasificacionGeneral'
+        );
+
+    const resumen =
+        document.querySelector(
+            '#modalRevisionBaja .eval-resumen'
+        );
+
+
+    /* =====================================================
+       PROMEDIO DEL SERVICIO
+       ===================================================== */
+
+    if (
+        distancia > 0 &&
+        tiempo > 0 &&
+        ganancias > 0
+    ) {
+
+        const promedioServicio =
+
+            (
+                distancia +
+                tiempo +
+                ganancias
+            ) / 3;
+
+
+        if (promedioVista) {
+
+            promedioVista.textContent =
+
+                promedioServicio.toFixed(2) +
+                ' / 5';
+        }
+
+    } else {
+
+        if (promedioVista) {
+
+            promedioVista.textContent =
+                '— / 5';
+        }
+    }
+
+
+    /* =====================================================
+       VERIFICAR QUE LOS 7 CRITERIOS ESTÉN COMPLETOS
+       ===================================================== */
+
+    if (
+        distancia === 0 ||
+        tiempo === 0 ||
+        ganancias === 0 ||
+        cuidado === 0 ||
+        productividad === 0 ||
+        rendimiento === 0 ||
+        fisico === 0
+    ) {
+
+        if (puntuacionVista) {
+
+            puntuacionVista.textContent =
+                '— / 10';
+        }
+
+
+        if (clasificacionVista) {
+
+            clasificacionVista.textContent =
+                'Completa la evaluación';
+        }
+
+
+        if (resumen) {
+
+            resumen.classList.remove(
+                'resumen-red',
+                'resumen-orange',
+                'resumen-yellow',
+                'resumen-green'
+            );
+        }
+
+
+        return;
+    }
+
+
+    /* =====================================================
+       PUNTUACIÓN GENERAL
+
+       Los primeros 3 criterios son escala 1-5.
+       Se convierten a escala 1-10 multiplicando por 2.
+
+       Los 7 criterios tienen el mismo peso.
+       ===================================================== */
+
+    const puntuacion = (
+
+        (distancia * 2) +
+        (tiempo * 2) +
+        (ganancias * 2) +
+
+        cuidado +
+        productividad +
+        rendimiento +
+        fisico
+
+    ) / 7;
+
+
+    /* RESULTADO / COLOR */
+    const resultado =
+        obtenerResultadoGeneral(
+            puntuacion
+        );
+
+
+    /* MOSTRAR PUNTUACIÓN */
+    if (puntuacionVista) {
+
+        puntuacionVista.textContent =
+
+            '⭐ ' +
+            puntuacion.toFixed(2) +
+            ' / 10';
+    }
+
+
+    /* MOSTRAR CLASIFICACIÓN */
+    if (clasificacionVista) {
+
+        clasificacionVista.textContent =
+            resultado.texto;
+    }
+
+
+    /* CAMBIAR COLOR DE TARJETA */
+    if (resumen) {
+
+        resumen.classList.remove(
+            'resumen-red',
+            'resumen-orange',
+            'resumen-yellow',
+            'resumen-green'
+        );
+
+
+        resumen.classList.add(
+            resultado.clase
+        );
+    }
+}
+
+
+
+/* =========================================================
+   REINICIAR EVALUACIÓN
+   ========================================================= */
+
+function reiniciarEvaluacion() {
+
+    const campos = [
+
+        'eval_distancia',
+        'eval_tiempo',
+        'eval_ganancias',
+
+        'eval_cuidado_vehiculo',
+        'eval_productividad',
+        'eval_rendimiento',
+        'eval_cuidado_fisico'
+    ];
+
+
+    /* LIMPIAR INPUTS */
+    campos.forEach(campo => {
+
+        const input =
+            document.getElementById(campo);
+
+
+        if (input) {
+
+            input.value = '';
+        }
+    });
+
+
+    /* LIMPIAR BOTONES */
+    document
+        .querySelectorAll(
+            '#modalRevisionBaja .eval-btn'
+        )
+        .forEach(btn => {
+
+            btn.classList.remove(
+                'seleccionado',
+                'score-red',
+                'score-orange',
+                'score-yellow',
+                'score-green'
+            );
+        });
+
+
+    /* RESULTADOS */
+    const promedio =
+        document.getElementById(
+            'promedioServicioVista'
+        );
+
+    const puntuacion =
+        document.getElementById(
+            'puntuacionGeneral'
+        );
+
+    const clasificacion =
+        document.getElementById(
+            'clasificacionGeneral'
+        );
+
+    const resumen =
+        document.querySelector(
+            '#modalRevisionBaja .eval-resumen'
+        );
+
+
+    if (promedio) {
+
+        promedio.textContent =
+            '— / 5';
+    }
+
+
+    if (puntuacion) {
+
+        puntuacion.textContent =
+            '— / 10';
+    }
+
+
+    if (clasificacion) {
+
+        clasificacion.textContent =
+            'Completa la evaluación';
+    }
+
+
+    /* QUITAR COLOR ANTERIOR */
+    if (resumen) {
+
+        resumen.classList.remove(
+            'resumen-red',
+            'resumen-orange',
+            'resumen-yellow',
+            'resumen-green'
+        );
+    }
+}
+
+/* =========================================================
+   VER EVALUACIÓN COMPLETADA
+   ========================================================= */
+
+/* =========================================================
+   VER EVALUACIÓN COMPLETADA
+   ========================================================= */
+
+function verEvaluacionBaja(boton) {
+
+    const d = boton.dataset;
+    const general = Number(d.general) || 0;
+    const promedio = Number(d.promedio) || 0;
+    const resultado = obtenerResultadoGeneral(general);
+
+    const claseValor = (valor, max) => {
+        valor = Number(valor) || 0;
+
+        if (max === 5) {
+            if (valor <= 1) return 'red';
+            if (valor <= 2) return 'orange';
+            if (valor <= 3) return 'yellow';
+            return 'green';
+        }
+
+        if (valor <= 3) return 'red';
+        if (valor <= 5) return 'orange';
+        if (valor <= 7) return 'yellow';
+        return 'green';
+    };
+
+    const fila = (icono, nombre, valor, max) => `
+        <div class="eval-fila">
+            <div class="eval-fila-izq">
+                <span class="eval-fila-icono">${icono}</span>
+                <span>${nombre}</span>
+            </div>
+            <span class="eval-pill-valor ${claseValor(valor, max)}">
+                ${valor} / ${max}
+            </span>
+        </div>
+    `;
+
+    /* =========================================
+       REPORTE ANTERIOR
+       ========================================= */
+    if (d.tipo === 'anterior') {
+        Swal.fire({
+            title: '',
+            width: 760,
+            html: `
+                <div class="eval-vista">
+
+                    <div class="eval-head">
+                        <h3>📊 Evaluación del Operador</h3>
+                        <div class="eval-operador">${d.operador}</div>
+                        <div class="eval-empresa">${d.empresa}</div>
+                    </div>
+
+                    <div class="eval-score-grid">
+                        <div class="eval-score-card">
+                            <div class="eval-score-label">Puntuación General</div>
+                            <div class="eval-score-value">⭐ ${general.toFixed(2)} / 10</div>
+                        </div>
+                    </div>
+
+                    <div class="eval-badge-general ${resultado.clase}">
+                        ${resultado.texto}
+                    </div>
+
+                    <div class="eval-bloque">
+                        <div class="eval-bloque-titulo">ℹ️ Información del Reporte</div>
+                        <div style="text-align:center; color:#cbd5e1; line-height:1.7;">
+                            Este reporte fue evaluado con el formato anterior del sistema.<br>
+                            No existe un desglose de los siete criterios para esta evaluación.
+                        </div>
+                    </div>
+
+                </div>
+            `,
+            confirmButtonText: 'Cerrar',
+            confirmButtonColor: '#e11d48'
+        });
+        return;
+    }
+
+    /* =========================================
+       REPORTE NUEVO
+       ========================================= */
+    Swal.fire({
+        title: '',
+        width: 820,
+        html: `
+            <div class="eval-vista">
+
+                <div class="eval-head">
+                    <h3>📊 Evaluación del Operador</h3>
+                    <div class="eval-operador">${d.operador}</div>
+                    <div class="eval-empresa">${d.empresa}</div>
+                </div>
+
+                <div class="eval-score-grid">
+                    <div class="eval-score-card">
+                        <div class="eval-score-label">Puntuación General</div>
+                        <div class="eval-score-value">⭐ ${general.toFixed(2)} / 10</div>
+                        <div class="eval-score-sub">${resultado.texto}</div>
+                    </div>
+
+                    <div class="eval-score-card">
+                        <div class="eval-score-label">Promedio de Servicio</div>
+                        <div class="eval-score-value">📊 ${promedio.toFixed(2)} / 5</div>
+                        <div class="eval-score-sub">Base parcial del resultado</div>
+                    </div>
+                </div>
+
+                <div class="eval-badge-general ${resultado.clase}">
+                    Resultado final: ${resultado.texto}
+                </div>
+
+                <div class="eval-bloque">
+                    <div class="eval-bloque-titulo">📊 Evaluación del Servicio</div>
+
+                    <div class="eval-lista">
+                        ${fila('🛣️', 'Distancia (KM)', d.distancia, 5)}
+                        ${fila('⏱️', 'Horas de Servicio', d.tiempo, 5)}
+                        ${fila('💰', 'Ganancias', d.ganancias, 5)}
+                    </div>
+
+                    <div class="eval-promedio-final">
+                        Promedio de Servicio: ${promedio.toFixed(2)} / 5
+                    </div>
+                </div>
+
+                <div class="eval-bloque">
+                    <div class="eval-bloque-titulo">🚛 Evaluación de Desempeño</div>
+
+                    <div class="eval-lista">
+                        ${fila('🚛', 'Cuidado del Camión', d.cuidado, 10)}
+                        ${fila('📋', 'Productividad', d.productividad, 10)}
+                        ${fila('⛽', 'Rendimiento de Combustible', d.rendimiento, 10)}
+                        ${fila('🛡️', 'Antidoping / Cuidado Físico', d.fisico, 10)}
+                    </div>
+                </div>
+
+            </div>
+        `,
+        confirmButtonText: 'Cerrar',
+        confirmButtonColor: '#e11d48',
+        background: '#0f172a',
+        color: '#ffffff'
+    });
+}
 // Selecciona una calificación del 1 al 10.
 function seleccionarCalificacion(valor, elemento) {
 
-    document.getElementById(
-        'calificacion_cuantitativa'
-    ).value = valor;
+    /*
+       COMPATIBILIDAD CON EL FORMULARIO ANTERIOR.
+       Se conserva para no romper vistas antiguas mientras
+       terminamos la migración a la evaluación de 7 criterios.
+    */
+
+    const input =
+        document.getElementById(
+            'calificacion_cuantitativa'
+        );
+
+    if (!input) {
+        return;
+    }
+
+    input.value = valor;
 
     document
-        .querySelectorAll('#modalRevisionBaja .rating-btn')
+        .querySelectorAll(
+            '#modalRevisionBaja .rating-btn'
+        )
         .forEach(btn => {
+
             btn.classList.remove('active');
-            btn.textContent = btn.dataset.value;
+
+            if (btn.dataset.value) {
+                btn.textContent =
+                    btn.dataset.value;
+            }
         });
 
-    elemento.classList.add('active');
-    elemento.textContent = '✓ ' + valor;
+
+    if (elemento) {
+
+        elemento.classList.add('active');
+
+        elemento.textContent =
+            '✓ ' + valor;
+    }
+
 
     const texto =
         document.getElementById(
             'calificacionSeleccionada'
         );
 
+
     if (texto) {
+
         texto.textContent =
             'Calificación seleccionada: ' +
             valor +
             ' / 10';
     }
 }
+
+
 // Carga la calificación cuando se edita un reporte.
 function cargarDatosEnFormulario(data) {
 
+    if (!data) return;
+
+
+    /*
+       NUEVA EVALUACIÓN DE 7 CRITERIOS
+    */
+    const camposEvaluacion = [
+        'eval_distancia',
+        'eval_tiempo',
+        'eval_ganancias',
+        'eval_cuidado_vehiculo',
+        'eval_productividad',
+        'eval_rendimiento',
+        'eval_cuidado_fisico'
+    ];
+
+
+    let cargoEvaluacionNueva =
+        false;
+
+
+    camposEvaluacion.forEach(campo => {
+
+        const valor =
+            parseInt(
+                data[campo] || 0
+            );
+
+
+        if (valor <= 0) {
+            return;
+        }
+
+
+        const boton =
+            document.querySelector(
+                `#modalRevisionBaja .eval-btn[data-campo="${campo}"][data-value="${valor}"]`
+            );
+
+
+        if (boton) {
+
+            seleccionarEvaluacion(
+                campo,
+                valor,
+                boton
+            );
+
+            cargoEvaluacionNueva =
+                true;
+        }
+    });
+
+
+    /*
+       COMPATIBILIDAD CON REPORTES / FORMULARIOS ANTIGUOS
+    */
     if (
+        !cargoEvaluacionNueva &&
         data.calificacion_cuantitativa
     ) {
 

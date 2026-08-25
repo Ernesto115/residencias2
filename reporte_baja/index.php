@@ -321,9 +321,21 @@ $sql = "
         rb.id_reporte,
         rb.id_operador,
         rb.id_empresa,
+
         rb.motivo_baja,
         rb.calificacion_cuantitativa,
         rb.calif_cualitativa,
+
+        rb.eval_distancia,
+        rb.eval_tiempo,
+        rb.eval_ganancias,
+        rb.promedio_servicio,
+
+        rb.eval_cuidado_vehiculo,
+        rb.eval_productividad,
+        rb.eval_rendimiento,
+        rb.eval_cuidado_fisico,
+
         rb.fecha_registro,
         rb.fecha_ingreso,
         rb.fecha_baja,
