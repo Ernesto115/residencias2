@@ -2795,3 +2795,482 @@ td[id^="accion-reporte-"] .btn-action {
         font-size: .82rem;
     }
 }
+
+/* =========================================================
+   HISTORIAL DEL OPERADOR
+   ========================================================= */
+
+.historial-operador-modal {
+    width: 95% !important;
+    max-width: 850px !important;
+    max-height: 90vh !important;
+    padding: 0 !important;
+    overflow-y: auto !important;
+
+    background: var(--modal-bg);
+    color: var(--modal-text);
+
+    border: 1px solid var(--modal-card-border);
+    border-radius: 16px !important;
+}
+
+
+/* CABECERA DEL MODAL */
+.historial-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 18px 22px;
+
+    background: var(--modal-bg);
+    border-bottom: 1px solid var(--modal-card-border);
+
+    text-align: left;
+}
+
+.historial-modal-header h3 {
+    margin: 0;
+    color: var(--modal-text);
+    font-size: 1.15rem;
+}
+
+.historial-modal-header p {
+    margin: 4px 0 0;
+    color: var(--modal-text-muted);
+    font-size: .8rem;
+}
+
+.historial-modal-cerrar {
+    width: 38px;
+    height: 38px;
+
+    border: 1px solid var(--modal-card-border);
+    border-radius: 8px;
+
+    background: transparent;
+    color: var(--modal-text-muted);
+
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.historial-modal-cerrar:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+
+/* CONTENIDO */
+#contenidoHistorialOperador {
+    padding: 22px;
+}
+
+
+/* PERFIL */
+.historial-perfil {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+
+    padding: 18px;
+    margin-bottom: 22px;
+
+    background: var(--modal-card-bg);
+    border: 1px solid var(--modal-card-border);
+    border-radius: 12px;
+
+    text-align: left;
+}
+
+.historial-perfil small,
+.historial-card small,
+.historial-actual small,
+.historial-evaluacion small {
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: var(--modal-text-muted);
+    font-size: .7rem;
+    font-weight: 700;
+
+    text-transform: uppercase;
+}
+
+.historial-perfil h3 {
+    margin: 0 0 4px;
+    color: var(--modal-text);
+}
+
+.historial-perfil p {
+    margin: 0;
+    color: var(--modal-text-muted);
+}
+
+
+/* ESTADO */
+.historial-badge {
+    padding: 6px 11px;
+    border-radius: 20px;
+
+    font-size: .72rem;
+    font-weight: 800;
+}
+
+.historial-badge.activo {
+    color: #10b981;
+    background: rgba(16,185,129,.10);
+}
+
+.historial-badge.inactivo {
+    color: var(--modal-text-muted);
+    background: rgba(100,116,139,.12);
+}
+
+.texto-activo {
+    color: #10b981 !important;
+}
+
+.texto-inactivo {
+    color: var(--modal-text-muted) !important;
+}
+
+
+/* TÍTULOS */
+.historial-titulo {
+    margin: 22px 0 10px;
+
+    color: var(--modal-text);
+    font-size: .92rem;
+
+    text-align: left;
+}
+
+.historial-encabezado {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    color: var(--modal-text-muted);
+    font-size: .8rem;
+}
+
+
+/* SITUACIÓN ACTUAL */
+.historial-actual {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr .7fr;
+
+    background: var(--modal-card-bg);
+
+    border: 1px solid var(--modal-card-border);
+    border-radius: 12px;
+
+    overflow: hidden;
+}
+
+.historial-actual > div {
+    padding: 16px;
+    text-align: left;
+}
+
+.historial-actual > div + div {
+    border-left: 1px solid var(--modal-card-border);
+}
+
+
+/* LISTA DE BAJAS */
+.historial-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+
+/* TARJETA */
+.historial-card {
+    overflow: hidden;
+
+    background: var(--modal-card-bg);
+
+    border: 1px solid var(--modal-card-border);
+    border-radius: 12px;
+}
+
+.historial-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+
+    padding: 15px 17px;
+
+    border-bottom: 1px solid var(--modal-card-border);
+
+    text-align: left;
+}
+
+
+/* ESTADO DE BAJA */
+.historial-estado {
+    padding: 5px 9px;
+
+    border-radius: 20px;
+
+    font-size: .68rem;
+    font-weight: 800;
+}
+
+.historial-estado.completado {
+    color: #10b981;
+    background: rgba(16,185,129,.10);
+}
+
+.historial-estado.pendiente {
+    color: #f59e0b;
+    background: rgba(245,158,11,.10);
+}
+
+
+/* DATOS */
+.historial-card-datos,
+.historial-evaluacion {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.historial-card-datos > div,
+.historial-evaluacion > div {
+    padding: 14px 17px;
+    text-align: left;
+}
+
+.historial-motivo {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--modal-card-border);
+}
+
+.historial-evaluacion {
+    border-top: 1px solid var(--modal-card-border);
+}
+
+
+/* ACCIONES */
+.historial-acciones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 9px;
+
+    padding: 13px 17px;
+
+    border-top: 1px solid var(--modal-card-border);
+}
+
+
+/* SIN REPORTES */
+.historial-vacio {
+    padding: 28px;
+
+    background: var(--modal-card-bg);
+
+    border: 1px dashed var(--modal-card-border);
+    border-radius: 12px;
+
+    color: var(--modal-text-muted);
+
+    text-align: center;
+}
+
+.historial-vacio p {
+    margin: 6px 0 0;
+}
+
+
+/* RESPONSIVE */
+@media (max-width: 650px) {
+
+    .historial-actual,
+    .historial-card-datos,
+    .historial-evaluacion {
+        grid-template-columns: 1fr;
+    }
+
+    .historial-actual > div + div {
+        border-left: none;
+        border-top: 1px solid var(--modal-card-border);
+    }
+
+    .historial-motivo {
+        grid-column: auto;
+    }
+
+    .historial-card-head,
+    .historial-perfil {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .historial-acciones {
+        flex-direction: column;
+    }
+
+    .historial-acciones .btn-action {
+        width: 100%;
+    }
+}
+
+/* =========================================================
+   BOTÓN HISTORIAL - OPERADORES
+   ========================================================= */
+
+.btn-historial {
+    position: relative;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 7px;
+
+    min-width: 125px;
+    min-height: 40px;
+
+    padding: 8px 15px;
+
+    background: var(--modal-card-bg) !important;
+    color: var(--texto-principal) !important;
+
+    border: 1px solid var(--modal-card-border) !important;
+    border-radius: 10px !important;
+
+    font-size: .82rem;
+    font-weight: 750;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 2px 6px rgba(15, 23, 42, .06);
+
+    transition:
+        transform .2s ease,
+        background-color .2s ease,
+        border-color .2s ease,
+        color .2s ease,
+        box-shadow .2s ease;
+}
+
+
+/* PEQUEÑO ACENTO LATERAL */
+.btn-historial::before {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    top: 7px;
+    bottom: 7px;
+
+    width: 3px;
+
+    background: var(--accent-color);
+
+    border-radius: 0 4px 4px 0;
+
+    transition:
+        top .2s ease,
+        bottom .2s ease;
+}
+
+
+/* HOVER */
+.btn-historial:hover {
+    background: var(--accent-glow) !important;
+
+    border-color: var(--accent-color) !important;
+
+    color: var(--accent-color) !important;
+
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 6px 15px rgba(15, 23, 42, .10);
+}
+
+
+.btn-historial:hover::before {
+    top: 0;
+    bottom: 0;
+}
+
+
+/* AL PRESIONAR */
+.btn-historial:active {
+    transform: translateY(0);
+}
+
+
+/* DARK MODE */
+[data-theme="dark"] .btn-historial {
+    box-shadow:
+        0 3px 8px rgba(0, 0, 0, .15);
+}
+
+[data-theme="dark"] .btn-historial:hover {
+    background: var(--accent-glow) !important;
+
+    box-shadow:
+        0 6px 16px rgba(0, 0, 0, .22);
+}
+
+/* =========================================================
+   OPERADORES INACTIVOS
+   ========================================================= */
+
+#tablaOperadores tbody tr[data-estatus="inactivos"] td {
+    background: rgba(100, 116, 139, .05) !important;
+    color: var(--texto-secundario) !important;
+}
+
+/* RFC, nombre y empresa más discretos */
+#tablaOperadores tbody tr[data-estatus="inactivos"] .cell-rfc,
+#tablaOperadores tbody tr[data-estatus="inactivos"] .cell-nombre {
+    color: var(--texto-secundario) !important;
+}
+
+/* Hover suave, sin recuperar el color de activo */
+#tablaOperadores tbody tr[data-estatus="inactivos"]:hover td {
+    background: rgba(100, 116, 139, .10) !important;
+}
+
+/* Dark mode */
+[data-theme="dark"]
+#tablaOperadores tbody tr[data-estatus="inactivos"] td {
+    background: rgba(148, 163, 184, .035) !important;
+}
+
+[data-theme="dark"]
+#tablaOperadores tbody tr[data-estatus="inactivos"]:hover td {
+    background: rgba(148, 163, 184, .07) !important;
+}
+
+/* ACCIONES DESHABILITADAS - OPERADORES */
+#tablaOperadores .btn-op-disabled {
+    background: rgba(100, 116, 139, .14) !important;
+    color: #94a3b8 !important;
+    border-color: rgba(100, 116, 139, .30) !important;
+    box-shadow: none !important;
+    opacity: .75 !important;
+    filter: grayscale(100%);
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+#tablaOperadores .btn-op-disabled:hover {
+    background: rgba(100, 116, 139, .14) !important;
+    color: #94a3b8 !important;
+    border-color: rgba(100, 116, 139, .30) !important;
+    box-shadow: none !important;
+    transform: none !important;
+}

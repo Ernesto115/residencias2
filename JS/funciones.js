@@ -3030,6 +3030,98 @@ function cerrarModalDetalles(id) {
 }
 
 
+/* =========================================================
+   HISTORIAL DEL OPERADOR
+   ========================================================= */
+
+function abrirHistorialOperador(idOperador) {
+
+    const modal =
+        document.getElementById(
+            'modalHistorialOperador'
+        );
+
+    const contenido =
+        document.getElementById(
+            'contenidoHistorialOperador'
+        );
+
+
+    if (!modal || !contenido)
+        return;
+
+
+    /* MOSTRAR MODAL */
+    modal.style.display = 'flex';
+
+
+    /* CARGANDO */
+    contenido.innerHTML = `
+        <div style="
+            text-align:center;
+            padding:35px 15px;
+            color:var(--texto-secundario);
+        ">
+            ⏳ Cargando historial...
+        </div>
+    `;
+
+
+    /* OBTENER HISTORIAL */
+    fetch(
+        '/operadores/historial.php?id_operador=' +
+        encodeURIComponent(idOperador)
+    )
+
+    .then(response => {
+
+        if (!response.ok) {
+            throw new Error(
+                'No fue posible cargar el historial.'
+            );
+        }
+
+        return response.text();
+    })
+
+    .then(html => {
+
+        contenido.innerHTML = html;
+
+    })
+
+    .catch(error => {
+
+        console.error(
+            'Error al cargar historial:',
+            error
+        );
+
+        contenido.innerHTML = `
+            <div style="
+                text-align:center;
+                padding:30px;
+                color:#ef4444;
+            ">
+                ❌ ${error.message}
+            </div>
+        `;
+    });
+}
+
+
+function cerrarHistorialOperador() {
+
+    const modal =
+        document.getElementById(
+            'modalHistorialOperador'
+        );
+
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 
 /* =========================================================
    16. BÚSQUEDA DE OPERADORES
