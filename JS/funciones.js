@@ -5059,3 +5059,39 @@ function cargarSidebar() {
         )
     );
 }
+
+/* =========================================================
+   FILTROS - REPORTES DE BAJA
+   ========================================================= */
+
+let timerReportes;
+
+function cargarReportes(pagina = 1, estatus = 'todos', busqueda = '') {
+
+    const url = `/reporte_baja/index.php?pagina=${pagina}&estatus=${encodeURIComponent(estatus)}&busqueda=${encodeURIComponent(busqueda)}`;
+
+    fetch(url)
+        .then(r => r.text())
+        .then(html => {
+
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nuevo = doc.querySelector('#contenedor3');
+            const actual = document.querySelector('.modulo-reportes #contenedor3');
+
+            if (nuevo && actual) {
+                actual.innerHTML = nuevo.innerHTML;
+            }
+
+        })
+        .catch(error => console.error('Error al cargar reportes:', error));
+}
+
+
+function buscarReportes(valor, estatus = 'todos') {
+
+    clearTimeout(timerReportes);
+
+    timerReportes = setTimeout(() => {
+        cargarReportes(1, estatus, valor);
+    }, 350);
+}
