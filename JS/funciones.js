@@ -1409,80 +1409,52 @@ function cargarTablaPaginada(urlParams) {
 let estatusActivoOperadores = 'TODOS';
 
 
-// Cambia la página de operadores.
+// Cargar operadores desde la base de datos  y de operadores para ser especificos
 function cambiarPagina(
     numPagina,
-    estatus = estatusActivoOperadores
+    estatus = estatusActivoOperadores,
+    busqueda = null
 ) {
-
     estatusActivoOperadores = estatus;
 
-
-    const contenedor =
-        document.getElementById(
-            'contenedor3'
-        );
-
+    const contenedor = document.getElementById('contenedor3');
 
     if (!contenedor) {
-
-        console.error(
-            "No se encontró el contenedor #contenedor3"
-        );
-
+        console.error('No se encontró #contenedor3');
         return;
     }
 
+    // Si no se manda búsqueda, conserva la que está escrita
+    if (busqueda === null) {
+        busqueda =
+            document.getElementById('inputBuscadorOperador')
+            ?.value.trim() || '';
+    }
 
-    contenedor.style.opacity = '0.5';
+    contenedor.style.opacity = '.5';
 
+    const params =
+        `pagina=${numPagina}` +
+        `&estatus=${encodeURIComponent(estatus)}` +
+        `&busqueda=${encodeURIComponent(busqueda)}`;
 
-    const urlPeticion =
-        `../operadores/tabla.php?pagina=${numPagina}&estatus=${encodeURIComponent(estatus)}`;
-
-
-    fetch(urlPeticion)
+    fetch(`/operadores/tabla.php?${params}`)
         .then(response => {
-
             if (!response.ok) {
-
-                return fetch(
-                    `operadores/tabla.php?pagina=${numPagina}&estatus=${encodeURIComponent(estatus)}`
-                );
-            }
-
-            return response;
-        })
-        .then(response => {
-
-            if (!response.ok) {
-                throw new Error(
-                    `HTTP Error status: ${response.status}`
-                );
+                throw new Error(`HTTP ${response.status}`);
             }
 
             return response.text();
         })
         .then(html => {
-
             contenedor.innerHTML = html;
             contenedor.style.opacity = '1';
         })
         .catch(error => {
-
-            console.error(
-                'Error AJAX al paginar:',
-                error
-            );
-
-            alert(
-                "Error al cargar la página: Comprueba la consola del navegador."
-            );
-
+            console.error('Error al cargar operadores:', error);
             contenedor.style.opacity = '1';
         });
 }
-
 
 
 /* =========================================================
@@ -3127,129 +3099,26 @@ function cerrarHistorialOperador() {
    16. BÚSQUEDA DE OPERADORES
    ========================================================= */
 
-// Filtra operadores por RFC o nombre mientras escribe.
-function filtrarTablaEnVivo() {
-    const termino =
-        document
-            .getElementById(
-                'inputBuscadorOperador'
-            )
-            .value
-            .toLowerCase()
-            .trim();
+// Buscar al presionar Enter
+document.addEventListener('keydown', function(e) {
 
+    if (e.target.id === 'inputBuscadorOperador' && e.key === 'Enter') {
+        e.preventDefault();
 
-    const filas =
-        document.querySelectorAll(
-            '#tablaOperadores tbody tr'
-        );
-
-
-    filas.forEach(fila => {
-
-        const rfc =
-            fila
-                .querySelector(
-                    '.cell-rfc'
-                )
-                ?.textContent
-                .toLowerCase() ||
-            '';
-
-
-        const nombre =
-            fila
-                .querySelector(
-                    '.cell-nombre'
-                )
-                ?.textContent
-                .toLowerCase() ||
-            '';
-
-
-        if (
-            rfc.includes(termino) ||
-            nombre.includes(termino)
-        ) {
-
-            fila.style.display = '';
-
-        } else {
-
-            fila.style.display =
-                'none';
-        }
-    });
-}
-
-
-// Buscar al presionar Enter.
-document
-    .getElementById(
-        'inputBuscadorOperador'
-    )
-    ?.addEventListener(
-        'keypress',
-        function(e) {
-
-            if (e.key === 'Enter') {
-
-                e.preventDefault();
-
-                const termino =
-                    this.value.trim();
-
-
-                if (
-                    typeof cargarTablaOperadores ===
-                    'function'
-                ) {
-
-                    cargarTablaOperadores(
-                        1,
-                        termino
-                    );
-
-                } else if (
-                    typeof cargarTabla ===
-                    'function'
-                ) {
-
-                    cargarTabla(
-                        1,
-                        termino
-                    );
-                }
-            }
-        }
-    );
-
-
-// Limpia el buscador.
-function limpiarBuscadorBD() {
-
-    if (
-        typeof cargarTablaOperadores ===
-        'function'
-    ) {
-
-        cargarTablaOperadores(
+        cambiarPagina(
             1,
-            ''
-        );
-
-    } else if (
-        typeof cargarTabla ===
-        'function'
-    ) {
-
-        cargarTabla(
-            1,
-            ''
+            estatusActivoOperadores,
+            e.target.value.trim()
         );
     }
-}
+});
 
+
+
+// Limpiar buscador
+function limpiarBuscadorBD() {
+    cambiarPagina(1, estatusActivoOperadores, '');
+}
 
 
 /* =========================================================

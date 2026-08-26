@@ -37,12 +37,15 @@ if ($rol === 'PROPIETARIO' && $multiempresa === 1) {
     $condiciones[] = "o.id_empresa = $id_empresa";
 }
 
-/* BÚSQUEDA */
+/* BÚSQUEDA GENERAL */
 if ($busqueda !== '') {
     $b = addslashes($busqueda);
+
     $condiciones[] = "(
-        o.rfc LIKE '%$b%' OR o.nombres LIKE '%$b%' OR
-        o.primer_apellido LIKE '%$b%' OR o.segundo_apellido LIKE '%$b%' OR
+        o.rfc LIKE '%$b%' OR
+        o.nombres LIKE '%$b%' OR
+        o.primer_apellido LIKE '%$b%' OR
+        o.segundo_apellido LIKE '%$b%' OR
         CONCAT(o.nombres,' ',o.primer_apellido,' ',o.segundo_apellido) LIKE '%$b%' OR
         e.nombre_empresa LIKE '%$b%'
     )";
@@ -60,7 +63,7 @@ $where = $condiciones ? " WHERE " . implode(" AND ", $condiciones) : "";
 /* PAGINACIÓN */
 $sql_total = "SELECT COUNT(*) AS total
               FROM operadores o
-              LEFT JOIN empresas e ON o.id_empresa = e.id_empresa
+              LEFT JOIN empresas e ON o.id_empresa=e.id_empresa
               $where";
 
 $res_total = $db->obtenerRegistros($sql_total);
@@ -74,7 +77,7 @@ $offset = ($pagina_actual - 1) * $registros_por_pagina;
 /* OPERADORES */
 $sql = "SELECT o.*, e.nombre_empresa
         FROM operadores o
-        LEFT JOIN empresas e ON o.id_empresa = e.id_empresa
+        LEFT JOIN empresas e ON o.id_empresa=e.id_empresa
         $where
         ORDER BY o.id_operador DESC
         LIMIT $registros_por_pagina OFFSET $offset";
@@ -91,18 +94,27 @@ if ($conexion_local) $db->desconectar();
          style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;padding:15px;">
 
         <div class="table-tabs">
+
             <button type="button"
                     class="tab-btn <?= $estatus_filtro === 'todos' ? 'active' : '' ?>"
-                    onclick="cambiarPagina(1,'todos')">Todos</button>
+                    onclick="cambiarPagina(1,'todos')">
+                Todos
+            </button>
 
             <button type="button"
                     class="tab-btn <?= $estatus_filtro === 'activos' ? 'active' : '' ?>"
-                    onclick="cambiarPagina(1,'activos')">Activos</button>
+                    onclick="cambiarPagina(1,'activos')">
+                Activos
+            </button>
 
             <button type="button"
                     class="tab-btn <?= $estatus_filtro === 'inactivos' ? 'active' : '' ?>"
-                    onclick="cambiarPagina(1,'inactivos')">Inactivos</button>
+                    onclick="cambiarPagina(1,'inactivos')">
+                Inactivos
+            </button>
+
         </div>
+
 
         <!-- BUSCADOR -->
         <div class="search-box-wrapper"
@@ -111,25 +123,28 @@ if ($conexion_local) $db->desconectar();
             <input type="text"
                    id="inputBuscadorOperador"
                    class="form-control"
-                   placeholder="🔍 Buscar por Nombre o RFC..."
+                   placeholder="🔍 Buscar por Nombre, RFC o Empresa..."
                    value="<?= htmlspecialchars($busqueda) ?>"
-                   onkeyup="filtrarTablaEnVivo()"
                    style="padding-right:35px;height:40px;font-size:.9rem;">
 
             <?php if ($busqueda !== ''): ?>
+
                 <button type="button"
                         onclick="limpiarBuscadorBD()"
                         title="Limpiar búsqueda"
                         style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--texto-secundario);">
                     &times;
                 </button>
+
             <?php endif; ?>
 
         </div>
     </div>
 
+
     <!-- TABLA -->
     <div class="table-responsive">
+
         <table class="custom-table" id="tablaOperadores">
 
             <thead>
@@ -164,7 +179,8 @@ if ($conexion_local) $db->desconectar();
                     $nombreEmpresa = $dato['nombre_empresa'] ?: 'Sin empresa asignada';
                 ?>
 
-                <tr data-estatus="<?= $categoriaEstatus ?>" data-cruce="<?= $categoriaCruce ?>">
+                <tr data-estatus="<?= $categoriaEstatus ?>"
+                    data-cruce="<?= $categoriaCruce ?>">
 
                     <td class="font-medium cell-rfc">
                         <?= htmlspecialchars($dato['rfc'] ?? '') ?>
@@ -182,8 +198,10 @@ if ($conexion_local) $db->desconectar();
                         </span>
                     </td>
 
+
                     <!-- ACCIONES -->
                     <td class="text-center">
+
                         <div class="acciones-operador">
 
                             <!-- VER MÁS -->
@@ -207,7 +225,8 @@ if ($conexion_local) $db->desconectar();
 
                             <?php endif; ?>
 
-                            <!-- HISTORIAL SIEMPRE DISPONIBLE -->
+
+                            <!-- HISTORIAL -->
                             <button type="button"
                                     class="btn-action btn-historial"
                                     onclick="abrirHistorialOperador('<?= $id ?>')"
@@ -215,7 +234,8 @@ if ($conexion_local) $db->desconectar();
                                 📋 Historial
                             </button>
 
-                            <!-- EDITAR Y ELIMINAR -->
+
+                            <!-- EDITAR / ELIMINAR -->
                             <?php if ($esActivo): ?>
 
                                 <button type="button"
@@ -255,10 +275,13 @@ if ($conexion_local) $db->desconectar();
 
                 </tr>
 
+
                 <!-- MODAL DETALLES -->
                 <?php if ($esActivo): ?>
 
-                <div id="modal-detalle-<?= $id ?>" class="modal-overlay" style="display:none;">
+                <div id="modal-detalle-<?= $id ?>"
+                     class="modal-overlay"
+                     style="display:none;">
 
                     <div class="modal-card"
                          style="width:90%;max-width:550px;max-height:85vh;overflow-y:auto;">
@@ -274,7 +297,9 @@ if ($conexion_local) $db->desconectar();
                                     style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--texto-secundario);">
                                 &times;
                             </button>
+
                         </div>
+
 
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;font-size:.9rem;text-align:left;">
 
@@ -291,6 +316,7 @@ if ($conexion_local) $db->desconectar();
                                 <?php endif; ?>
                             </div>
 
+
                             <!-- CONTACTO -->
                             <div>
                                 <strong>📞 Contacto</strong>
@@ -300,6 +326,7 @@ if ($conexion_local) $db->desconectar();
                                 </p>
                             </div>
 
+
                             <!-- DIRECCIÓN -->
                             <div>
                                 <strong>📍 Dirección</strong>
@@ -307,6 +334,7 @@ if ($conexion_local) $db->desconectar();
                                 <p><strong>Colonia:</strong> <?= htmlspecialchars($dato['colonia'] ?: 'N/A') ?></p>
                                 <p><strong>C.P.:</strong> <?= htmlspecialchars($dato['codigo_postal'] ?: 'N/A') ?></p>
                             </div>
+
 
                             <!-- LICENCIA -->
                             <div>
@@ -328,6 +356,7 @@ if ($conexion_local) $db->desconectar();
                                 <?php endif; ?>
                             </div>
 
+
                             <!-- APTO MÉDICO -->
                             <div>
                                 <strong>🩺 Apto Médico</strong>
@@ -348,7 +377,8 @@ if ($conexion_local) $db->desconectar();
                                 <?php endif; ?>
                             </div>
 
-                            <!-- CRUCE INTERNACIONAL -->
+
+                            <!-- CRUCE -->
                             <div>
                                 <strong>🌐 Cruce Internacional</strong>
 
@@ -369,6 +399,7 @@ if ($conexion_local) $db->desconectar();
 
                         </div>
 
+
                         <div style="text-align:right;margin-top:15px;">
                             <button type="button"
                                     class="btn-action"
@@ -384,6 +415,7 @@ if ($conexion_local) $db->desconectar();
 
                 <?php endforeach; ?>
 
+
             <?php else: ?>
 
                 <tr>
@@ -396,7 +428,9 @@ if ($conexion_local) $db->desconectar();
 
             </tbody>
         </table>
+
     </div>
+
 
     <!-- PAGINACIÓN -->
     <?php if ($total_paginas > 1): ?>
@@ -412,7 +446,11 @@ if ($conexion_local) $db->desconectar();
 
             <button type="button"
                     <?= $pagina_actual <= 1 ? 'disabled' : '' ?>
-                    onclick="cambiarPagina(<?= $pagina_actual - 1 ?>)"
+                    onclick="cambiarPagina(
+                        <?= $pagina_actual - 1 ?>,
+                        '<?= htmlspecialchars($estatus_filtro) ?>',
+                        <?= json_encode($busqueda, JSON_UNESCAPED_UNICODE) ?>
+                    )"
                     class="pagination-btn <?= $pagina_actual <= 1 ? 'disabled' : '' ?>">
                 ← Anterior
             </button>
@@ -423,7 +461,11 @@ if ($conexion_local) $db->desconectar();
 
             <button type="button"
                     <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>
-                    onclick="cambiarPagina(<?= $pagina_actual + 1 ?>)"
+                    onclick="cambiarPagina(
+                        <?= $pagina_actual + 1 ?>,
+                        '<?= htmlspecialchars($estatus_filtro) ?>',
+                        <?= json_encode($busqueda, JSON_UNESCAPED_UNICODE) ?>
+                    )"
                     class="pagination-btn <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>">
                 Siguiente →
             </button>
@@ -440,7 +482,9 @@ if ($conexion_local) $db->desconectar();
      MODAL HISTORIAL
      ========================================================= -->
 
-<div id="modalHistorialOperador" class="modal-overlay" style="display:none;">
+<div id="modalHistorialOperador"
+     class="modal-overlay"
+     style="display:none;">
 
     <div class="modal-card historial-operador-modal">
 
@@ -464,4 +508,3 @@ if ($conexion_local) $db->desconectar();
     </div>
 
 </div>
-
