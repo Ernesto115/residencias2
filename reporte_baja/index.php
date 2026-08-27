@@ -1,57 +1,55 @@
 <?php
-/* =========================================================
-   REPORTE DE BAJAS
-   ========================================================= */
-
-if (session_status() === PHP_SESSION_NONE) session_start();
+require_once "../configuracion/sesion.php";
+verificarSesion();
 
 include_once "../db/db.php";
-$dbtransportistas = new db();
-$dbtransportistas->conectar();
 
-/* SESIÓN */
-$rol = strtoupper($_SESSION['rol'] ?? '');
+$rol = strtoupper(trim($_SESSION['rol'] ?? ''));
+if ($rol === 'ADMINISTRADOR') $rol = 'ADMIN';
+if (in_array($rol, ['RH','RECURSOS HUMANOS'], true)) $rol = 'RRHH';
+
+if (!in_array($rol, ['ADMIN','PROPIETARIO','RRHH'], true)) {
+    http_response_code(403);
+    echo '<div class="alert alert-danger">No tienes permiso para acceder a Reporte de Baja.</div>';
+    exit;
+}
+
 $id_usuario = (int)($_SESSION['id_usuario'] ?? 0);
 $id_empresa_sesion = (int)($_SESSION['id_empresa'] ?? 0);
 $multiempresa = (int)($_SESSION['multiempresa'] ?? 0);
-$id_reporte = (int)($_REQUEST['id_reporte'] ?? 0);
 
-/* =========================================================
-   EMPRESAS SEGÚN ROL
-   ========================================================= */
+$dbtransportistas = new db();
+$dbtransportistas->conectar();
 
-if ($rol === 'ADMIN' || $rol === 'ADMINISTRADOR') {
+
+/* EMPRESAS */
+if ($rol === 'ADMIN') {
     $sql_empresas = "SELECT id_empresa,nombre_empresa
-                     FROM empresas ORDER BY nombre_empresa ASC";
+                     FROM empresas ORDER BY nombre_empresa";
 
 } elseif ($rol === 'PROPIETARIO' && $multiempresa === 1) {
     $sql_empresas = "SELECT e.id_empresa,e.nombre_empresa
                      FROM empresas e
                      INNER JOIN usuario_empresas ue ON ue.id_empresa=e.id_empresa
                      WHERE ue.id_usuario=$id_usuario
-                     ORDER BY e.nombre_empresa ASC";
+                     ORDER BY e.nombre_empresa";
 
-} elseif ($rol === 'PROPIETARIO' || $rol === 'RRHH') {
+} else {
     $sql_empresas = "SELECT id_empresa,nombre_empresa
                      FROM empresas
                      WHERE id_empresa=$id_empresa_sesion LIMIT 1";
-
-} else {
-    $sql_empresas = "SELECT id_empresa,nombre_empresa FROM empresas WHERE 1=0";
 }
 
 $empresas = $dbtransportistas->obtenerRegistros($sql_empresas);
 
-/* =========================================================
-   OPERADORES ACTIVOS SEGÚN ROL
-   ========================================================= */
 
-if ($rol === 'ADMIN' || $rol === 'ADMINISTRADOR') {
+/* OPERADORES ACTIVOS */
+if ($rol === 'ADMIN') {
     $sql_operadores = "SELECT id_operador,id_empresa,estatus,nombres,
                        primer_apellido,segundo_apellido
                        FROM operadores
                        WHERE estatus=1
-                       ORDER BY primer_apellido ASC";
+                       ORDER BY primer_apellido";
 
 } elseif ($rol === 'PROPIETARIO' && $multiempresa === 1) {
     $sql_operadores = "SELECT o.id_operador,o.id_empresa,o.estatus,o.nombres,
@@ -59,45 +57,45 @@ if ($rol === 'ADMIN' || $rol === 'ADMINISTRADOR') {
                        FROM operadores o
                        INNER JOIN usuario_empresas ue ON ue.id_empresa=o.id_empresa
                        WHERE ue.id_usuario=$id_usuario AND o.estatus=1
-                       ORDER BY o.primer_apellido ASC";
-
-} elseif ($rol === 'PROPIETARIO' || $rol === 'RRHH') {
-    $sql_operadores = "SELECT id_operador,id_empresa,estatus,nombres,
-                       primer_apellido,segundo_apellido
-                       FROM operadores
-                       WHERE id_empresa=$id_empresa_sesion AND estatus=1
-                       ORDER BY primer_apellido ASC";
+                       ORDER BY o.primer_apellido";
 
 } else {
     $sql_operadores = "SELECT id_operador,id_empresa,estatus,nombres,
                        primer_apellido,segundo_apellido
-                       FROM operadores WHERE 1=0";
+                       FROM operadores
+                       WHERE id_empresa=$id_empresa_sesion AND estatus=1
+                       ORDER BY primer_apellido";
 }
 
 $operadores = $dbtransportistas->obtenerRegistros($sql_operadores);
 
-/* =========================================================
-   FILTROS DE REPORTES
-   ========================================================= */
 
+/* FILTROS */
 $busqueda = trim($_GET['busqueda'] ?? '');
 $estatus_filtro = strtolower(trim($_GET['estatus'] ?? 'todos'));
+
+if (!in_array($estatus_filtro, ['todos','pendientes','completados'], true)) {
+    $estatus_filtro = 'todos';
+}
+
 $pagina_actual = max(1, (int)($_GET['pagina'] ?? 1));
 $registros_por_pagina = 5;
 $condiciones = [];
 
-/* PERMISOS */
-if ($rol === 'RRHH' || ($rol === 'PROPIETARIO' && $multiempresa === 0)) {
-    $condiciones[] = "rb.id_empresa=$id_empresa_sesion";
 
-} elseif ($rol === 'PROPIETARIO' && $multiempresa === 1) {
+/* PERMISOS */
+if ($rol === 'PROPIETARIO' && $multiempresa === 1) {
     $condiciones[] = "rb.id_empresa IN (
-        SELECT id_empresa FROM usuario_empresas WHERE id_usuario=$id_usuario
+        SELECT id_empresa FROM usuario_empresas
+        WHERE id_usuario=$id_usuario
     )";
 
-} elseif ($rol !== 'ADMIN' && $rol !== 'ADMINISTRADOR') {
-    $condiciones[] = "1=0";
+} elseif ($rol === 'PROPIETARIO' || $rol === 'RRHH') {
+    $condiciones[] = $id_empresa_sesion > 0
+        ? "rb.id_empresa=$id_empresa_sesion"
+        : "1=0";
 }
+
 
 /* ESTATUS */
 if ($estatus_filtro === 'pendientes') {
@@ -106,7 +104,8 @@ if ($estatus_filtro === 'pendientes') {
     $condiciones[] = "rb.estatus_evaluacion='COMPLETADA'";
 }
 
-/* BUSCADOR */
+
+/* BÚSQUEDA */
 if ($busqueda !== '') {
     $b = addslashes($busqueda);
 
@@ -119,65 +118,62 @@ if ($busqueda !== '') {
     )";
 }
 
-$where = $condiciones ? "WHERE " . implode(" AND ", $condiciones) : "";
+$where = $condiciones ? "WHERE ".implode(" AND ", $condiciones) : "";
 
-/* =========================================================
-   PAGINACIÓN
-   ========================================================= */
 
-$sql_total = "SELECT COUNT(*) AS total
-              FROM reportes_baja rb
-              INNER JOIN operadores o ON rb.id_operador=o.id_operador
-              INNER JOIN empresas e ON rb.id_empresa=e.id_empresa
-              $where";
+/* PAGINACIÓN */
+$res_total = $dbtransportistas->obtenerRegistros(
+    "SELECT COUNT(*) total
+     FROM reportes_baja rb
+     INNER JOIN operadores o ON o.id_operador=rb.id_operador
+     INNER JOIN empresas e ON e.id_empresa=rb.id_empresa
+     $where"
+);
 
-$res_total = $dbtransportistas->obtenerRegistros($sql_total);
 $total_registros = (int)($res_total[0]['total'] ?? 0);
-$total_paginas = max(1, ceil($total_registros / $registros_por_pagina));
+$total_paginas = max(1, (int)ceil($total_registros / $registros_por_pagina));
 
 if ($pagina_actual > $total_paginas) $pagina_actual = $total_paginas;
 
 $offset = ($pagina_actual - 1) * $registros_por_pagina;
 
-/* =========================================================
-   REPORTES
-   ========================================================= */
 
-$sql = "SELECT
-            rb.id_reporte,rb.id_operador,rb.id_empresa,
-            rb.motivo_baja,rb.calificacion_cuantitativa,rb.calif_cualitativa,
-            rb.eval_distancia,rb.eval_tiempo,rb.eval_ganancias,rb.promedio_servicio,
-            rb.eval_cuidado_vehiculo,rb.eval_productividad,
-            rb.eval_rendimiento,rb.eval_cuidado_fisico,
-            rb.fecha_registro,rb.fecha_ingreso,rb.fecha_baja,rb.estatus_evaluacion,
-            CONCAT(o.nombres,' ',o.primer_apellido,' ',o.segundo_apellido) AS nombre_operador,
-            e.nombre_empresa
-        FROM reportes_baja rb
-        INNER JOIN operadores o ON rb.id_operador=o.id_operador
-        INNER JOIN empresas e ON rb.id_empresa=e.id_empresa
-        $where
-        ORDER BY rb.id_reporte DESC
-        LIMIT $registros_por_pagina OFFSET $offset";
-
-$datos2 = $dbtransportistas->obtenerRegistros($sql);
+/* REPORTES */
+$datos2 = $dbtransportistas->obtenerRegistros(
+    "SELECT rb.*,
+        CONCAT(o.nombres,' ',o.primer_apellido,' ',o.segundo_apellido) nombre_operador,
+        e.nombre_empresa
+     FROM reportes_baja rb
+     INNER JOIN operadores o ON o.id_operador=rb.id_operador
+     INNER JOIN empresas e ON e.id_empresa=rb.id_empresa
+     $where
+     ORDER BY rb.id_reporte DESC
+     LIMIT $registros_por_pagina OFFSET $offset"
+);
 ?>
 
 <div class="main-wrapper modulo-reportes">
 
     <nav class="d-flex justify-content-end align-items-center gap-2 p-3">
-        <button type="button" class="btn-back" onclick="irAApartadoEmpresas()">
+        <button type="button"
+                class="btn-back"
+                onclick="irAApartadoEmpresas()">
             ⬅️ Volver al Inicio
         </button>
     </nav>
 
     <section>
+
         <h3>REPORTE BAJA</h3>
 
-        <?php include_once "../reporte_baja/frm.php"; ?>
+        <?php include "../reporte_baja/frm.php"; ?>
 
         <div id="contenedor3">
-            <?php include_once "../reporte_baja/tabla.php"; ?>
+            <?php include "../reporte_baja/tabla.php"; ?>
         </div>
+
     </section>
 
 </div>
+
+<?php $dbtransportistas->desconectar(); ?>
