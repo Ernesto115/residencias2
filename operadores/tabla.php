@@ -173,10 +173,15 @@ if ($conexion_local) $db->desconectar();
 
                     $esActivo = ($dato['estatus'] ?? 1) == 1;
                     $categoriaEstatus = $esActivo ? 'activos' : 'inactivos';
-                    $categoriaCruce = (!empty($dato['visa']) || !empty($dato['fast']))
-                        ? 'internacional' : 'nacional';
 
-                    $nombreEmpresa = $dato['nombre_empresa'] ?: 'Sin empresa asignada';
+                    $categoriaCruce =
+                        (!empty($dato['visa']) || !empty($dato['fast']))
+                        ? 'internacional'
+                        : 'nacional';
+
+                    $nombreEmpresa =
+                        $dato['nombre_empresa']
+                        ?: 'Sin empresa asignada';
                 ?>
 
                 <tr data-estatus="<?= $categoriaEstatus ?>"
@@ -190,12 +195,18 @@ if ($conexion_local) $db->desconectar();
                         <?= htmlspecialchars($nombre_completo) ?>
                     </td>
 
-                    <td><?= htmlspecialchars($nombreEmpresa) ?></td>
+                    <td>
+                        <?= htmlspecialchars($nombreEmpresa) ?>
+                    </td>
 
                     <td class="text-center">
+
                         <span class="badge-status <?= $esActivo ? 'status-activo' : 'status-inactivo' ?>">
+
                             <?= $esActivo ? 'Activo' : 'Inactivo' ?>
+
                         </span>
+
                     </td>
 
 
@@ -204,6 +215,7 @@ if ($conexion_local) $db->desconectar();
 
                         <div class="acciones-operador">
 
+
                             <!-- VER MÁS -->
                             <?php if ($esActivo): ?>
 
@@ -211,7 +223,9 @@ if ($conexion_local) $db->desconectar();
                                         class="btn-action btn-info"
                                         onclick="abrirModalDetalles('<?= $id ?>')"
                                         title="Ver información">
+
                                     👁️ Ver más
+
                                 </button>
 
                             <?php else: ?>
@@ -220,7 +234,9 @@ if ($conexion_local) $db->desconectar();
                                         class="btn-action btn-info btn-op-disabled"
                                         disabled
                                         title="No disponible para operador inactivo">
+
                                     👁️ Ver más
+
                                 </button>
 
                             <?php endif; ?>
@@ -231,7 +247,9 @@ if ($conexion_local) $db->desconectar();
                                     class="btn-action btn-historial"
                                     onclick="abrirHistorialOperador('<?= $id ?>')"
                                     title="Consultar historial laboral">
+
                                 📋 Historial
+
                             </button>
 
 
@@ -242,14 +260,18 @@ if ($conexion_local) $db->desconectar();
                                         class="btn-action btn-edit btn-accion-icono"
                                         onclick="editar('<?= $id ?>','operadores','frm')"
                                         title="Editar operador">
+
                                     ✏️
+
                                 </button>
 
                                 <button type="button"
                                         class="btn-action btn-delete btn-accion-icono"
                                         onclick="eliminar('<?= $id ?>','operadores')"
                                         title="Eliminar operador">
+
                                     🗑️
+
                                 </button>
 
                             <?php else: ?>
@@ -258,19 +280,24 @@ if ($conexion_local) $db->desconectar();
                                         class="btn-action btn-edit btn-accion-icono btn-op-disabled"
                                         disabled
                                         title="Editar no disponible">
+
                                     ✏️
+
                                 </button>
 
                                 <button type="button"
                                         class="btn-action btn-delete btn-accion-icono btn-op-disabled"
                                         disabled
                                         title="Eliminar no disponible">
+
                                     🗑️
+
                                 </button>
 
                             <?php endif; ?>
 
                         </div>
+
                     </td>
 
                 </tr>
@@ -289,13 +316,18 @@ if ($conexion_local) $db->desconectar();
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
 
                             <h3 style="margin:0;color:var(--accent-color);font-size:1.1rem;">
-                                📋 Detalles de <?= htmlspecialchars($dato['nombres'] ?? '') ?>
+
+                                📋 Detalles de
+                                <?= htmlspecialchars($dato['nombres'] ?? '') ?>
+
                             </h3>
 
                             <button type="button"
                                     onclick="cerrarModalDetalles('<?= $id ?>')"
                                     style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--texto-secundario);">
+
                                 &times;
+
                             </button>
 
                         </div>
@@ -303,115 +335,236 @@ if ($conexion_local) $db->desconectar();
 
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;font-size:.9rem;text-align:left;">
 
+
                             <!-- EMPRESA -->
                             <div>
-                                <strong>🏢 Empresa / Transportista</strong>
-                                <p><?= htmlspecialchars($nombreEmpresa) ?></p>
+
+                                <strong>
+                                    🏢 Empresa / Transportista
+                                </strong>
+
+                                <p>
+                                    <?= htmlspecialchars($nombreEmpresa) ?>
+                                </p>
 
                                 <?php if (!empty($dato['fecha_ingreso'])): ?>
+
                                     <p>
-                                        <strong>Fecha ingreso:</strong>
+
+                                        <strong>
+                                            Fecha ingreso:
+                                        </strong>
+
                                         <?= htmlspecialchars($dato['fecha_ingreso']) ?>
+
                                     </p>
+
                                 <?php endif; ?>
+
                             </div>
 
 
                             <!-- CONTACTO -->
                             <div>
-                                <strong>📞 Contacto</strong>
+
+                                <strong>
+                                    📞 Contacto
+                                </strong>
+
                                 <p>
-                                    <strong>Teléfono:</strong>
-                                    <?= htmlspecialchars($dato['telefono_celular'] ?: 'N/A') ?>
+
+                                    <strong>
+                                        Teléfono:
+                                    </strong>
+
+                                    <?= htmlspecialchars(
+                                        $dato['telefono_celular']
+                                        ?: 'N/A'
+                                    ) ?>
+
                                 </p>
+
                             </div>
 
 
                             <!-- DIRECCIÓN -->
                             <div>
-                                <strong>📍 Dirección</strong>
-                                <p><strong>Calle/No:</strong> <?= htmlspecialchars($dato['calle_y_numero'] ?: 'N/A') ?></p>
-                                <p><strong>Colonia:</strong> <?= htmlspecialchars($dato['colonia'] ?: 'N/A') ?></p>
-                                <p><strong>C.P.:</strong> <?= htmlspecialchars($dato['codigo_postal'] ?: 'N/A') ?></p>
+
+                                <strong>
+                                    📍 Dirección
+                                </strong>
+
+                                <p>
+                                    <strong>Calle/No:</strong>
+                                    <?= htmlspecialchars(
+                                        $dato['calle_y_numero']
+                                        ?: 'N/A'
+                                    ) ?>
+                                </p>
+
+                                <p>
+                                    <strong>Colonia:</strong>
+                                    <?= htmlspecialchars(
+                                        $dato['colonia']
+                                        ?: 'N/A'
+                                    ) ?>
+                                </p>
+
+                                <p>
+                                    <strong>C.P.:</strong>
+                                    <?= htmlspecialchars(
+                                        $dato['codigo_postal']
+                                        ?: 'N/A'
+                                    ) ?>
+                                </p>
+
                             </div>
 
 
                             <!-- LICENCIA -->
                             <div>
-                                <strong>🪪 Licencia Federal</strong>
-                                <p><?= htmlspecialchars($dato['licencia_federal_actual'] ?: 'N/A') ?></p>
+
+                                <strong>
+                                    🪪 Licencia Federal
+                                </strong>
+
+                                <p>
+                                    <?= htmlspecialchars(
+                                        $dato['licencia_federal_actual']
+                                        ?: 'N/A'
+                                    ) ?>
+                                </p>
+
 
                                 <?php if (!empty($dato['vencimiento_lic_federal'])): ?>
+
                                     <p class="fecha-vencimiento">
-                                        Vence: <?= htmlspecialchars($dato['vencimiento_lic_federal']) ?>
+
+                                        Vence:
+                                        <?= htmlspecialchars(
+                                            $dato['vencimiento_lic_federal']
+                                        ) ?>
+
                                     </p>
+
                                 <?php endif; ?>
 
+
                                 <?php if (!empty($dato['archivo_pdf_licencia'])): ?>
+
                                     <a href="../uploads/pdf/<?= htmlspecialchars($dato['archivo_pdf_licencia']) ?>"
                                        target="_blank"
                                        class="btn-pdf-link">
+
                                         📄 Ver PDF Licencia
+
                                     </a>
+
                                 <?php endif; ?>
+
                             </div>
 
 
                             <!-- APTO MÉDICO -->
                             <div>
-                                <strong>🩺 Apto Médico</strong>
-                                <p><?= htmlspecialchars($dato['apto_medico_actual'] ?: 'N/A') ?></p>
+
+                                <strong>
+                                    🩺 Apto Médico
+                                </strong>
+
+                                <p>
+
+                                    <?= htmlspecialchars(
+                                        $dato['apto_medico_actual']
+                                        ?: 'N/A'
+                                    ) ?>
+
+                                </p>
+
 
                                 <?php if (!empty($dato['vencimiento_apto_medico'])): ?>
+
                                     <p class="fecha-vencimiento">
-                                        Vence: <?= htmlspecialchars($dato['vencimiento_apto_medico']) ?>
+
+                                        Vence:
+                                        <?= htmlspecialchars(
+                                            $dato['vencimiento_apto_medico']
+                                        ) ?>
+
                                     </p>
+
                                 <?php endif; ?>
 
+
                                 <?php if (!empty($dato['archivo_pdf_apto_medico'])): ?>
+
                                     <a href="../uploads/pdf/<?= htmlspecialchars($dato['archivo_pdf_apto_medico']) ?>"
                                        target="_blank"
                                        class="btn-pdf-link">
+
                                         📄 Ver PDF Apto
+
                                     </a>
+
                                 <?php endif; ?>
+
                             </div>
 
 
                             <!-- CRUCE -->
                             <div>
-                                <strong>🌐 Cruce Internacional</strong>
+
+                                <strong>
+                                    🌐 Cruce Internacional
+                                </strong>
+
 
                                 <p>
+
                                     <strong>VISA:</strong>
+
                                     <?= !empty($dato['visa'])
                                         ? '✓ ' . htmlspecialchars($dato['visa'])
-                                        : '✗ No cuenta' ?>
+                                        : '✗ No cuenta'
+                                    ?>
+
                                 </p>
 
+
                                 <p>
+
                                     <strong>FAST:</strong>
+
                                     <?= !empty($dato['fast'])
                                         ? '✓ ' . htmlspecialchars($dato['fast'])
-                                        : '✗ No cuenta' ?>
+                                        : '✗ No cuenta'
+                                    ?>
+
                                 </p>
+
                             </div>
 
                         </div>
 
 
                         <div style="text-align:right;margin-top:15px;">
+
                             <button type="button"
                                     class="btn-action"
                                     onclick="cerrarModalDetalles('<?= $id ?>')">
+
                                 Cerrar
+
                             </button>
+
                         </div>
 
                     </div>
+
                 </div>
 
                 <?php endif; ?>
+
 
                 <?php endforeach; ?>
 
@@ -419,58 +572,101 @@ if ($conexion_local) $db->desconectar();
             <?php else: ?>
 
                 <tr>
-                    <td colspan="5" class="text-center">
+
+                    <td colspan="5"
+                        class="text-center">
+
                         No se encontraron registros de operadores.
+
                     </td>
+
                 </tr>
 
             <?php endif; ?>
 
             </tbody>
+
         </table>
 
     </div>
 
 
-    <!-- PAGINACIÓN -->
+    <!-- =====================================================
+         PAGINACIÓN
+         ===================================================== -->
+
     <?php if ($total_paginas > 1): ?>
 
     <div class="pagination-wrapper">
 
         <div class="pagination-info">
-            Página <span><?= $pagina_actual ?></span>
-            de <span><?= $total_paginas ?></span>
+
+            Página
+            <span><?= $pagina_actual ?></span>
+
+            de
+            <span><?= $total_paginas ?></span>
+
         </div>
+
 
         <div class="pagination-controls">
 
+
+            <!-- ANTERIOR -->
             <button type="button"
-                    <?= $pagina_actual <= 1 ? 'disabled' : '' ?>
+
+                    <?= $pagina_actual <= 1
+                        ? 'disabled'
+                        : ''
+                    ?>
+
                     onclick="cambiarPagina(
                         <?= $pagina_actual - 1 ?>,
-                        '<?= htmlspecialchars($estatus_filtro) ?>',
-                        <?= json_encode($busqueda, JSON_UNESCAPED_UNICODE) ?>
+                        '<?= htmlspecialchars($estatus_filtro) ?>'
                     )"
-                    class="pagination-btn <?= $pagina_actual <= 1 ? 'disabled' : '' ?>">
+
+                    class="pagination-btn <?= $pagina_actual <= 1
+                        ? 'disabled'
+                        : ''
+                    ?>">
+
                 ← Anterior
+
             </button>
 
+
             <div class="pagination-current">
+
                 Página <?= $pagina_actual ?>
+
             </div>
 
+
+            <!-- SIGUIENTE -->
             <button type="button"
-                    <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>
+
+                    <?= $pagina_actual >= $total_paginas
+                        ? 'disabled'
+                        : ''
+                    ?>
+
                     onclick="cambiarPagina(
                         <?= $pagina_actual + 1 ?>,
-                        '<?= htmlspecialchars($estatus_filtro) ?>',
-                        <?= json_encode($busqueda, JSON_UNESCAPED_UNICODE) ?>
+                        '<?= htmlspecialchars($estatus_filtro) ?>'
                     )"
-                    class="pagination-btn <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>">
+
+                    class="pagination-btn <?= $pagina_actual >= $total_paginas
+                        ? 'disabled'
+                        : ''
+                    ?>">
+
                 Siguiente →
+
             </button>
 
         </div>
+
     </div>
 
     <?php endif; ?>
@@ -491,17 +687,28 @@ if ($conexion_local) $db->desconectar();
         <div class="historial-modal-header">
 
             <div>
-                <h3>📋 Historial del Operador</h3>
-                <p>Trayectoria laboral y reportes de baja</p>
+
+                <h3>
+                    📋 Historial del Operador
+                </h3>
+
+                <p>
+                    Trayectoria laboral y reportes de baja
+                </p>
+
             </div>
+
 
             <button type="button"
                     class="historial-modal-cerrar"
                     onclick="cerrarHistorialOperador()">
+
                 &times;
+
             </button>
 
         </div>
+
 
         <div id="contenidoHistorialOperador"></div>
 

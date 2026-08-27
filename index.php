@@ -17,6 +17,8 @@ function e($string) {
    ========================================================= */
 
 $rol = strtoupper(trim($_SESSION['rol'] ?? ''));
+$idUsuario = (int)($_SESSION['id_usuario'] ?? 0);
+$idEmpresa = (int)($_SESSION['id_empresa'] ?? 0);
 
 $nombreUsuario = $_SESSION['nombre_usuario'] ?? 'Usuario';
 $nombreCompleto = trim($_SESSION['nombre_completo'] ?? '');
@@ -71,7 +73,79 @@ $rolesReportes = [
 
 
 /* =========================================================
-   4. MÓDULOS PERMITIDOS
+   4. MÉTRICAS DEL DASHBOARD
+   ========================================================= */
+
+require_once "db/db.php";
+
+$dbDashboard = new db();
+$dbDashboard->conectar();
+
+function conteoDashboard($db, $sql) {
+    $resultado = $db->obtenerRegistros($sql);
+    return (int)($resultado[0]['total'] ?? 0);
+}
+
+$esAdmin = in_array($rol, ['ADMIN', 'ADMINISTRADOR'], true);
+$esPropietario = $rol === 'PROPIETARIO';
+$esRRHH = in_array($rol, ['RRHH', 'RH', 'RECURSOS HUMANOS'], true);
+
+/* Limita cada conteo al alcance real del usuario */
+$filtroEmpresa = function($alias) use (
+    $esAdmin,
+    $esPropietario,
+    $esRRHH,
+    $multiempresa,
+    $idUsuario,
+    $idEmpresa
+) {
+    $campo = $alias . '.id_empresa';
+
+    if ($esAdmin) return '';
+
+    if ($esPropietario && $multiempresa === 1) {
+        return " AND $campo IN (
+            SELECT id_empresa
+            FROM usuario_empresas
+            WHERE id_usuario = $idUsuario
+        )";
+    }
+
+    if (($esPropietario || $esRRHH) && $idEmpresa > 0) {
+        return " AND $campo = $idEmpresa";
+    }
+
+    return " AND 1=0";
+};
+
+$operadoresActivos = conteoDashboard(
+    $dbDashboard,
+    "SELECT COUNT(*) AS total FROM operadores o WHERE o.estatus=1" . $filtroEmpresa('o')
+);
+
+$operadoresInactivos = conteoDashboard(
+    $dbDashboard,
+    "SELECT COUNT(*) AS total FROM operadores o WHERE o.estatus=0" . $filtroEmpresa('o')
+);
+
+$empresasRegistradas = conteoDashboard(
+    $dbDashboard,
+    "SELECT COUNT(*) AS total FROM empresas e WHERE 1=1" . $filtroEmpresa('e')
+);
+
+$bajasPendientes = conteoDashboard(
+    $dbDashboard,
+    "SELECT COUNT(*) AS total FROM reportes_baja rb WHERE rb.estatus_evaluacion='PENDIENTE'" . $filtroEmpresa('rb')
+);
+
+$bajasCompletadas = conteoDashboard(
+    $dbDashboard,
+    "SELECT COUNT(*) AS total FROM reportes_baja rb WHERE rb.estatus_evaluacion='COMPLETADA'" . $filtroEmpresa('rb')
+);
+
+
+/* =========================================================
+   5. MÓDULOS PERMITIDOS
    ========================================================= */
 
 $modulosPermitidos = [];
@@ -129,7 +203,7 @@ if (in_array($rol, $rolesReportes)) {
 
 
 <!-- =========================================================
-     5. MENÚ SUPERIOR
+     6. MENÚ SUPERIOR
      ========================================================= -->
 
 <nav class="top-nav-controls">
@@ -172,7 +246,7 @@ if (in_array($rol, $rolesReportes)) {
 
 
 <!-- =========================================================
-     6. CONTENIDO PRINCIPAL
+     7. CONTENIDO PRINCIPAL
      ========================================================= -->
 
 <div class="container my-4" id="seccion-principal-dashboard">
@@ -241,24 +315,29 @@ if (in_array($rol, $rolesReportes)) {
             </div>
 
 
-            <!-- PERMISOS -->
-            <div class="permissions-row">
+            <!-- PERMISOS + RESUMEN COMPACTO -->
+            <div class="permissions-row dashboard-info-row">
 
-                <span class="permissions-label">
-                    Permisos del Sistema:
-                </span>
+                <div class="dashboard-permissions-block">
+                    <span class="permissions-label">Permisos del Sistema:</span>
 
-                <div class="permissions-badges-group">
+                    <div class="permissions-badges-group">
+                        <?php foreach ($modulosPermitidos as $modulo): ?>
+                            <span class="badge-permiso">
+                                <span><?php echo $modulo['icono']; ?></span>
+                                <span><?php echo e($modulo['nombre']); ?></span>
+                            </span>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
 
-                    <?php foreach ($modulosPermitidos as $modulo): ?>
-
-                        <span class="badge-permiso">
-                            <span><?php echo $modulo['icono']; ?></span>
-                            <span><?php echo e($modulo['nombre']); ?></span>
-                        </span>
-
-                    <?php endforeach; ?>
-
+                <div class="dashboard-mini-stats">
+                    <span class="dashboard-mini-label">Resumen:</span>
+                    <span class="mini-stat">👷 <strong><?= $operadoresActivos ?></strong> Activos</span>
+                    <span class="mini-stat">⛔ <strong><?= $operadoresInactivos ?></strong> Inactivos</span>
+                    <span class="mini-stat">🏢 <strong><?= $empresasRegistradas ?></strong> Empresas</span>
+                    <span class="mini-stat">⏳ <strong><?= $bajasPendientes ?></strong> Pendientes</span>
+                    <span class="mini-stat">✅ <strong><?= $bajasCompletadas ?></strong> Completadas</span>
                 </div>
 
             </div>
@@ -267,7 +346,7 @@ if (in_array($rol, $rolesReportes)) {
 
 
         <!-- =================================================
-             7. MÓDULOS
+             8. MÓDULOS
              ================================================= -->
 
         <div class="row g-4 justify-content-center">
@@ -516,7 +595,7 @@ if (in_array($rol, $rolesReportes)) {
 
 
         <!-- =================================================
-             8. PIE DE PÁGINA
+             9. PIE DE PÁGINA
              ================================================= -->
 
         <div
@@ -536,7 +615,7 @@ if (in_array($rol, $rolesReportes)) {
 
 
 <!-- =========================================================
-     9. JAVASCRIPT
+     10. JAVASCRIPT
      ========================================================= -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
