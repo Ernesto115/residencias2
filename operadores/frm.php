@@ -1,13 +1,23 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-$rolSesion = strtoupper($_SESSION['rol'] ?? '');
+$rolSesion = strtoupper(trim($_SESSION['rol'] ?? ''));
+
+if ($rolSesion === 'ADMINISTRADOR') $rolSesion = 'ADMIN';
+if (in_array($rolSesion, ['RH','RECURSOS HUMANOS'], true)) $rolSesion = 'RRHH';
+
+if (!in_array($rolSesion, ['ADMIN','PROPIETARIO','RRHH'], true)) {
+    http_response_code(403);
+    echo '<div class="alert alert-danger">No tienes permiso para registrar operadores.</div>';
+    return;
+}
+
 $idUsuarioSesion = (int)($_SESSION['id_usuario'] ?? 0);
 $idEmpresaSesion = (int)($_SESSION['id_empresa'] ?? 0);
 $multiempresaSesion = (int)($_SESSION['multiempresa'] ?? 0);
 
 $empresasPermitidas = [];
-$conexionFrmLocal = false;
+$conexionLocal = false;
 
 if (isset($dbtransportistas)) {
     $dbFrm = $dbtransportistas;
@@ -17,75 +27,65 @@ if (isset($dbtransportistas)) {
     include_once "../db/db.php";
     $dbFrm = new db();
     $dbFrm->conectar();
-    $conexionFrmLocal = true;
+    $conexionLocal = true;
 }
 
-$sqlEmpresas = "";
+$sqlEmpresas = '';
 
 if ($rolSesion === 'ADMIN') {
-    $sqlEmpresas = "SELECT id_empresa, nombre_empresa FROM empresas ORDER BY nombre_empresa ASC";
 
-} elseif ($rolSesion === 'PROPIETARIO') {
+    $sqlEmpresas = "SELECT id_empresa,nombre_empresa
+                    FROM empresas ORDER BY nombre_empresa";
 
-    if ($multiempresaSesion === 1 && $idUsuarioSesion > 0) {
-        $sqlEmpresas = "
-            SELECT e.id_empresa, e.nombre_empresa
-            FROM empresas e
-            INNER JOIN usuario_empresas ue ON ue.id_empresa = e.id_empresa
-            WHERE ue.id_usuario = $idUsuarioSesion
-            ORDER BY e.nombre_empresa ASC
-        ";
-    } elseif ($idEmpresaSesion > 0) {
-        $sqlEmpresas = "
-            SELECT id_empresa, nombre_empresa
-            FROM empresas
-            WHERE id_empresa = $idEmpresaSesion
-            LIMIT 1
-        ";
-    }
+} elseif ($rolSesion === 'PROPIETARIO' && $multiempresaSesion === 1) {
 
-} elseif ($rolSesion === 'RRHH' && $idEmpresaSesion > 0) {
-    $sqlEmpresas = "
-        SELECT id_empresa, nombre_empresa
-        FROM empresas
-        WHERE id_empresa = $idEmpresaSesion
-        LIMIT 1
-    ";
+    $sqlEmpresas = "SELECT e.id_empresa,e.nombre_empresa
+                    FROM empresas e
+                    INNER JOIN usuario_empresas ue
+                        ON ue.id_empresa=e.id_empresa
+                    WHERE ue.id_usuario=$idUsuarioSesion
+                    ORDER BY e.nombre_empresa";
+
+} elseif (
+    ($rolSesion === 'PROPIETARIO' || $rolSesion === 'RRHH')
+    && $idEmpresaSesion > 0
+) {
+
+    $sqlEmpresas = "SELECT id_empresa,nombre_empresa
+                    FROM empresas
+                    WHERE id_empresa=$idEmpresaSesion LIMIT 1";
 }
 
-if ($sqlEmpresas !== "") {
+if ($sqlEmpresas !== '') {
     $empresasPermitidas = $dbFrm->obtenerRegistros($sqlEmpresas);
 }
 
-if ($conexionFrmLocal) $dbFrm->desconectar();
+if ($conexionLocal) $dbFrm->desconectar();
 
 $puedeElegirEmpresa =
     $rolSesion === 'ADMIN' ||
     ($rolSesion === 'PROPIETARIO' && $multiempresaSesion === 1);
 
 $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
-    ? $empresasPermitidas[0]
-    : null;
+    ? $empresasPermitidas[0] : null;
 ?>
 
-
-<!-- BOTÓN AGREGAR -->
 <div class="table-header-title">
     <div class="table-tabs-wrapper">
-        <button type="button" class="btn-agregar-op" onclick="abrirModalOperador()">
+        <button type="button" class="btn-agregar-op"
+                onclick="abrirModalOperador()">
             + Agregar Operador
         </button>
     </div>
 </div>
 
-
-<!-- MODAL -->
 <div id="modalOperador" class="modal-overlay">
 <div class="modal-container">
 
     <div class="modal-header">
         <h2 class="modal-title-text">Formulario de Operador</h2>
-        <button type="button" class="btn-cerrar-modal" onclick="cerrarModalOperador()">&times;</button>
+        <button type="button" class="btn-cerrar-modal"
+                onclick="cerrarModalOperador()">&times;</button>
     </div>
 
     <div class="modal-body-scroll">
@@ -93,13 +93,11 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
     <form id="frm" class="form-grid"
           action="javascript:void(0);"
           enctype="multipart/form-data"
-          onsubmit="guardar('operadores', 'frm', event)">
+          onsubmit="guardar('operadores','frm',event)">
 
         <input type="hidden" id="id_operador" name="id_operador" value="">
 
-
-        <!-- DATOS PERSONALES -->
-        <p style="font-weight:bold; color:var(--accent-color); margin-bottom:10px;">
+        <p style="font-weight:bold;color:var(--accent-color);margin-bottom:10px;">
             👤 Datos Personales (Obligatorio)
         </p>
 
@@ -107,53 +105,65 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
 
             <div class="form-group">
                 <label class="form-label">Nombres *</label>
-                <input type="text" class="form-control" name="nombres" id="nombres"
-                       required maxlength="30" placeholder="Ej. Juan Carlos">
+                <input type="text" class="form-control"
+                       name="nombres" id="nombres"
+                       required maxlength="30"
+                       placeholder="Ej. Juan Carlos">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Primer Apellido *</label>
-                <input type="text" class="form-control" name="primer_apellido"
-                       id="primer_apellido" required maxlength="30" placeholder="Ej. Gómez">
+                <input type="text" class="form-control"
+                       name="primer_apellido" id="primer_apellido"
+                       required maxlength="30"
+                       placeholder="Ej. Gómez">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Segundo Apellido *</label>
-                <input type="text" class="form-control" name="segundo_apellido"
-                       id="segundo_apellido" required maxlength="30" placeholder="Ej. Martínez">
+                <input type="text" class="form-control"
+                       name="segundo_apellido" id="segundo_apellido"
+                       required maxlength="30"
+                       placeholder="Ej. Martínez">
             </div>
 
         </div>
-
 
         <div class="form-row">
 
             <div class="form-group">
                 <label class="form-label">RFC *</label>
-                <input type="text" class="form-control" name="rfc" id="rfc"
-                       required maxlength="13" placeholder="13 caracteres">
+                <input type="text" class="form-control"
+                       name="rfc" id="rfc"
+                       required maxlength="13"
+                       placeholder="13 caracteres">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Teléfono Celular *</label>
-                <input type="tel" class="form-control" name="telefono_celular"
-                       id="telefono_celular" required maxlength="10"
+                <input type="tel" class="form-control"
+                       name="telefono_celular" id="telefono_celular"
+                       required maxlength="10"
                        placeholder="Ej. 8789876543">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Estatus del Operador</label>
 
-                <select class="form-control" name="estatus" id="estatus">
+                <select class="form-control" id="estatus" disabled>
                     <option value="1" selected>Activo</option>
                     <option value="0">Inactivo</option>
                 </select>
+
+                <input type="hidden" name="estatus" value="1">
+
+                <small style="color:var(--texto-secundario);">
+                    El estatus se controla mediante el proceso de baja.
+                </small>
             </div>
 
         </div>
 
-
-        <!-- EMPRESA Y FECHA -->
         <div class="form-row">
 
             <div class="form-group">
@@ -161,7 +171,9 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
 
                 <?php if ($puedeElegirEmpresa): ?>
 
-                    <select class="form-control" name="id_empresa" id="id_empresa" required>
+                    <select class="form-control"
+                            name="id_empresa" id="id_empresa" required>
+
                         <option value="">Seleccione una empresa</option>
 
                         <?php foreach ($empresasPermitidas as $empresa): ?>
@@ -169,6 +181,7 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
                                 <?= htmlspecialchars($empresa['nombre_empresa']) ?>
                             </option>
                         <?php endforeach; ?>
+
                     </select>
 
                 <?php elseif ($empresaFija): ?>
@@ -177,40 +190,31 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
                            value="<?= htmlspecialchars($empresaFija['nombre_empresa']) ?>"
                            readonly>
 
-                    <input type="hidden" name="id_empresa" id="id_empresa"
+                    <input type="hidden"
+                           name="id_empresa" id="id_empresa"
                            value="<?= (int)$empresaFija['id_empresa'] ?>">
 
                 <?php else: ?>
 
                     <input type="text" class="form-control"
-                           value="No hay una empresa asignada a este usuario"
-                           readonly>
+                           value="No hay empresa asignada" readonly>
 
                 <?php endif; ?>
             </div>
 
-
-            <!-- FECHA BLOQUEADA -->
             <div class="form-group">
                 <label class="form-label">Fecha de Ingreso *</label>
-
-                <input type="date"
-                       class="form-control"
-                       name="fecha_ingreso"
-                       id="fecha_ingreso"
+                <input type="date" class="form-control"
+                       name="fecha_ingreso" id="fecha_ingreso"
                        value="<?= date('Y-m-d') ?>"
-                       readonly
-                       title="La fecha de ingreso es asignada automáticamente por el sistema">
+                       readonly>
             </div>
 
         </div>
 
+        <hr style="margin:15px 0;border:0;border-top:1px solid var(--borde-sutil);">
 
-        <hr style="margin:15px 0; border:0; border-top:1px solid var(--borde-sutil);">
-
-
-        <!-- DOMICILIO -->
-        <p style="font-weight:bold; color:var(--accent-color); margin-bottom:10px;">
+        <p style="font-weight:bold;color:var(--accent-color);margin-bottom:10px;">
             📍 Domicilio - (Rellenar si se cuenta con la información)
         </p>
 
@@ -218,31 +222,30 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
 
             <div class="form-group" style="flex:2;">
                 <label class="form-label">Calle y Número</label>
-                <input type="text" class="form-control" name="calle_y_numero"
-                       id="calle_y_numero" maxlength="50"
-                       placeholder="Ej. Av. Industrial #123">
+                <input type="text" class="form-control"
+                       name="calle_y_numero" id="calle_y_numero"
+                       maxlength="50" placeholder="Ej. Av. Industrial #123">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Colonia</label>
-                <input type="text" class="form-control" name="colonia"
-                       id="colonia" maxlength="30" placeholder="Ej. Centro">
+                <input type="text" class="form-control"
+                       name="colonia" id="colonia"
+                       maxlength="30" placeholder="Ej. Centro">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Código Postal</label>
-                <input type="text" class="form-control" name="codigo_postal"
-                       id="codigo_postal" maxlength="5" placeholder="Ej. 26000">
+                <input type="text" class="form-control"
+                       name="codigo_postal" id="codigo_postal"
+                       maxlength="5" placeholder="Ej. 26000">
             </div>
 
         </div>
 
+        <hr style="margin:15px 0;border:0;border-top:1px solid var(--borde-sutil);">
 
-        <hr style="margin:15px 0; border:0; border-top:1px solid var(--borde-sutil);">
-
-
-        <!-- LICENCIA FEDERAL -->
-        <p style="font-weight:bold; color:var(--accent-color); margin-bottom:10px;">
+        <p style="font-weight:bold;color:var(--accent-color);margin-bottom:10px;">
             💳 Licencia Federal - (Rellenar si se cuenta con la información)
         </p>
 
@@ -253,7 +256,7 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
                 <input type="text" class="form-control"
                        name="licencia_federal_actual"
                        id="licencia_federal_actual"
-                       maxlength="20" placeholder="Ej. 1234567890">
+                       maxlength="20">
             </div>
 
             <div class="form-group">
@@ -273,12 +276,9 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
 
         </div>
 
+        <hr style="margin:15px 0;border:0;border-top:1px solid var(--borde-sutil);">
 
-        <hr style="margin:15px 0; border:0; border-top:1px solid var(--borde-sutil);">
-
-
-        <!-- APTO MÉDICO -->
-        <p style="font-weight:bold; color:var(--accent-color); margin-bottom:10px;">
+        <p style="font-weight:bold;color:var(--accent-color);margin-bottom:10px;">
             🩺 Apto Médico - (Rellenar si se cuenta con la información)
         </p>
 
@@ -289,7 +289,7 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
                 <input type="text" class="form-control"
                        name="apto_medico_actual"
                        id="apto_medico_actual"
-                       maxlength="20" placeholder="Ej. 178280">
+                       maxlength="20">
             </div>
 
             <div class="form-group">
@@ -309,17 +309,12 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
 
         </div>
 
+        <hr style="margin:15px 0;border:0;border-top:1px solid var(--borde-sutil);">
 
-        <hr style="margin:15px 0; border:0; border-top:1px solid var(--borde-sutil);">
-
-
-        <!-- CRUCE INTERNACIONAL -->
-        <p style="font-weight:bold; color:var(--accent-color); margin-bottom:10px;">
+        <p style="font-weight:bold;color:var(--accent-color);margin-bottom:10px;">
             🇺🇸 Cruce Internacional - (Rellenar si se cuenta con la información)
         </p>
 
-
-        <!-- VISA -->
         <div class="form-row">
 
             <div class="form-group">
@@ -347,8 +342,6 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
 
         </div>
 
-
-        <!-- FAST -->
         <div class="form-row">
 
             <div class="form-group">
@@ -369,20 +362,16 @@ $empresaFija = (!$puedeElegirEmpresa && !empty($empresasPermitidas))
             <div class="form-group">
                 <label class="form-label">PDF FAST</label>
                 <input type="file" class="form-control"
-                       name="fast_pdf"
-                       id="fast_pdf"
+                       name="fast_pdf" id="fast_pdf"
                        accept="application/pdf">
             </div>
 
         </div>
 
-
         <div id="contenedor-alertas-operadores" class="mt-3"></div>
 
-
-        <!-- BOTONES -->
         <div class="form-actions"
-             style="margin-top:20px; display:flex; gap:12px; justify-content:flex-end;">
+             style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end;">
 
             <button type="button"
                     class="btn-action btn-delete"

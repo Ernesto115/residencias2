@@ -3,9 +3,47 @@
    TABLA DE REPORTES DE BAJA
    ========================================================= */
 
-$rolTabla = strtoupper($rol ?? ($_SESSION['rol'] ?? ''));
+if (session_status() === PHP_SESSION_NONE) session_start();
+
+/* VARIABLES SEGURAS */
+$busqueda = trim($busqueda ?? ($_GET['busqueda'] ?? ''));
+$estatus_filtro = strtolower(trim(
+    $estatus_filtro ?? ($_GET['estatus'] ?? 'todos')
+));
+$pagina_actual = max(1, (int)(
+    $pagina_actual ?? ($_GET['pagina'] ?? 1)
+));
+$total_paginas = max(1, (int)($total_paginas ?? 1));
+$datos2 = $datos2 ?? [];
+
+if (!in_array($estatus_filtro, ['todos','pendientes','completados'], true)) {
+    $estatus_filtro = 'todos';
+}
+
+
+/* ROLES */
+$rolTabla = strtoupper(trim(
+    $rol ?? ($_SESSION['rol'] ?? '')
+));
+
+if ($rolTabla === 'ADMINISTRADOR') {
+    $rolTabla = 'ADMIN';
+}
+
+if (in_array($rolTabla, ['RH','RECURSOS HUMANOS'], true)) {
+    $rolTabla = 'RRHH';
+}
+
 $esRRHH = $rolTabla === 'RRHH';
 
+$puedeAcciones = in_array(
+    $rolTabla,
+    ['ADMIN','PROPIETARIO'],
+    true
+);
+
+
+/* MOTIVOS */
 $motivosTexto = [
     'ROBO'=>'Robo',
     'GASTO_COMBUSTIBLE'=>'Gasto de Combustible',
@@ -20,19 +58,26 @@ $motivosTexto = [
 ];
 
 $camposEvaluacion = [
-    'eval_distancia','eval_tiempo','eval_ganancias',
-    'eval_cuidado_vehiculo','eval_productividad',
-    'eval_rendimiento','eval_cuidado_fisico'
+    'eval_distancia',
+    'eval_tiempo',
+    'eval_ganancias',
+    'eval_cuidado_vehiculo',
+    'eval_productividad',
+    'eval_rendimiento',
+    'eval_cuidado_fisico'
 ];
 
-$h = fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+$h = fn($v) =>
+    htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 
-$js = fn($v) => htmlspecialchars(
-    json_encode($v, JSON_UNESCAPED_UNICODE),
-    ENT_QUOTES,
-    'UTF-8'
-);
+$js = fn($v) =>
+    htmlspecialchars(
+        json_encode($v, JSON_UNESCAPED_UNICODE),
+        ENT_QUOTES,
+        'UTF-8'
+    );
 ?>
+
 
 <div class="table-container">
 
@@ -74,7 +119,11 @@ $js = fn($v) => htmlspecialchars(
                    value="<?= $h($busqueda) ?>"
                    onkeydown="if(event.key==='Enter'){
                        event.preventDefault();
-                       cargarReportes(1,<?= $js($estatus_filtro) ?>,this.value);
+                       cargarReportes(
+                           1,
+                           <?= $js($estatus_filtro) ?>,
+                           this.value
+                       );
                    }"
                    style="padding-right:38px;height:40px;font-size:.9rem;">
 
@@ -82,7 +131,11 @@ $js = fn($v) => htmlspecialchars(
 
                 <button type="button"
                         title="Limpiar búsqueda"
-                        onclick="cargarReportes(1,<?= $js($estatus_filtro) ?>,'')"
+                        onclick="cargarReportes(
+                            1,
+                            <?= $js($estatus_filtro) ?>,
+                            ''
+                        )"
                         style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--texto-secundario);">
                     &times;
                 </button>
@@ -105,11 +158,12 @@ $js = fn($v) => htmlspecialchars(
                     <th>Empresa</th>
                     <th class="text-center">Estado</th>
 
-                    <?php if (!$esRRHH): ?>
+                    <?php if ($puedeAcciones): ?>
                         <th class="text-center">Acción</th>
                     <?php endif; ?>
                 </tr>
             </thead>
+
 
             <tbody>
 
@@ -118,32 +172,56 @@ $js = fn($v) => htmlspecialchars(
                 <?php foreach ($datos2 as $r):
 
                     $id = (int)($r['id_reporte'] ?? 0);
-                    $estatus = strtoupper($r['estatus_evaluacion'] ?? 'PENDIENTE');
 
-                    $calif = is_numeric($r['calificacion_cuantitativa'] ?? null)
-                        ? (float)$r['calificacion_cuantitativa'] : 0;
+                    $estatus = strtoupper(
+                        $r['estatus_evaluacion'] ?? 'PENDIENTE'
+                    );
 
-                    $motivo = strtoupper($r['motivo_baja'] ?? '');
-                    $motivoMostrar = $motivosTexto[$motivo] ?? $motivo;
+                    $calif = is_numeric(
+                        $r['calificacion_cuantitativa'] ?? null
+                    )
+                        ? (float)$r['calificacion_cuantitativa']
+                        : 0;
 
-                    if ($motivo === 'OTRO' && !empty($r['calif_cualitativa'])) {
-                        $motivoMostrar = 'Otro: ' . $r['calif_cualitativa'];
+                    $motivo = strtoupper(
+                        $r['motivo_baja'] ?? ''
+                    );
+
+                    $motivoMostrar =
+                        $motivosTexto[$motivo] ?? $motivo;
+
+                    if (
+                        $motivo === 'OTRO' &&
+                        !empty($r['calif_cualitativa'])
+                    ) {
+                        $motivoMostrar =
+                            'Otro: ' . $r['calif_cualitativa'];
                     }
 
+
+                    /* TIPO DE EVALUACIÓN */
                     $tieneEvaluacion = true;
 
                     foreach ($camposEvaluacion as $campo) {
-                        if (!array_key_exists($campo, $r) || $r[$campo] === null) {
+
+                        if (
+                            !array_key_exists($campo, $r) ||
+                            $r[$campo] === null
+                        ) {
                             $tieneEvaluacion = false;
                             break;
                         }
                     }
 
-                    $tipoEvaluacion = $tieneEvaluacion ? 'nueva' : 'anterior';
+                    $tipoEvaluacion =
+                        $tieneEvaluacion ? 'nueva' : 'anterior';
+
                     $promedioServicio = 0;
 
                     if ($tieneEvaluacion) {
-                        $promedioServicio = $r['promedio_servicio'] !== null
+
+                        $promedioServicio =
+                            $r['promedio_servicio'] !== null
                             ? (float)$r['promedio_servicio']
                             : (
                                 (float)$r['eval_distancia'] +
@@ -153,6 +231,7 @@ $js = fn($v) => htmlspecialchars(
                     }
                 ?>
 
+
                 <tr>
 
                     <!-- OPERADOR -->
@@ -160,13 +239,16 @@ $js = fn($v) => htmlspecialchars(
                         <?= $h($r['nombre_operador'] ?? '') ?>
                     </td>
 
+
                     <!-- EMPRESA -->
                     <td>
                         <?= $h($r['nombre_empresa'] ?? '') ?>
                     </td>
 
+
                     <!-- ESTADO -->
-                    <td class="text-center" id="estado-reporte-<?= $id ?>">
+                    <td class="text-center"
+                        id="estado-reporte-<?= $id ?>">
 
                         <?php if ($estatus === 'PENDIENTE'): ?>
 
@@ -186,10 +268,11 @@ $js = fn($v) => htmlspecialchars(
                     </td>
 
 
-                    <?php if (!$esRRHH): ?>
+                    <?php if ($puedeAcciones): ?>
 
                     <!-- ACCIONES -->
-                    <td class="text-center" id="accion-reporte-<?= $id ?>">
+                    <td class="text-center"
+                        id="accion-reporte-<?= $id ?>">
 
                         <?php if ($estatus === 'PENDIENTE'): ?>
 
@@ -207,7 +290,7 @@ $js = fn($v) => htmlspecialchars(
 
                         <?php elseif ($estatus === 'COMPLETADA'): ?>
 
-                            <!-- VER EVALUACIÓN -->
+                            <!-- EVALUACIÓN -->
                             <button type="button"
                                     class="btn-action btn-edit btn-evaluacion"
                                     data-tipo="<?= $tipoEvaluacion ?>"
@@ -217,6 +300,7 @@ $js = fn($v) => htmlspecialchars(
                                     data-general="<?= number_format($calif,2,'.','') ?>"
 
                                     <?php if ($tieneEvaluacion): ?>
+
                                         data-promedio="<?= number_format($promedioServicio,2,'.','') ?>"
                                         data-distancia="<?= (int)$r['eval_distancia'] ?>"
                                         data-tiempo="<?= (int)$r['eval_tiempo'] ?>"
@@ -225,18 +309,26 @@ $js = fn($v) => htmlspecialchars(
                                         data-productividad="<?= (int)$r['eval_productividad'] ?>"
                                         data-rendimiento="<?= (int)$r['eval_rendimiento'] ?>"
                                         data-fisico="<?= (int)$r['eval_cuidado_fisico'] ?>"
+
                                     <?php endif; ?>
 
                                     onclick="verEvaluacionBaja(this)">
+
                                 📊 Ver Evaluación
+
                             </button>
 
 
                             <!-- CONSTANCIA -->
                             <button type="button"
                                     class="btn-action btn-edit btn-constancia-laboral"
-                                    onclick="window.open('/reporte_baja/constancia.php?id=<?= $id ?>','_blank')">
+                                    onclick="window.open(
+                                        '/reporte_baja/constancia.php?id=<?= $id ?>',
+                                        '_blank'
+                                    )">
+
                                 📄 Constancia Laboral
+
                             </button>
 
                         <?php endif; ?>
@@ -247,20 +339,25 @@ $js = fn($v) => htmlspecialchars(
 
                 </tr>
 
+
                 <?php endforeach; ?>
 
 
             <?php else: ?>
 
                 <tr>
-                    <td colspan="<?= $esRRHH ? 3 : 4 ?>" class="text-center">
+                    <td colspan="<?= $puedeAcciones ? 4 : 3 ?>"
+                        class="text-center">
+
                         No se encontraron reportes de baja.
+
                     </td>
                 </tr>
 
             <?php endif; ?>
 
             </tbody>
+
         </table>
 
     </div>
@@ -269,43 +366,58 @@ $js = fn($v) => htmlspecialchars(
     <!-- PAGINACIÓN -->
     <?php if ($total_paginas > 1): ?>
 
-    <div class="pagination-wrapper">
+        <div class="pagination-wrapper">
 
-        <div class="pagination-info">
-            Página <span><?= $pagina_actual ?></span>
-            de <span><?= $total_paginas ?></span>
-        </div>
+            <div class="pagination-info">
 
-        <div class="pagination-controls">
+                Página
+                <span><?= $pagina_actual ?></span>
 
-            <button type="button"
-                    class="pagination-btn <?= $pagina_actual <= 1 ? 'disabled' : '' ?>"
-                    <?= $pagina_actual <= 1 ? 'disabled' : '' ?>
-                    onclick="cargarReportes(
-                        <?= $pagina_actual - 1 ?>,
-                        <?= $js($estatus_filtro) ?>,
-                        <?= $js($busqueda) ?>
-                    )">
-                ← Anterior
-            </button>
+                de
+                <span><?= $total_paginas ?></span>
 
-            <div class="pagination-current">
-                Página <?= $pagina_actual ?>
             </div>
 
-            <button type="button"
-                    class="pagination-btn <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>"
-                    <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>
-                    onclick="cargarReportes(
-                        <?= $pagina_actual + 1 ?>,
-                        <?= $js($estatus_filtro) ?>,
-                        <?= $js($busqueda) ?>
-                    )">
-                Siguiente →
-            </button>
+
+            <div class="pagination-controls">
+
+                <button type="button"
+                        class="pagination-btn <?= $pagina_actual <= 1 ? 'disabled' : '' ?>"
+                        <?= $pagina_actual <= 1 ? 'disabled' : '' ?>
+
+                        onclick="cargarReportes(
+                            <?= $pagina_actual - 1 ?>,
+                            <?= $js($estatus_filtro) ?>,
+                            <?= $js($busqueda) ?>
+                        )">
+
+                    ← Anterior
+
+                </button>
+
+
+                <div class="pagination-current">
+                    Página <?= $pagina_actual ?>
+                </div>
+
+
+                <button type="button"
+                        class="pagination-btn <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>"
+                        <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>
+
+                        onclick="cargarReportes(
+                            <?= $pagina_actual + 1 ?>,
+                            <?= $js($estatus_filtro) ?>,
+                            <?= $js($busqueda) ?>
+                        )">
+
+                    Siguiente →
+
+                </button>
+
+            </div>
 
         </div>
-    </div>
 
     <?php endif; ?>
 

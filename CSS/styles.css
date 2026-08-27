@@ -3360,3 +3360,161 @@ td[id^="accion-reporte-"] .btn-action {
     box-shadow: none !important;
     transform: none !important;
 }
+
+/* =========================================================
+   EVALUACIÓN DE BAJA - 7 CRITERIOS
+   ========================================================= */
+
+#modalRevisionBaja .modal-container {
+    max-width: 760px;
+}
+
+#modalRevisionBaja .eval-seccion {
+    padding: 16px;
+    border: 1px solid var(--modal-card-border);
+    border-radius: 12px;
+    background: var(--modal-card-bg);
+}
+
+#modalRevisionBaja .eval-seccion-titulo {
+    color: var(--modal-card-title);
+    font-size: 1rem;
+    font-weight: 800;
+    margin-bottom: 2px;
+}
+
+#modalRevisionBaja .eval-seccion-subtitulo {
+    color: var(--modal-text-muted);
+    font-size: .8rem;
+    font-weight: 600;
+    margin-bottom: 14px;
+}
+
+#modalRevisionBaja .eval-criterio {
+    margin-bottom: 13px;
+}
+
+#modalRevisionBaja .eval-criterio:last-of-type {
+    margin-bottom: 0;
+}
+
+#modalRevisionBaja .eval-nombre {
+    color: var(--modal-text);
+    font-size: .88rem;
+    font-weight: 700;
+    margin-bottom: 7px;
+}
+
+#modalRevisionBaja .eval-botones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+#modalRevisionBaja .eval-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid var(--input-borde);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--texto-principal);
+    font-size: .85rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all .2s ease;
+}
+
+#modalRevisionBaja .eval-btn:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    transform: translateY(-2px);
+}
+
+#modalRevisionBaja .eval-btn.seleccionado {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #fff;
+    box-shadow: 0 3px 10px var(--accent-glow);
+    transform: translateY(-2px);
+}
+
+#modalRevisionBaja .eval-promedio {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--modal-card-border);
+    color: var(--modal-text-muted);
+    font-size: .88rem;
+    font-weight: 700;
+}
+
+#modalRevisionBaja .eval-promedio span {
+    color: var(--modal-text);
+    font-weight: 800;
+}
+
+#modalRevisionBaja .eval-resumen {
+    padding: 16px;
+    text-align: center;
+    border: 1px solid var(--modal-card-border);
+    border-radius: 12px;
+    background: var(--modal-card-bg);
+}
+
+#modalRevisionBaja .eval-resumen-titulo {
+    color: var(--modal-text-muted);
+    font-size: .78rem;
+    font-weight: 800;
+}
+
+#modalRevisionBaja .eval-puntuacion {
+    margin: 5px 0;
+    color: var(--modal-card-title);
+    font-size: 1.35rem;
+    font-weight: 900;
+}
+
+#modalRevisionBaja .eval-clasificacion {
+    color: var(--modal-text-muted);
+    font-size: .85rem;
+    font-weight: 700;
+}
+
+@media (max-width: 500px) {
+    #modalRevisionBaja .eval-btn {
+        width: 34px;
+        height: 35px;
+        font-size: .78rem;
+    }
+}
+
+/* =========================================================
+   CENTRAR EVALUACIÓN DE BAJA
+   ========================================================= */
+
+#modalRevisionBaja .eval-seccion {
+    text-align: center;
+}
+
+#modalRevisionBaja .eval-criterio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#modalRevisionBaja .eval-nombre {
+    text-align: center;
+}
+
+#modalRevisionBaja .eval-botones {
+    justify-content: center;
+    width: 100%;
+}
+
+#modalRevisionBaja .eval-promedio {
+    text-align: center;
+}
+
+#modalRevisionBaja .eval-resumen {
+    text-align: center;
+}

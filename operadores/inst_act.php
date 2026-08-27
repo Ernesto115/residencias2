@@ -1,143 +1,119 @@
 <?php
-session_start();
-include_once "../db/db.php";
+if (session_status() === PHP_SESSION_NONE) session_start();
 
+include_once "../db/db.php";
 $db = new db();
 $db->conectar();
 
-/* =========================================================
-   1. SESIÓN Y FORMULARIO
-   ========================================================= */
-$rol = strtoupper($_SESSION['rol'] ?? '');
+$rol = strtoupper(trim($_SESSION['rol'] ?? ''));
+
+if ($rol === 'ADMINISTRADOR') $rol = 'ADMIN';
+if (in_array($rol, ['RH','RECURSOS HUMANOS'], true)) $rol = 'RRHH';
+
 $id_usuario = (int)($_SESSION['id_usuario'] ?? 0);
 $id_empresa_sesion = (int)($_SESSION['id_empresa'] ?? 0);
 $multiempresa = (int)($_SESSION['multiempresa'] ?? 0);
 
-$id_operador = (isset($_REQUEST['id_operador']) && is_numeric($_REQUEST['id_operador']))
-    ? (int)$_REQUEST['id_operador'] : 0;
-
-$estatus = isset($_REQUEST['estatus']) ? (int)$_REQUEST['estatus'] : 1;
-$id_empresa_form = (int)($_REQUEST['id_empresa'] ?? 0);
-
-$rfc = addslashes(trim($_REQUEST['rfc'] ?? ''));
-$nombres = addslashes(trim($_REQUEST['nombres'] ?? ''));
-$primer_apellido = addslashes(trim($_REQUEST['primer_apellido'] ?? ''));
-$segundo_apellido = addslashes(trim($_REQUEST['segundo_apellido'] ?? ''));
-$telefono_celular = addslashes(trim($_REQUEST['telefono_celular'] ?? ''));
-
-$calle_y_numero = addslashes(trim($_REQUEST['calle_y_numero'] ?? ''));
-$colonia = addslashes(trim($_REQUEST['colonia'] ?? ''));
-$codigo_postal = addslashes(trim($_REQUEST['codigo_postal'] ?? ''));
-
-$licencia_federal_actual = addslashes(trim($_REQUEST['licencia_federal_actual'] ?? ''));
-$apto_medico_actual = addslashes(trim($_REQUEST['apto_medico_actual'] ?? ''));
-$visa = addslashes(trim($_REQUEST['visa'] ?? ''));
-$fast = addslashes(trim($_REQUEST['fast'] ?? ''));
-
-/* FECHAS DE DOCUMENTOS */
-$vencimiento_lic_federal = !empty($_REQUEST['vencimiento_lic_federal'])
-    ? "'" . addslashes($_REQUEST['vencimiento_lic_federal']) . "'" : "NULL";
-
-$vencimiento_apto_medico = !empty($_REQUEST['vencimiento_apto_medico'])
-    ? "'" . addslashes($_REQUEST['vencimiento_apto_medico']) . "'" : "NULL";
-
-$vencimiento_visa = !empty($_REQUEST['vencimiento_visa'])
-    ? "'" . addslashes($_REQUEST['vencimiento_visa']) . "'" : "NULL";
-
-$vencimiento_fast = !empty($_REQUEST['vencimiento_fast'])
-    ? "'" . addslashes($_REQUEST['vencimiento_fast']) . "'" : "NULL";
-
-
-/* =========================================================
-   2. FUNCIÓN DE ERROR
-   ========================================================= */
-function errorOperador($mensaje, $db, $cerrarModal = false)
+function errorOperador($mensaje, $db, $cerrar = false)
 {
-    $mensajeJS = json_encode(
-        $mensaje,
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-    );
-
-    $cerrarJS = $cerrarModal
-        ? "if (typeof cerrarModalOperador === 'function') cerrarModalOperador();"
+    $msg = json_encode($mensaje, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $cerrarJS = $cerrar
+        ? "if(typeof cerrarModalOperador==='function') cerrarModalOperador();"
         : "";
 
     echo "<!-- Error MySQL -->
     <script>
         $cerrarJS
-
-        if (typeof Swal !== 'undefined') {
+        if(typeof Swal!=='undefined'){
             Swal.fire({
-                icon: 'error',
-                title: 'Operación no permitida',
-                text: $mensajeJS,
-                confirmButtonText: 'Entendido',
-                confirmButtonColor: '#dc2626',
-                background: '#1e293b',
-                color: '#ffffff'
+                icon:'error',
+                title:'Operación no permitida',
+                text:$msg,
+                confirmButtonText:'Entendido',
+                confirmButtonColor:'#dc2626'
             });
-        } else {
-            alert('❌ ' + $mensajeJS);
-        }
+        }else alert('❌ '+$msg);
     </script>";
 
     $db->desconectar();
     exit;
 }
 
+if (!in_array($rol, ['ADMIN','PROPIETARIO','RRHH'], true)) {
+    errorOperador('No tienes permisos para registrar o editar operadores.', $db);
+}
 
-/* =========================================================
-   3. EMPRESA SEGÚN ROL
-   ========================================================= */
-$id_empresa = 0;
+$id_operador = is_numeric($_REQUEST['id_operador'] ?? null)
+    ? (int)$_REQUEST['id_operador'] : 0;
 
+$id_empresa_form = (int)($_REQUEST['id_empresa'] ?? 0);
+
+function campo($nombre) {
+    return addslashes(trim($_REQUEST[$nombre] ?? ''));
+}
+
+$rfc = campo('rfc');
+$nombres = campo('nombres');
+$primer_apellido = campo('primer_apellido');
+$segundo_apellido = campo('segundo_apellido');
+$telefono_celular = campo('telefono_celular');
+$calle_y_numero = campo('calle_y_numero');
+$colonia = campo('colonia');
+$codigo_postal = campo('codigo_postal');
+$licencia_federal_actual = campo('licencia_federal_actual');
+$apto_medico_actual = campo('apto_medico_actual');
+$visa = campo('visa');
+$fast = campo('fast');
+
+function fechaSQL($campo)
+{
+    $fecha = trim($_REQUEST[$campo] ?? '');
+    return $fecha === '' ? 'NULL' : "'" . addslashes($fecha) . "'";
+}
+
+$vencimiento_lic_federal = fechaSQL('vencimiento_lic_federal');
+$vencimiento_apto_medico = fechaSQL('vencimiento_apto_medico');
+$vencimiento_visa = fechaSQL('vencimiento_visa');
+$vencimiento_fast = fechaSQL('vencimiento_fast');
+
+
+/* EMPRESA PERMITIDA */
 if ($rol === 'ADMIN') {
 
     $id_empresa = $id_empresa_form;
 
-    if ($id_empresa <= 0) {
-        errorOperador('Debes seleccionar una empresa.', $db);
-    }
-
-    if (empty($db->obtenerRegistros(
-        "SELECT id_empresa FROM empresas
-         WHERE id_empresa = $id_empresa LIMIT 1"
-    ))) {
-        errorOperador('La empresa seleccionada no existe.', $db);
+    if ($id_empresa <= 0 ||
+        empty($db->obtenerRegistros(
+            "SELECT id_empresa FROM empresas
+             WHERE id_empresa=$id_empresa LIMIT 1"
+        ))) {
+        errorOperador('La empresa seleccionada no es válida.', $db);
     }
 
 } elseif ($rol === 'PROPIETARIO' && $multiempresa === 1) {
 
     $id_empresa = $id_empresa_form;
 
-    if ($id_empresa <= 0) {
-        errorOperador('Debes seleccionar una empresa.', $db);
-    }
-
-    if (empty($db->obtenerRegistros(
-        "SELECT id_empresa FROM usuario_empresas
-         WHERE id_usuario = $id_usuario
-         AND id_empresa = $id_empresa LIMIT 1"
-    ))) {
+    if ($id_empresa <= 0 ||
+        empty($db->obtenerRegistros(
+            "SELECT id_empresa FROM usuario_empresas
+             WHERE id_usuario=$id_usuario
+             AND id_empresa=$id_empresa LIMIT 1"
+        ))) {
         errorOperador('No tienes permiso para utilizar esa empresa.', $db);
     }
 
-} elseif ($rol === 'PROPIETARIO' || $rol === 'RRHH') {
+} else {
 
     $id_empresa = $id_empresa_sesion;
 
     if ($id_empresa <= 0) {
         errorOperador('Tu usuario no tiene una empresa asignada.', $db);
     }
-
-} else {
-    errorOperador('No tienes permisos para registrar operadores.', $db);
 }
 
 
-/* =========================================================
-   4. VALIDACIONES
-   ========================================================= */
+/* OBLIGATORIOS */
 if (
     $rfc === '' ||
     $nombres === '' ||
@@ -149,19 +125,52 @@ if (
 }
 
 
-/* =========================================================
-   5. RFC / RECONTRATACIÓN
-   ========================================================= */
 $recontratacion = false;
 
-/* EDITAR */
+
+/* EDITAR OPERADOR EXISTENTE */
 if ($id_operador > 0) {
+
+    $actual = $db->obtenerRegistros(
+        "SELECT id_empresa,estatus
+         FROM operadores
+         WHERE id_operador=$id_operador LIMIT 1"
+    );
+
+    if (empty($actual)) {
+        errorOperador('El operador no existe.', $db);
+    }
+
+    $empresa_actual = (int)$actual[0]['id_empresa'];
+    $estatus_actual = (int)$actual[0]['estatus'];
+
+    if ($estatus_actual !== 1) {
+        errorOperador(
+            'Un operador inactivo no puede editarse directamente. Utiliza el proceso de recontratación.',
+            $db,
+            true
+        );
+    }
+
+    if ($rol === 'PROPIETARIO' && $multiempresa === 1) {
+
+        if (empty($db->obtenerRegistros(
+            "SELECT id_empresa FROM usuario_empresas
+             WHERE id_usuario=$id_usuario
+             AND id_empresa=$empresa_actual LIMIT 1"
+        ))) {
+            errorOperador('No puedes editar operadores de otra empresa.', $db);
+        }
+
+    } elseif ($rol !== 'ADMIN' && $empresa_actual !== $id_empresa_sesion) {
+
+        errorOperador('No puedes editar operadores de otra empresa.', $db);
+    }
 
     $duplicado = $db->obtenerRegistros(
         "SELECT id_operador FROM operadores
-         WHERE rfc = '$rfc'
-         AND id_operador <> $id_operador
-         LIMIT 1"
+         WHERE rfc='$rfc'
+         AND id_operador<>$id_operador LIMIT 1"
     );
 
     if (!empty($duplicado)) {
@@ -170,59 +179,51 @@ if ($id_operador > 0) {
 
 }
 
-/* NUEVO / POSIBLE RECONTRATACIÓN */
+
+/* NUEVO / RECONTRATACIÓN */
 else {
 
     $existente = $db->obtenerRegistros(
-        "SELECT o.id_operador, o.estatus, o.id_empresa, e.nombre_empresa
+        "SELECT o.id_operador,o.estatus,e.nombre_empresa
          FROM operadores o
-         LEFT JOIN empresas e ON e.id_empresa = o.id_empresa
-         WHERE o.rfc = '$rfc'
-         LIMIT 1"
+         LEFT JOIN empresas e ON e.id_empresa=o.id_empresa
+         WHERE o.rfc='$rfc' LIMIT 1"
     );
 
     if (!empty($existente)) {
 
-        $opExistente = $existente[0];
-        $idExistente = (int)$opExistente['id_operador'];
-        $estatusExistente = (int)$opExistente['estatus'];
-        $empresaActual = $opExistente['nombre_empresa'] ?? 'otra empresa';
+        $op = $existente[0];
+        $idExistente = (int)$op['id_operador'];
 
-
-        /* BAJA PENDIENTE */
         $pendiente = $db->obtenerRegistros(
             "SELECT id_reporte FROM reportes_baja
-             WHERE id_operador = $idExistente
-             AND estatus_evaluacion = 'PENDIENTE'
+             WHERE id_operador=$idExistente
+             AND estatus_evaluacion='PENDIENTE'
              LIMIT 1"
         );
 
         if (!empty($pendiente)) {
             errorOperador(
-                'Este operador tiene una baja pendiente. Debe completarse antes de poder contratarlo.',
+                'Este operador tiene una baja pendiente. Debe completarse antes de contratarlo.',
                 $db,
                 true
             );
         }
 
-
-        /* SIGUE ACTIVO */
-        if ($estatusExistente === 1) {
+        if ((int)$op['estatus'] === 1) {
             errorOperador(
-                'Este operador ya se encuentra activo en ' . $empresaActual . '.',
+                'Este operador ya se encuentra activo en ' .
+                ($op['nombre_empresa'] ?? 'otra empresa') . '.',
                 $db,
                 true
             );
         }
 
-
-        /* ÚLTIMA BAJA */
         $ultimaBaja = $db->obtenerRegistros(
-            "SELECT id_reporte, estatus_evaluacion
+            "SELECT estatus_evaluacion
              FROM reportes_baja
-             WHERE id_operador = $idExistente
-             ORDER BY id_reporte DESC
-             LIMIT 1"
+             WHERE id_operador=$idExistente
+             ORDER BY id_reporte DESC LIMIT 1"
         );
 
         if (
@@ -230,174 +231,153 @@ else {
             strtoupper($ultimaBaja[0]['estatus_evaluacion']) !== 'COMPLETADA'
         ) {
             errorOperador(
-                'El operador está inactivo, pero no cuenta con una baja completada.',
+                'El operador está inactivo pero no cuenta con una baja completada.',
                 $db,
                 true
             );
         }
 
-
-        /* ✅ RECONTRATACIÓN */
         $id_operador = $idExistente;
-        $estatus = 1;
         $recontratacion = true;
     }
 }
 
 
-/* =========================================================
-   6. SEGURIDAD AL EDITAR
-   ========================================================= */
-if ($id_operador > 0 && !$recontratacion && $rol !== 'ADMIN') {
+/* PDFs */
+$dir = "../uploads/pdf/";
 
-    $actual = $db->obtenerRegistros(
-        "SELECT id_empresa FROM operadores
-         WHERE id_operador = $id_operador LIMIT 1"
-    );
-
-    if (empty($actual)) {
-        errorOperador('El operador no existe.', $db);
-    }
-
-    $empresa_actual = (int)$actual[0]['id_empresa'];
-
-    if ($rol === 'PROPIETARIO' && $multiempresa === 1) {
-
-        $permiso = $db->obtenerRegistros(
-            "SELECT id_empresa FROM usuario_empresas
-             WHERE id_usuario = $id_usuario
-             AND id_empresa = $empresa_actual LIMIT 1"
-        );
-
-        if (empty($permiso)) {
-            errorOperador('No puedes editar operadores de otra empresa.', $db);
-        }
-
-    } elseif ($empresa_actual !== $id_empresa_sesion) {
-        errorOperador('No puedes editar operadores de otra empresa.', $db);
-    }
+if (!is_dir($dir) && !mkdir($dir,0755,true) && !is_dir($dir)) {
+    errorOperador('No fue posible preparar la carpeta de documentos.', $db);
 }
 
-
-/* =========================================================
-   7. ARCHIVOS PDF
-   ========================================================= */
-$dir_subida = "../uploads/pdf/";
-
-if (!file_exists($dir_subida)) {
-    mkdir($dir_subida, 0777, true);
-}
-
-function subirPDF($campo, $prefijo, $dir)
+function subirPDF($campo, $prefijo, $dir, $db)
 {
-    if (isset($_FILES[$campo]) && $_FILES[$campo]['error'] === UPLOAD_ERR_OK) {
+    if (
+        !isset($_FILES[$campo]) ||
+        $_FILES[$campo]['error'] === UPLOAD_ERR_NO_FILE
+    ) return '';
 
-        $nombre = time() . "_" . $prefijo . "_" .
-                  basename($_FILES[$campo]['name']);
+    $a = $_FILES[$campo];
 
-        if (move_uploaded_file($_FILES[$campo]['tmp_name'], $dir . $nombre)) {
-            return $nombre;
+    if ($a['error'] !== UPLOAD_ERR_OK) {
+        errorOperador('No fue posible subir el documento.', $db);
+    }
+
+    if ((int)$a['size'] <= 0 || (int)$a['size'] > 10 * 1024 * 1024) {
+        errorOperador('Cada PDF debe pesar máximo 10 MB.', $db);
+    }
+
+    if (strtolower(pathinfo($a['name'], PATHINFO_EXTENSION)) !== 'pdf') {
+        errorOperador('Solo se permiten archivos PDF.', $db);
+    }
+
+    $firma = @file_get_contents($a['tmp_name'], false, null, 0, 5);
+
+    if ($firma !== '%PDF-') {
+        errorOperador('El archivo seleccionado no es un PDF válido.', $db);
+    }
+
+    if (function_exists('mime_content_type')) {
+        $mime = @mime_content_type($a['tmp_name']);
+
+        if (
+            $mime !== false &&
+            !in_array(
+                $mime,
+                ['application/pdf','application/x-pdf','application/octet-stream'],
+                true
+            )
+        ) {
+            errorOperador('El tipo de archivo no está permitido.', $db);
         }
     }
 
-    return "";
+    $nombre = $prefijo . '_' .
+              date('Ymd_His') . '_' .
+              bin2hex(random_bytes(5)) . '.pdf';
+
+    if (!move_uploaded_file($a['tmp_name'], $dir.$nombre)) {
+        errorOperador('No fue posible guardar el PDF.', $db);
+    }
+
+    return $nombre;
 }
 
-$archivo_pdf_licencia = subirPDF('archivo_pdf_licencia', 'lic', $dir_subida);
-$archivo_pdf_apto_medico = subirPDF('archivo_pdf_apto_medico', 'med', $dir_subida);
-$archivo_pdf_visa = subirPDF('archivo_pdf_visa', 'visa', $dir_subida);
-$fast_pdf = subirPDF('fast_pdf', 'fast', $dir_subida);
+$pdfLic = subirPDF('archivo_pdf_licencia','lic',$dir,$db);
+$pdfMed = subirPDF('archivo_pdf_apto_medico','med',$dir,$db);
+$pdfVisa = subirPDF('archivo_pdf_visa','visa',$dir,$db);
+$pdfFast = subirPDF('fast_pdf','fast',$dir,$db);
 
 
-/* =========================================================
-   8. ACTUALIZAR / RECONTRATAR
-   ========================================================= */
+/* ACTUALIZAR / RECONTRATAR */
 if ($id_operador > 0) {
 
     $sql = "UPDATE operadores SET
-            id_empresa = $id_empresa,
-            estatus = $estatus,
-            rfc = '$rfc',
-            nombres = '$nombres',
-            primer_apellido = '$primer_apellido',
-            segundo_apellido = '$segundo_apellido',
-            telefono_celular = '$telefono_celular',
-            calle_y_numero = '$calle_y_numero',
-            colonia = '$colonia',
-            codigo_postal = '$codigo_postal',
-            licencia_federal_actual = '$licencia_federal_actual',
-            vencimiento_lic_federal = $vencimiento_lic_federal,
-            apto_medico_actual = '$apto_medico_actual',
-            vencimiento_apto_medico = $vencimiento_apto_medico,
-            visa = '$visa',
-            vencimiento_visa = $vencimiento_visa,
-            fast = '$fast',
-            vencimiento_fast = $vencimiento_fast";
+        id_empresa=$id_empresa,
+        rfc='$rfc',
+        nombres='$nombres',
+        primer_apellido='$primer_apellido',
+        segundo_apellido='$segundo_apellido',
+        telefono_celular='$telefono_celular',
+        calle_y_numero='$calle_y_numero',
+        colonia='$colonia',
+        codigo_postal='$codigo_postal',
+        licencia_federal_actual='$licencia_federal_actual',
+        vencimiento_lic_federal=$vencimiento_lic_federal,
+        apto_medico_actual='$apto_medico_actual',
+        vencimiento_apto_medico=$vencimiento_apto_medico,
+        visa='$visa',
+        vencimiento_visa=$vencimiento_visa,
+        fast='$fast',
+        vencimiento_fast=$vencimiento_fast";
 
-
-    /* SOLO EN RECONTRATACIÓN SE CAMBIA FECHA DE INGRESO */
     if ($recontratacion) {
-        $sql .= ", fecha_ingreso = CURDATE()";
+        $sql .= ", estatus=1, fecha_ingreso=CURDATE()";
     }
 
+    if ($pdfLic !== '')  $sql .= ", archivo_pdf_licencia='$pdfLic'";
+    if ($pdfMed !== '')  $sql .= ", archivo_pdf_apto_medico='$pdfMed'";
+    if ($pdfVisa !== '') $sql .= ", archivo_pdf_visa='$pdfVisa'";
+    if ($pdfFast !== '') $sql .= ", fast_pdf='$pdfFast'";
 
-    if ($archivo_pdf_licencia !== '') {
-        $sql .= ", archivo_pdf_licencia = '$archivo_pdf_licencia'";
-    }
-
-    if ($archivo_pdf_apto_medico !== '') {
-        $sql .= ", archivo_pdf_apto_medico = '$archivo_pdf_apto_medico'";
-    }
-
-    if ($archivo_pdf_visa !== '') {
-        $sql .= ", archivo_pdf_visa = '$archivo_pdf_visa'";
-    }
-
-    if ($fast_pdf !== '') {
-        $sql .= ", fast_pdf = '$fast_pdf'";
-    }
-
-    $sql .= " WHERE id_operador = $id_operador";
+    $sql .= " WHERE id_operador=$id_operador";
 
     $db->actualizar($sql);
+
 }
 
 
-/* =========================================================
-   9. OPERADOR NUEVO
-   ========================================================= */
+/* NUEVO */
 else {
 
     $sql = "INSERT INTO operadores (
-                id_empresa, fecha_ingreso, estatus,
-                rfc, nombres, primer_apellido, segundo_apellido,
-                telefono_celular, calle_y_numero, colonia, codigo_postal,
-                licencia_federal_actual, vencimiento_lic_federal, archivo_pdf_licencia,
-                apto_medico_actual, vencimiento_apto_medico, archivo_pdf_apto_medico,
-                visa, vencimiento_visa, archivo_pdf_visa,
-                fast, vencimiento_fast, fast_pdf
-            ) VALUES (
-                $id_empresa, CURDATE(), $estatus,
-                '$rfc', '$nombres', '$primer_apellido', '$segundo_apellido',
-                '$telefono_celular', '$calle_y_numero', '$colonia', '$codigo_postal',
-                '$licencia_federal_actual', $vencimiento_lic_federal, '$archivo_pdf_licencia',
-                '$apto_medico_actual', $vencimiento_apto_medico, '$archivo_pdf_apto_medico',
-                '$visa', $vencimiento_visa, '$archivo_pdf_visa',
-                '$fast', $vencimiento_fast, '$fast_pdf'
-            )";
+        id_empresa,fecha_ingreso,estatus,
+        rfc,nombres,primer_apellido,segundo_apellido,
+        telefono_celular,calle_y_numero,colonia,codigo_postal,
+        licencia_federal_actual,vencimiento_lic_federal,archivo_pdf_licencia,
+        apto_medico_actual,vencimiento_apto_medico,archivo_pdf_apto_medico,
+        visa,vencimiento_visa,archivo_pdf_visa,
+        fast,vencimiento_fast,fast_pdf
+    ) VALUES (
+        $id_empresa,CURDATE(),1,
+        '$rfc','$nombres','$primer_apellido','$segundo_apellido',
+        '$telefono_celular','$calle_y_numero','$colonia','$codigo_postal',
+        '$licencia_federal_actual',$vencimiento_lic_federal,'$pdfLic',
+        '$apto_medico_actual',$vencimiento_apto_medico,'$pdfMed',
+        '$visa',$vencimiento_visa,'$pdfVisa',
+        '$fast',$vencimiento_fast,'$pdfFast'
+    )";
 
     $db->insertar($sql);
 }
 
 
-/* =========================================================
-   10. ACTUALIZAR TABLA
-   ========================================================= */
+/* ACTUALIZAR TABLA */
 $id_operador = 0;
 
 if (file_exists("tabla.php")) {
     include "tabla.php";
-} elseif (file_exists("../operadores/tabla.php")) {
+} else {
     include "../operadores/tabla.php";
 }
 
