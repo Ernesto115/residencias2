@@ -1,24 +1,51 @@
 <?php
-$rolFormulario = strtoupper(trim($rol ?? ($_SESSION['rol'] ?? '')));
+$rolFormulario = strtoupper(trim(
+    $rol ?? ($_SESSION['rol'] ?? '')
+));
 
-if ($rolFormulario === 'ADMINISTRADOR') $rolFormulario = 'ADMIN';
-if (in_array($rolFormulario, ['RH','RECURSOS HUMANOS'], true)) {
+if ($rolFormulario === 'ADMINISTRADOR') {
+    $rolFormulario = 'ADMIN';
+}
+
+if (in_array(
+    $rolFormulario,
+    ['RH','RECURSOS HUMANOS'],
+    true
+)) {
     $rolFormulario = 'RRHH';
 }
 
-if (!in_array($rolFormulario, ['ADMIN','PROPIETARIO','RRHH'], true)) {
+
+/* =========================================================
+   PERMISOS
+   ========================================================= */
+
+if (!in_array(
+    $rolFormulario,
+    ['ADMIN','PROPIETARIO','RRHH'],
+    true
+)) {
     echo '<div class="alert alert-danger">No tienes permiso para utilizar este formulario.</div>';
     return;
 }
 
+
 $esRRHH = $rolFormulario === 'RRHH';
-$puedeEvaluar = in_array($rolFormulario, ['ADMIN','PROPIETARIO'], true);
+
+/*
+   SOLO EL PROPIETARIO PUEDE EVALUAR
+*/
+$puedeEvaluar = $rolFormulario === 'PROPIETARIO';
 
 
-/* OPERADORES CON BAJA PENDIENTE */
+/* =========================================================
+   OPERADORES CON BAJA PENDIENTE
+   ========================================================= */
+
 $ids_pendientes = [];
 
 if (class_exists('db')) {
+
     $db_check = new db();
 
     $res = $db_check->obtenerRegistros(
@@ -34,6 +61,10 @@ if (class_exists('db')) {
 }
 
 
+/* =========================================================
+   MOTIVOS
+   ========================================================= */
+
 $motivos = [
     'ROBO'=>'Robo',
     'GASTO_COMBUSTIBLE'=>'Gasto Excesivo de Combustible',
@@ -46,6 +77,11 @@ $motivos = [
     'INCUMPLIMIENTO'=>'Incumplimiento',
     'OTRO'=>'Otro'
 ];
+
+
+/* =========================================================
+   CRITERIOS DE EVALUACIÓN
+   ========================================================= */
 
 $criteriosServicio = [
     'eval_distancia'=>['🛣️','Distancia (KM)'],
@@ -61,10 +97,15 @@ $criteriosDesempeno = [
 ];
 
 
+/* =========================================================
+   FUNCIÓN PARA MOSTRAR CRITERIOS
+   ========================================================= */
+
 function mostrarCriterios($criterios, $max)
 {
     foreach ($criterios as $campo => [$icono,$nombre]) {
         ?>
+
         <div class="eval-criterio">
 
             <div class="eval-nombre">
@@ -97,23 +138,35 @@ function mostrarCriterios($criterios, $max)
             </div>
 
         </div>
+
         <?php
     }
 }
 ?>
 
 
-<!-- SOLICITAR BAJA -->
+<!-- =========================================================
+     SOLICITAR BAJA
+     ========================================================= -->
+
 <div class="table-header-title">
+
     <div class="table-tabs-wrapper">
+
         <button type="button"
                 class="btn-agregar-op"
                 onclick="abrirModalReporte()">
             + Solicitar Baja
         </button>
+
     </div>
+
 </div>
 
+
+<!-- =========================================================
+     MODAL SOLICITUD DE BAJA
+     ========================================================= -->
 
 <div id="modalReporte" class="modal-overlay">
 
@@ -147,13 +200,23 @@ function mostrarCriterios($criterios, $max)
                        value="">
 
 
-                <div style="padding:12px 15px;margin-bottom:18px;border:1px solid var(--borde-sutil);border-radius:10px;color:var(--texto-secundario);">
+                <!-- INFORMACIÓN -->
+                <div style="
+                    padding:12px 15px;
+                    margin-bottom:18px;
+                    border:1px solid var(--borde-sutil);
+                    border-radius:10px;
+                    color:var(--texto-secundario);
+                ">
                     Esta solicitud quedará pendiente hasta que el propietario
-                    o administrador revise y confirme la baja del operador.
+                    revise y confirme la baja del operador.
                 </div>
 
 
-                <!-- OPERADOR / EMPRESA -->
+                <!-- =================================================
+                     OPERADOR / EMPRESA
+                     ================================================= -->
+
                 <div class="form-row">
 
                     <div class="form-group">
@@ -178,7 +241,9 @@ function mostrarCriterios($criterios, $max)
                                 if (
                                     (int)($op['estatus'] ?? 1) !== 1 ||
                                     in_array($id, $ids_pendientes, true)
-                                ) continue;
+                                ) {
+                                    continue;
+                                }
 
                                 $nombre = trim(
                                     ($op['nombres'] ?? '').' '.
@@ -235,7 +300,9 @@ function mostrarCriterios($criterios, $max)
                                 <?php foreach ($empresas ?? [] as $emp): ?>
 
                                     <option value="<?= (int)$emp['id_empresa'] ?>">
-                                        <?= htmlspecialchars($emp['nombre_empresa']) ?>
+                                        <?= htmlspecialchars(
+                                            $emp['nombre_empresa']
+                                        ) ?>
                                     </option>
 
                                 <?php endforeach; ?>
@@ -249,7 +316,10 @@ function mostrarCriterios($criterios, $max)
                 </div>
 
 
-                <!-- MOTIVO -->
+                <!-- =================================================
+                     MOTIVO
+                     ================================================= -->
+
                 <div class="form-row">
 
                     <div class="form-group" style="flex:1">
@@ -283,7 +353,10 @@ function mostrarCriterios($criterios, $max)
                 </div>
 
 
-                <!-- OTRO -->
+                <!-- =================================================
+                     OTRO
+                     ================================================= -->
+
                 <div class="form-row"
                      id="row_calif_cualitativa"
                      style="display:none">
@@ -306,15 +379,29 @@ function mostrarCriterios($criterios, $max)
                 </div>
 
 
-                <div style="margin-top:10px;padding:12px 15px;border-radius:10px;background:rgba(234,88,12,.08);border:1px solid rgba(234,88,12,.30);">
+                <!-- =================================================
+                     AVISO DE EVALUACIÓN
+                     ================================================= -->
+
+                <div style="
+                    margin-top:10px;
+                    padding:12px 15px;
+                    border-radius:10px;
+                    background:rgba(234,88,12,.08);
+                    border:1px solid rgba(234,88,12,.30);
+                ">
 
                     <strong>
                         ⭐ Evaluación pendiente
                     </strong>
 
-                    <div style="margin-top:4px;font-size:.9rem;opacity:.8">
-                        La evaluación será realizada por el propietario o
-                        administrador antes de confirmar definitivamente la baja.
+                    <div style="
+                        margin-top:4px;
+                        font-size:.9rem;
+                        opacity:.8;
+                    ">
+                        La evaluación será realizada por el propietario
+                        antes de confirmar definitivamente la baja.
                     </div>
 
                 </div>
@@ -326,7 +413,12 @@ function mostrarCriterios($criterios, $max)
 
 
                 <div class="form-actions"
-                     style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end">
+                     style="
+                         margin-top:20px;
+                         display:flex;
+                         gap:12px;
+                         justify-content:flex-end;
+                     ">
 
                     <button type="button"
                             class="btn-action btn-delete"
@@ -353,7 +445,11 @@ function mostrarCriterios($criterios, $max)
 
 <?php if ($puedeEvaluar): ?>
 
-<!-- EVALUACIÓN -->
+<!-- =========================================================
+     EVALUACIÓN
+     SOLO PROPIETARIO
+     ========================================================= -->
+
 <div id="modalRevisionBaja" class="modal-overlay">
 
     <div class="modal-container">
@@ -384,29 +480,46 @@ function mostrarCriterios($criterios, $max)
                        name="id_reporte">
 
 
-                <!-- OPERADOR / EMPRESA -->
+                <!-- =================================================
+                     OPERADOR / EMPRESA
+                     ================================================= -->
+
                 <div class="form-row">
 
                     <div class="form-group">
-                        <label class="form-label">Operador</label>
+
+                        <label class="form-label">
+                            Operador
+                        </label>
+
                         <input type="text"
                                class="form-control"
                                id="revision_operador"
                                readonly>
+
                     </div>
 
+
                     <div class="form-group">
-                        <label class="form-label">Empresa</label>
+
+                        <label class="form-label">
+                            Empresa
+                        </label>
+
                         <input type="text"
                                class="form-control"
                                id="revision_empresa"
                                readonly>
+
                     </div>
 
                 </div>
 
 
-                <!-- SERVICIO -->
+                <!-- =================================================
+                     SERVICIO
+                     ================================================= -->
+
                 <div class="eval-seccion">
 
                     <div class="eval-seccion-titulo">
@@ -417,19 +530,28 @@ function mostrarCriterios($criterios, $max)
                         Escala del 1 al 5
                     </div>
 
-                    <?php mostrarCriterios($criteriosServicio,5); ?>
+                    <?php mostrarCriterios(
+                        $criteriosServicio,
+                        5
+                    ); ?>
 
                     <div class="eval-promedio">
+
                         Promedio de Servicio:
+
                         <span id="promedioServicioVista">
                             — / 5
                         </span>
+
                     </div>
 
                 </div>
 
 
-                <!-- DESEMPEÑO -->
+                <!-- =================================================
+                     DESEMPEÑO
+                     ================================================= -->
+
                 <div class="eval-seccion">
 
                     <div class="eval-seccion-titulo">
@@ -440,12 +562,18 @@ function mostrarCriterios($criterios, $max)
                         Escala del 1 al 10
                     </div>
 
-                    <?php mostrarCriterios($criteriosDesempeno,10); ?>
+                    <?php mostrarCriterios(
+                        $criteriosDesempeno,
+                        10
+                    ); ?>
 
                 </div>
 
 
-                <!-- GENERAL -->
+                <!-- =================================================
+                     GENERAL
+                     ================================================= -->
+
                 <div class="eval-resumen">
 
                     <div class="eval-resumen-titulo">
@@ -465,23 +593,42 @@ function mostrarCriterios($criterios, $max)
                 </div>
 
 
-                <!-- ADVERTENCIA -->
-                <div style="margin-top:20px;padding:14px 16px;border-radius:10px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.30);">
+                <!-- =================================================
+                     ADVERTENCIA
+                     ================================================= -->
+
+                <div style="
+                    margin-top:20px;
+                    padding:14px 16px;
+                    border-radius:10px;
+                    background:rgba(220,38,38,.08);
+                    border:1px solid rgba(220,38,38,.30);
+                ">
 
                     <strong>
                         🚨 Baja definitiva
                     </strong>
 
-                    <div style="margin-top:5px;font-size:.9rem;opacity:.85">
-                        Al confirmar, el operador será marcado como inactivo
-                        y todas las calificaciones quedarán guardadas permanentemente.
+                    <div style="
+                        margin-top:5px;
+                        font-size:.9rem;
+                        opacity:.85;
+                    ">
+                        Al confirmar, el operador será marcado como
+                        inactivo y todas las calificaciones quedarán
+                        guardadas permanentemente.
                     </div>
 
                 </div>
 
 
                 <div class="form-actions"
-                     style="margin-top:22px;display:flex;gap:12px;justify-content:flex-end">
+                     style="
+                         margin-top:22px;
+                         display:flex;
+                         gap:12px;
+                         justify-content:flex-end;
+                     ">
 
                     <button type="button"
                             class="btn-action btn-delete"

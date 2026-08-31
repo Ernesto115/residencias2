@@ -10,9 +10,11 @@ $busqueda = trim($busqueda ?? ($_GET['busqueda'] ?? ''));
 $estatus_filtro = strtolower(trim(
     $estatus_filtro ?? ($_GET['estatus'] ?? 'todos')
 ));
+
 $pagina_actual = max(1, (int)(
     $pagina_actual ?? ($_GET['pagina'] ?? 1)
 ));
+
 $total_paginas = max(1, (int)($total_paginas ?? 1));
 $datos2 = $datos2 ?? [];
 
@@ -21,7 +23,10 @@ if (!in_array($estatus_filtro, ['todos','pendientes','completados'], true)) {
 }
 
 
-/* ROLES */
+/* =========================================================
+   ROLES
+   ========================================================= */
+
 $rolTabla = strtoupper(trim(
     $rol ?? ($_SESSION['rol'] ?? '')
 ));
@@ -36,14 +41,27 @@ if (in_array($rolTabla, ['RH','RECURSOS HUMANOS'], true)) {
 
 $esRRHH = $rolTabla === 'RRHH';
 
+/*
+   ADMIN y PROPIETARIO pueden ver la columna ACCIÓN
+   porque ambos pueden consultar evaluaciones completadas
+   y constancias.
+*/
 $puedeAcciones = in_array(
     $rolTabla,
     ['ADMIN','PROPIETARIO'],
     true
 );
 
+/*
+   SOLO EL PROPIETARIO PUEDE EVALUAR
+*/
+$puedeEvaluar = $rolTabla === 'PROPIETARIO';
 
-/* MOTIVOS */
+
+/* =========================================================
+   MOTIVOS
+   ========================================================= */
+
 $motivosTexto = [
     'ROBO'=>'Robo',
     'GASTO_COMBUSTIBLE'=>'Gasto de Combustible',
@@ -81,7 +99,10 @@ $js = fn($v) =>
 
 <div class="table-container">
 
-    <!-- FILTROS Y BUSCADOR -->
+    <!-- =====================================================
+         FILTROS Y BUSCADOR
+         ===================================================== -->
+
     <div class="table-header-title"
          style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
 
@@ -147,7 +168,10 @@ $js = fn($v) =>
     </div>
 
 
-    <!-- TABLA -->
+    <!-- =====================================================
+         TABLA
+         ===================================================== -->
+
     <div class="table-responsive">
 
         <table class="custom-table">
@@ -276,16 +300,33 @@ $js = fn($v) =>
 
                         <?php if ($estatus === 'PENDIENTE'): ?>
 
-                            <button type="button"
-                                    class="btn-action btn-edit"
-                                    onclick="abrirRevisionBaja(
-                                        <?= $id ?>,
-                                        <?= $js($r['nombre_operador'] ?? '') ?>,
-                                        <?= $js($r['nombre_empresa'] ?? '') ?>,
-                                        <?= $js($motivoMostrar) ?>
-                                    )">
-                                ⭐ Revisar y Evaluar
-                            </button>
+
+                            <?php if ($puedeEvaluar): ?>
+
+                                <!-- SOLO PROPIETARIO -->
+                                <button type="button"
+                                        class="btn-action btn-edit"
+                                        onclick="abrirRevisionBaja(
+                                            <?= $id ?>,
+                                            <?= $js($r['nombre_operador'] ?? '') ?>,
+                                            <?= $js($r['nombre_empresa'] ?? '') ?>,
+                                            <?= $js($motivoMostrar) ?>
+                                        )">
+                                    ⭐ Revisar y Evaluar
+                                </button>
+
+                            <?php else: ?>
+
+                                <!-- ADMIN SOLO CONSULTA -->
+                                <span style="
+                                    color:var(--texto-secundario);
+                                    font-size:.9rem;
+                                    font-weight:600;
+                                ">
+                                    ⏳ Pendiente de evaluación
+                                </span>
+
+                            <?php endif; ?>
 
 
                         <?php elseif ($estatus === 'COMPLETADA'): ?>
@@ -363,7 +404,10 @@ $js = fn($v) =>
     </div>
 
 
-    <!-- PAGINACIÓN -->
+    <!-- =====================================================
+         PAGINACIÓN
+         ===================================================== -->
+
     <?php if ($total_paginas > 1): ?>
 
         <div class="pagination-wrapper">

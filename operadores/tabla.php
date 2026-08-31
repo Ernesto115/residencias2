@@ -259,7 +259,7 @@ $h = fn($v) =>
                 <tr>
                     <th>RFC</th>
                     <th>Nombre Completo</th>
-                    <th>Empresa / Transportista</th>
+                    <th>Empresa</th>
                     <th class="text-center">Estatus</th>
                     <th class="text-center">Acciones</th>
                 </tr>
@@ -562,7 +562,7 @@ $h = fn($v) =>
             <div>
 
                 <strong>
-                    🏢 Empresa / Transportista
+                    🏢 Empresa
                 </strong>
 
                 <p>
