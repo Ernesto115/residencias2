@@ -15,6 +15,7 @@ if (!isset($dbtransportistas) && !isset($db)) {
     $conexionLocal = false;
 }
 
+
 /* =========================================================
    SESIÓN Y ROLES
    ========================================================= */
@@ -25,18 +26,23 @@ if ($rol === 'ADMINISTRADOR') $rol = 'ADMIN';
 if (in_array($rol, ['RH', 'RECURSOS HUMANOS'], true)) $rol = 'RRHH';
 
 if (!in_array($rol, ['ADMIN', 'PROPIETARIO', 'RRHH'], true)) {
+
     if ($conexionLocal) $db->desconectar();
 
     http_response_code(403);
+
     echo '<div class="alert alert-danger">
             No tienes permiso para consultar operadores.
           </div>';
+
     exit;
 }
 
-$id_usuario  = (int)($_SESSION['id_usuario'] ?? 0);
-$id_empresa  = (int)($_SESSION['id_empresa'] ?? 0);
+
+$id_usuario = (int)($_SESSION['id_usuario'] ?? 0);
+$id_empresa = (int)($_SESSION['id_empresa'] ?? 0);
 $multiempresa = (int)($_SESSION['multiempresa'] ?? 0);
+
 
 /* =========================================================
    FILTROS
@@ -53,7 +59,10 @@ $pagina_actual = max(1, (int)($_GET['pagina'] ?? 1));
 $registros_por_pagina = 5;
 $condiciones = [];
 
-/* PERMISOS POR EMPRESA */
+
+/* =========================================================
+   PERMISOS POR EMPRESA
+   ========================================================= */
 
 if ($rol === 'PROPIETARIO' && $multiempresa === 1) {
 
@@ -72,7 +81,10 @@ if ($rol === 'PROPIETARIO' && $multiempresa === 1) {
         : "1 = 0";
 }
 
-/* BÚSQUEDA */
+
+/* =========================================================
+   BÚSQUEDA
+   ========================================================= */
 
 if ($busqueda !== '') {
 
@@ -92,6 +104,7 @@ if ($busqueda !== '') {
     )";
 }
 
+
 /* ESTATUS */
 
 if ($estatus_filtro === 'activos') {
@@ -106,6 +119,7 @@ $where = $condiciones
     ? " WHERE " . implode(" AND ", $condiciones)
     : "";
 
+
 /* =========================================================
    PAGINACIÓN
    ========================================================= */
@@ -118,6 +132,7 @@ $sql_total = "
 ";
 
 $res_total = $db->obtenerRegistros($sql_total);
+
 $total_registros = (int)($res_total[0]['total'] ?? 0);
 
 $total_paginas = max(
@@ -130,6 +145,7 @@ if ($pagina_actual > $total_paginas) {
 }
 
 $offset = ($pagina_actual - 1) * $registros_por_pagina;
+
 
 /* =========================================================
    CONSULTAR OPERADORES
@@ -147,10 +163,16 @@ $sql = "
 
 $datos2 = $db->obtenerRegistros($sql);
 
-if ($conexionLocal) $db->desconectar();
+if ($conexionLocal) {
+    $db->desconectar();
+}
+
+
+/* ESCAPAR TEXTO */
 
 $h = fn($v) =>
     htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+
 ?>
 
 
@@ -162,6 +184,9 @@ $h = fn($v) =>
 
     <div class="table-header-title"
          style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;padding:15px;">
+
+
+        <!-- FILTROS -->
 
         <div class="table-tabs">
 
@@ -185,6 +210,9 @@ $h = fn($v) =>
 
         </div>
 
+
+        <!-- BUSCADOR -->
+
         <div class="search-box-wrapper"
              style="position:relative;min-width:280px;flex:1;max-width:360px;">
 
@@ -196,12 +224,14 @@ $h = fn($v) =>
                    style="padding-right:35px;height:40px;font-size:.9rem;">
 
             <?php if ($busqueda !== ''): ?>
+
                 <button type="button"
                         onclick="limpiarBuscadorBD()"
                         title="Limpiar búsqueda"
                         style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--texto-secundario);">
                     &times;
                 </button>
+
             <?php endif; ?>
 
         </div>
@@ -209,11 +239,16 @@ $h = fn($v) =>
     </div>
 
 
+    <!-- =====================================================
+         TABLA DE DATOS
+         ===================================================== -->
+
     <div class="table-responsive">
 
         <table class="custom-table" id="tablaOperadores">
 
             <thead>
+
                 <tr>
                     <th>RFC</th>
                     <th>Nombre Completo</th>
@@ -221,7 +256,9 @@ $h = fn($v) =>
                     <th class="text-center">Estatus</th>
                     <th class="text-center">Acciones</th>
                 </tr>
+
             </thead>
+
 
             <tbody>
 
@@ -237,8 +274,11 @@ $h = fn($v) =>
                         ($dato['segundo_apellido'] ?? '')
                     );
 
-                    $esActivo = (int)($dato['estatus'] ?? 1) === 1;
-                    $categoriaEstatus = $esActivo ? 'activos' : 'inactivos';
+                    $esActivo =
+                        (int)($dato['estatus'] ?? 1) === 1;
+
+                    $categoriaEstatus =
+                        $esActivo ? 'activos' : 'inactivos';
 
                     $categoriaCruce =
                         (!empty($dato['visa']) || !empty($dato['fast']))
@@ -248,30 +288,56 @@ $h = fn($v) =>
                     $nombreEmpresa =
                         $dato['nombre_empresa']
                         ?: 'Sin empresa asignada';
+
                 ?>
+
 
                 <tr data-estatus="<?= $categoriaEstatus ?>"
                     data-cruce="<?= $categoriaCruce ?>">
+
+
+                    <!-- RFC -->
 
                     <td class="font-medium cell-rfc">
                         <?= $h($dato['rfc'] ?? '') ?>
                     </td>
 
+
+                    <!-- NOMBRE -->
+
                     <td class="cell-nombre">
                         <?= $h($nombreCompleto) ?>
                     </td>
 
-                    <td><?= $h($nombreEmpresa) ?></td>
+
+                    <!-- EMPRESA -->
+
+                    <td>
+                        <?= $h($nombreEmpresa) ?>
+                    </td>
+
+
+                    <!-- ESTATUS -->
 
                     <td class="text-center">
+
                         <span class="badge-status <?= $esActivo ? 'status-activo' : 'status-inactivo' ?>">
+
                             <?= $esActivo ? 'Activo' : 'Inactivo' ?>
+
                         </span>
+
                     </td>
+
+
+                    <!-- ACCIONES -->
 
                     <td class="text-center">
 
                         <div class="acciones-operador">
+
+
+                            <!-- VER MÁS -->
 
                             <?php if ($esActivo): ?>
 
@@ -293,6 +359,9 @@ $h = fn($v) =>
 
                             <?php endif; ?>
 
+
+                            <!-- HISTORIAL -->
+
                             <button type="button"
                                     class="btn-action btn-historial"
                                     onclick="abrirHistorialOperador('<?= $id ?>')"
@@ -300,37 +369,55 @@ $h = fn($v) =>
                                 📋 Historial
                             </button>
 
-                            <?php if ($esActivo): ?>
 
-                                <button type="button"
-                                        class="btn-action btn-edit btn-accion-icono"
-                                        onclick="editar('<?= $id ?>','operadores','frm')"
-                                        title="Editar operador">
-                                    ✏️
-                                </button>
+                            <!-- =========================================
+                                 EDITAR / ELIMINAR
+                                 ADMIN NO PUEDE VER ESTOS BOTONES
+                                 ========================================= -->
 
-                                <button type="button"
-                                        class="btn-action btn-delete btn-accion-icono"
-                                        onclick="eliminar('<?= $id ?>','operadores')"
-                                        title="Eliminar operador">
-                                    🗑️
-                                </button>
+                            <?php if ($rol !== 'ADMIN'): ?>
 
-                            <?php else: ?>
 
-                                <button type="button"
-                                        class="btn-action btn-edit btn-accion-icono btn-op-disabled"
-                                        disabled>
-                                    ✏️
-                                </button>
+                                <?php if ($esActivo): ?>
 
-                                <button type="button"
-                                        class="btn-action btn-delete btn-accion-icono btn-op-disabled"
-                                        disabled>
-                                    🗑️
-                                </button>
+                                    <button type="button"
+                                            class="btn-action btn-edit btn-accion-icono"
+                                            onclick="editar('<?= $id ?>','operadores','frm')"
+                                            title="Editar operador">
+                                        ✏️
+                                    </button>
+
+
+                                    <button type="button"
+                                            class="btn-action btn-delete btn-accion-icono"
+                                            onclick="eliminar('<?= $id ?>','operadores')"
+                                            title="Eliminar operador">
+                                        🗑️
+                                    </button>
+
+
+                                <?php else: ?>
+
+                                    <button type="button"
+                                            class="btn-action btn-edit btn-accion-icono btn-op-disabled"
+                                            disabled
+                                            title="Editar no disponible">
+                                        ✏️
+                                    </button>
+
+
+                                    <button type="button"
+                                            class="btn-action btn-delete btn-accion-icono btn-op-disabled"
+                                            disabled
+                                            title="Eliminar no disponible">
+                                        🗑️
+                                    </button>
+
+                                <?php endif; ?>
+
 
                             <?php endif; ?>
+
 
                         </div>
 
@@ -338,15 +425,24 @@ $h = fn($v) =>
 
                 </tr>
 
+
                 <?php endforeach; ?>
+
 
             <?php else: ?>
 
+
                 <tr>
-                    <td colspan="5" class="text-center">
+
+                    <td colspan="5"
+                        class="text-center">
+
                         No se encontraron registros de operadores.
+
                     </td>
+
                 </tr>
+
 
             <?php endif; ?>
 
@@ -357,42 +453,68 @@ $h = fn($v) =>
     </div>
 
 
-    <!-- PAGINACIÓN -->
+    <!-- =====================================================
+         PAGINACIÓN
+         ===================================================== -->
 
     <?php if ($total_paginas > 1): ?>
 
         <div class="pagination-wrapper">
 
             <div class="pagination-info">
-                Página <span><?= $pagina_actual ?></span>
-                de <span><?= $total_paginas ?></span>
+
+                Página
+                <span><?= $pagina_actual ?></span>
+
+                de
+                <span><?= $total_paginas ?></span>
+
             </div>
+
 
             <div class="pagination-controls">
 
+
+                <!-- ANTERIOR -->
+
                 <button type="button"
                         <?= $pagina_actual <= 1 ? 'disabled' : '' ?>
+
                         onclick="cambiarPagina(
                             <?= $pagina_actual - 1 ?>,
                             '<?= $h($estatus_filtro) ?>'
                         )"
+
                         class="pagination-btn <?= $pagina_actual <= 1 ? 'disabled' : '' ?>">
+
                     ← Anterior
+
                 </button>
 
+
                 <div class="pagination-current">
+
                     Página <?= $pagina_actual ?>
+
                 </div>
+
+
+                <!-- SIGUIENTE -->
 
                 <button type="button"
                         <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>
+
                         onclick="cambiarPagina(
                             <?= $pagina_actual + 1 ?>,
                             '<?= $h($estatus_filtro) ?>'
                         )"
+
                         class="pagination-btn <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>">
+
                     Siguiente →
+
                 </button>
+
 
             </div>
 
@@ -403,40 +525,53 @@ $h = fn($v) =>
 </div>
 
 
+
 <!-- =========================================================
      MODALES VER MÁS
      ========================================================= -->
 
 <?php foreach ($datos2 as $dato):
 
-    if ((int)($dato['estatus'] ?? 1) !== 1) continue;
+    if ((int)($dato['estatus'] ?? 1) !== 1) {
+        continue;
+    }
 
     $id = (int)$dato['id_operador'];
 
     $nombreEmpresa =
         $dato['nombre_empresa']
         ?: 'Sin empresa asignada';
+
 ?>
+
 
 <div id="modal-detalle-<?= $id ?>"
      class="modal-overlay"
      style="display:none;">
 
+
     <div class="modal-card"
          style="width:90%;max-width:550px;max-height:85vh;overflow-y:auto;">
+
 
         <!-- ENCABEZADO -->
 
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
 
             <h3 style="margin:0;color:var(--accent-color);font-size:1.1rem;">
-                📋 Detalles de <?= $h($dato['nombres'] ?? '') ?>
+
+                📋 Detalles de
+                <?= $h($dato['nombres'] ?? '') ?>
+
             </h3>
+
 
             <button type="button"
                     onclick="cerrarModalDetalles('<?= $id ?>')"
                     style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--texto-secundario);">
+
                 &times;
+
             </button>
 
         </div>
@@ -444,37 +579,51 @@ $h = fn($v) =>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;font-size:.9rem;text-align:left;">
 
+
             <!-- EMPRESA -->
 
             <div>
+
                 <strong>🏢 Empresa</strong>
 
-                <p><?= $h($nombreEmpresa) ?></p>
+                <p>
+                    <?= $h($nombreEmpresa) ?>
+                </p>
 
                 <?php if (!empty($dato['fecha_ingreso'])): ?>
+
                     <p>
                         <strong>Fecha ingreso:</strong>
                         <?= $h($dato['fecha_ingreso']) ?>
                     </p>
+
                 <?php endif; ?>
+
             </div>
 
 
             <!-- CONTACTO -->
 
             <div>
+
                 <strong>📞 Contacto</strong>
 
                 <p>
                     <strong>Teléfono:</strong>
-                    <?= $h($dato['telefono_celular'] ?: 'N/A') ?>
+
+                    <?= $h(
+                        $dato['telefono_celular']
+                        ?: 'N/A'
+                    ) ?>
                 </p>
+
             </div>
 
 
             <!-- DIRECCIÓN -->
 
             <div>
+
                 <strong>📍 Dirección</strong>
 
                 <p>
@@ -491,60 +640,95 @@ $h = fn($v) =>
                     <strong>C.P.:</strong>
                     <?= $h($dato['codigo_postal'] ?: 'N/A') ?>
                 </p>
+
             </div>
 
 
             <!-- LICENCIA -->
 
             <div>
+
                 <strong>🪪 Licencia Federal</strong>
 
                 <p>
-                    <?= $h($dato['licencia_federal_actual'] ?: 'N/A') ?>
+                    <?= $h(
+                        $dato['licencia_federal_actual']
+                        ?: 'N/A'
+                    ) ?>
                 </p>
 
+
                 <?php if (!empty($dato['vencimiento_lic_federal'])): ?>
+
                     <p class="fecha-vencimiento">
-                        Vence: <?= $h($dato['vencimiento_lic_federal']) ?>
+
+                        Vence:
+                        <?= $h($dato['vencimiento_lic_federal']) ?>
+
                     </p>
+
                 <?php endif; ?>
 
+
                 <?php if (!empty($dato['archivo_pdf_licencia'])): ?>
+
                     <a href="../uploads/pdf/<?= $h($dato['archivo_pdf_licencia']) ?>"
                        target="_blank"
                        class="btn-pdf-link">
+
                         📄 Ver PDF Licencia
+
                     </a>
+
                 <?php endif; ?>
+
             </div>
 
 
             <!-- APTO MÉDICO -->
 
             <div>
+
                 <strong>🩺 Apto Médico</strong>
 
                 <p>
-                    <?= $h($dato['apto_medico_actual'] ?: 'N/A') ?>
+                    <?= $h(
+                        $dato['apto_medico_actual']
+                        ?: 'N/A'
+                    ) ?>
                 </p>
 
+
                 <?php if (!empty($dato['vencimiento_apto_medico'])): ?>
+
                     <p class="fecha-vencimiento">
-                        Vence: <?= $h($dato['vencimiento_apto_medico']) ?>
+
+                        Vence:
+                        <?= $h($dato['vencimiento_apto_medico']) ?>
+
                     </p>
+
                 <?php endif; ?>
 
+
                 <?php if (!empty($dato['archivo_pdf_apto_medico'])): ?>
+
                     <a href="../uploads/pdf/<?= $h($dato['archivo_pdf_apto_medico']) ?>"
                        target="_blank"
                        class="btn-pdf-link">
+
                         📄 Ver PDF Apto
+
                     </a>
+
                 <?php endif; ?>
+
             </div>
 
 
-            <!-- CRUCE INTERNACIONAL -->
+            <!-- =================================================
+                 CRUCE INTERNACIONAL
+                 ================================================= -->
 
             <div>
 
@@ -553,20 +737,34 @@ $h = fn($v) =>
 
                 <!-- VISA -->
 
-                <div style="margin-top:10px;padding-bottom:14px;border-bottom:1px solid var(--borde-sutil);">
+                <div style="
+                    margin-top:10px;
+                    padding-bottom:14px;
+                    border-bottom:1px solid var(--borde-sutil);
+                ">
 
                     <strong>🇺🇸 VISA</strong>
 
+
                     <p style="margin:8px 0;">
+
                         <?= !empty($dato['visa'])
                             ? '✓ Cuenta con VISA'
                             : '✗ No cuenta con VISA'
                         ?>
+
                     </p>
+
 
                     <?php if (!empty($dato['vencimiento_visa'])): ?>
 
-                        <div style="padding:9px 11px;border-radius:8px;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.35);display:inline-block;">
+                        <div style="
+                            padding:9px 11px;
+                            border-radius:8px;
+                            background:rgba(245,158,11,.10);
+                            border:1px solid rgba(245,158,11,.35);
+                            display:inline-block;
+                        ">
 
                             <small style="display:block;opacity:.8;">
                                 📅 VENCIMIENTO
@@ -580,14 +778,19 @@ $h = fn($v) =>
 
                     <?php endif; ?>
 
+
                     <?php if (!empty($dato['archivo_pdf_visa'])): ?>
 
                         <div style="margin-top:10px;">
+
                             <a href="../uploads/pdf/<?= $h($dato['archivo_pdf_visa']) ?>"
                                target="_blank"
                                class="btn-pdf-link">
+
                                 👁️ Ver VISA
+
                             </a>
+
                         </div>
 
                     <?php endif; ?>
@@ -595,22 +798,32 @@ $h = fn($v) =>
                 </div>
 
 
-                <!-- FAST -->
+                <!-- FAST / SENTRI -->
 
                 <div style="margin-top:14px;">
 
                     <strong>⚡ FAST / SENTRI</strong>
 
+
                     <p style="margin:8px 0;">
+
                         <?= !empty($dato['fast'])
                             ? '✓ Cuenta con FAST / SENTRI'
                             : '✗ No cuenta con FAST / SENTRI'
                         ?>
+
                     </p>
+
 
                     <?php if (!empty($dato['vencimiento_fast'])): ?>
 
-                        <div style="padding:9px 11px;border-radius:8px;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.35);display:inline-block;">
+                        <div style="
+                            padding:9px 11px;
+                            border-radius:8px;
+                            background:rgba(245,158,11,.10);
+                            border:1px solid rgba(245,158,11,.35);
+                            display:inline-block;
+                        ">
 
                             <small style="display:block;opacity:.8;">
                                 📅 VENCIMIENTO
@@ -624,14 +837,19 @@ $h = fn($v) =>
 
                     <?php endif; ?>
 
+
                     <?php if (!empty($dato['fast_pdf'])): ?>
 
                         <div style="margin-top:10px;">
+
                             <a href="../uploads/pdf/<?= $h($dato['fast_pdf']) ?>"
                                target="_blank"
                                class="btn-pdf-link">
+
                                 👁️ Ver FAST
+
                             </a>
+
                         </div>
 
                     <?php endif; ?>
@@ -640,22 +858,30 @@ $h = fn($v) =>
 
             </div>
 
+
         </div>
 
 
         <div style="text-align:right;margin-top:15px;">
+
             <button type="button"
                     class="btn-action"
                     onclick="cerrarModalDetalles('<?= $id ?>')">
+
                 Cerrar
+
             </button>
+
         </div>
+
 
     </div>
 
 </div>
 
+
 <?php endforeach; ?>
+
 
 
 <!-- =========================================================
@@ -666,24 +892,40 @@ $h = fn($v) =>
      class="modal-overlay"
      style="display:none;">
 
+
     <div class="modal-card historial-operador-modal">
+
 
         <div class="historial-modal-header">
 
+
             <div>
-                <h3>📋 Historial del Operador</h3>
-                <p>Trayectoria laboral y reportes de baja</p>
+
+                <h3>
+                    📋 Historial del Operador
+                </h3>
+
+                <p>
+                    Trayectoria laboral y reportes de baja
+                </p>
+
             </div>
+
 
             <button type="button"
                     class="historial-modal-cerrar"
                     onclick="cerrarHistorialOperador()">
+
                 &times;
+
             </button>
+
 
         </div>
 
+
         <div id="contenidoHistorialOperador"></div>
+
 
     </div>
 

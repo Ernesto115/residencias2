@@ -60,12 +60,24 @@ function errorOperador($mensaje, $db, $cerrar = false)
 
 /* =========================================================
    ROLES PERMITIDOS
+   ADMIN = SOLO CONSULTA
    ========================================================= */
 
-if (!in_array($rol, ['ADMIN','PROPIETARIO','RRHH'], true)) {
+if ($rol === 'ADMIN') {
+
+    errorOperador(
+        'El administrador solo puede consultar la información de los operadores. No puede registrar, editar ni recontratar operadores.',
+        $db,
+        true
+    );
+}
+
+if (!in_array($rol, ['PROPIETARIO','RRHH'], true)) {
+
     errorOperador(
         'No tienes permisos para registrar o editar operadores.',
-        $db
+        $db,
+        true
     );
 }
 
@@ -124,28 +136,7 @@ $vencimiento_fast = fechaSQL('vencimiento_fast');
    EMPRESA PERMITIDA
    ========================================================= */
 
-if ($rol === 'ADMIN') {
-
-    $id_empresa = $id_empresa_form;
-
-    if (
-        $id_empresa <= 0 ||
-        empty(
-            $db->obtenerRegistros(
-                "SELECT id_empresa
-                 FROM empresas
-                 WHERE id_empresa=$id_empresa
-                 LIMIT 1"
-            )
-        )
-    ) {
-        errorOperador(
-            'La empresa seleccionada no es válida.',
-            $db
-        );
-    }
-
-} elseif (
+if (
     $rol === 'PROPIETARIO' &&
     $multiempresa === 1
 ) {
@@ -283,10 +274,7 @@ if ($id_operador > 0) {
             );
         }
 
-    } elseif (
-        $rol !== 'ADMIN' &&
-        $empresa_actual !== $id_empresa_sesion
-    ) {
+    } elseif ($empresa_actual !== $id_empresa_sesion) {
 
         errorOperador(
             'No puedes editar operadores de otra empresa.',
