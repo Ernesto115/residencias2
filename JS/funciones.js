@@ -4964,3 +4964,85 @@ function buscarReportes(valor, estatus = 'todos') {
         cargarReportes(1, estatus, valor);
     }, 350);
 }
+
+
+/* =========================================================
+   CONTROL DEL RFC
+   ========================================================= */
+
+
+/*
+ * NUEVO OPERADOR
+ *
+ * Cuando se abre el formulario para registrar
+ * un operador nuevo, el RFC puede escribirse.
+ */
+
+function prepararRfcNuevoOperador() {
+
+    const campoRfc =
+        document.getElementById('rfc');
+
+    const avisoRfc =
+        document.getElementById(
+            'aviso_rfc_bloqueado'
+        );
+
+
+    if (campoRfc) {
+
+        campoRfc.readOnly = false;
+
+        campoRfc.style.cursor = '';
+
+        campoRfc.removeAttribute('title');
+
+    }
+
+
+    if (avisoRfc) {
+
+        avisoRfc.style.display = 'none';
+
+    }
+
+}
+
+/*
+ * EDITAR OPERADOR
+ *
+ * Cuando se edita un operador existente,
+ * el RFC solamente puede visualizarse.
+ */
+
+function bloquearRfcEdicionOperador() {
+
+    const campoRfc =
+        document.getElementById('rfc');
+
+    const avisoRfc =
+        document.getElementById(
+            'aviso_rfc_bloqueado'
+        );
+
+
+    if (campoRfc) {
+
+        campoRfc.readOnly = true;
+
+        campoRfc.style.cursor =
+            'not-allowed';
+
+        campoRfc.title =
+            'El RFC no puede modificarse una vez registrado.';
+
+    }
+
+
+    if (avisoRfc) {
+
+        avisoRfc.style.display = 'block';
+
+    }
+
+}

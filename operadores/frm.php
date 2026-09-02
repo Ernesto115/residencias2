@@ -1,9 +1,7 @@
 <?php
-
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-
 
 /* =========================================================
    SESIÓN Y ROL
@@ -56,18 +54,6 @@ if (
    ADMIN = SOLO CONSULTA
    ========================================================= */
 
-/*
- * El administrador puede consultar operadores,
- * historial y documentos.
- *
- * NO puede:
- * - Agregar
- * - Editar
- * - Recontratar
- *
- * Por eso no generamos este formulario para ADMIN.
- */
-
 if ($rolSesion === 'ADMIN') {
     return;
 }
@@ -94,7 +80,6 @@ $multiempresaSesion =
 $empresasPermitidas = [];
 $conexionLocal = false;
 
-
 if (isset($dbtransportistas)) {
 
     $dbFrm = $dbtransportistas;
@@ -112,7 +97,6 @@ if (isset($dbtransportistas)) {
 
     $conexionLocal = true;
 }
-
 
 $sqlEmpresas = '';
 
@@ -181,7 +165,6 @@ $puedeElegirEmpresa =
     $rolSesion === 'PROPIETARIO' &&
     $multiempresaSesion === 1;
 
-
 $empresaFija =
     (!$puedeElegirEmpresa &&
      !empty($empresasPermitidas))
@@ -193,7 +176,6 @@ $empresaFija =
 
 <!-- =========================================================
      BOTÓN AGREGAR OPERADOR
-     SOLO PROPIETARIO / RRHH
      ========================================================= -->
 
 <div class="table-header-title">
@@ -202,7 +184,7 @@ $empresaFija =
 
         <button type="button"
                 class="btn-agregar-op"
-                onclick="abrirModalOperador()">
+                onclick="abrirModalOperador(); prepararRfcNuevoOperador();">
 
             + Agregar Operador
 
@@ -220,7 +202,6 @@ $empresaFija =
 <div id="modalOperador"
      class="modal-overlay">
 
-
     <div class="modal-container">
 
 
@@ -231,7 +212,6 @@ $empresaFija =
             <h2 class="modal-title-text">
                 Formulario de Operador
             </h2>
-
 
             <button type="button"
                     class="btn-cerrar-modal"
@@ -335,6 +315,12 @@ $empresaFija =
                 <div class="form-row">
 
 
+                    <!-- =================================================
+                         RFC
+                         EDITABLE AL AGREGAR
+                         BLOQUEADO AL EDITAR
+                         ================================================= -->
+
                     <div class="form-group">
 
                         <label class="form-label">
@@ -348,6 +334,17 @@ $empresaFija =
                                required
                                maxlength="13"
                                placeholder="13 caracteres">
+
+                        <small id="aviso_rfc_bloqueado"
+                               style="
+                                   display:none;
+                                   color:var(--texto-secundario);
+                                   margin-top:5px;
+                               ">
+
+                            🔒 El RFC no puede modificarse una vez registrado.
+
+                        </small>
 
                     </div>
 
@@ -537,11 +534,9 @@ $empresaFija =
                     <div class="form-group"
                          style="flex:2;">
 
-
                         <label class="form-label">
                             Calle y Número
                         </label>
-
 
                         <input type="text"
                                class="form-control"
@@ -549,7 +544,6 @@ $empresaFija =
                                id="calle_y_numero"
                                maxlength="50"
                                placeholder="Ej. Av. Industrial #123">
-
 
                     </div>
 
@@ -559,7 +553,6 @@ $empresaFija =
                         <label class="form-label">
                             Colonia
                         </label>
-
 
                         <input type="text"
                                class="form-control"
@@ -576,7 +569,6 @@ $empresaFija =
                         <label class="form-label">
                             Código Postal
                         </label>
-
 
                         <input type="text"
                                class="form-control"
@@ -771,7 +763,6 @@ $empresaFija =
                             No. VISA Laser / LPR
                         </label>
 
-
                         <input type="text"
                                class="form-control"
                                name="visa"
@@ -788,7 +779,6 @@ $empresaFija =
                             Vencimiento VISA
                         </label>
 
-
                         <input type="date"
                                class="form-control"
                                name="vencimiento_visa"
@@ -802,7 +792,6 @@ $empresaFija =
                         <label class="form-label">
                             PDF VISA
                         </label>
-
 
                         <input type="file"
                                class="form-control"
@@ -827,7 +816,6 @@ $empresaFija =
                             No. Gafete FAST / SENTRI
                         </label>
 
-
                         <input type="text"
                                class="form-control"
                                name="fast"
@@ -844,7 +832,6 @@ $empresaFija =
                             Vencimiento FAST
                         </label>
 
-
                         <input type="date"
                                class="form-control"
                                name="vencimiento_fast"
@@ -858,7 +845,6 @@ $empresaFija =
                         <label class="form-label">
                             PDF FAST
                         </label>
-
 
                         <input type="file"
                                class="form-control"
@@ -917,5 +903,6 @@ $empresaFija =
 
 
     </div>
+
 
 </div>

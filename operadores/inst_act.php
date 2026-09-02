@@ -99,7 +99,17 @@ function campo($nombre)
 }
 
 
-$rfc = campo('rfc');
+/*
+ * RFC:
+ *
+ * Guardamos por separado el valor exactamente como
+ * llegó del formulario para compararlo con el RFC
+ * original cuando se trate de una edición.
+ */
+
+$rfc_formulario = trim((string)($_REQUEST['rfc'] ?? ''));
+$rfc = addslashes($rfc_formulario);
+
 $nombres = campo('nombres');
 $primer_apellido = campo('primer_apellido');
 $segundo_apellido = campo('segundo_apellido');
@@ -166,6 +176,7 @@ if (
     $id_empresa = $id_empresa_sesion;
 
     if ($id_empresa <= 0) {
+
         errorOperador(
             'Tu usuario no tiene una empresa asignada.',
             $db
@@ -185,6 +196,7 @@ if (
     $segundo_apellido === '' ||
     $telefono_celular === ''
 ) {
+
     errorOperador(
         'Completa los campos obligatorios.',
         $db
@@ -205,27 +217,40 @@ $recontratacion = false;
 
 if ($id_operador > 0) {
 
+    /*
+     * También recuperamos el RFC original.
+     */
     $actual = $db->obtenerRegistros(
-        "SELECT id_empresa,estatus
+        "SELECT
+            id_empresa,
+            estatus,
+            rfc
          FROM operadores
          WHERE id_operador=$id_operador
          LIMIT 1"
     );
 
+
     if (empty($actual)) {
+
         errorOperador(
             'El operador no existe.',
             $db
         );
     }
 
+
     $empresa_actual = (int)$actual[0]['id_empresa'];
     $estatus_actual = (int)$actual[0]['estatus'];
+    $rfc_actual = trim((string)($actual[0]['rfc'] ?? ''));
 
 
-    /* NO EDITAR OPERADORES INACTIVOS */
+    /* =====================================================
+       NO EDITAR OPERADORES INACTIVOS
+       ===================================================== */
 
     if ($estatus_actual !== 1) {
+
         errorOperador(
             'Un operador inactivo no puede editarse directamente. Utiliza el proceso de recontratación.',
             $db,
@@ -268,6 +293,7 @@ if ($id_operador > 0) {
                 )
             )
         ) {
+
             errorOperador(
                 'No puedes editar operadores de otra empresa.',
                 $db
@@ -283,7 +309,40 @@ if ($id_operador > 0) {
     }
 
 
-    /* RFC DUPLICADO */
+    /* =====================================================
+       RFC NO MODIFICABLE
+       ===================================================== */
+
+    /*
+     * El RFC identifica al operador.
+     *
+     * Una vez registrado NO puede modificarse.
+     *
+     * Aunque alguien quite el atributo readonly
+     * desde DevTools y mande otro RFC,
+     * el servidor compara contra el valor original.
+     */
+
+    if ($rfc_formulario !== $rfc_actual) {
+
+        errorOperador(
+            'El RFC de un operador registrado no puede modificarse.',
+            $db
+        );
+    }
+
+
+    /*
+     * Continuar utilizando siempre
+     * el RFC original almacenado en la BD.
+     */
+
+    $rfc = addslashes($rfc_actual);
+
+
+    /* =====================================================
+       RFC DUPLICADO
+       ===================================================== */
 
     $duplicado = $db->obtenerRegistros(
         "SELECT id_operador
@@ -293,7 +352,9 @@ if ($id_operador > 0) {
          LIMIT 1"
     );
 
+
     if (!empty($duplicado)) {
+
         errorOperador(
             'El RFC introducido ya se encuentra registrado.',
             $db
@@ -320,13 +381,17 @@ else {
          LIMIT 1"
     );
 
+
     if (!empty($existente)) {
 
         $op = $existente[0];
+
         $idExistente = (int)$op['id_operador'];
 
 
-        /* BAJA PENDIENTE */
+        /* =================================================
+           BAJA PENDIENTE
+           ================================================= */
 
         $pendiente = $db->obtenerRegistros(
             "SELECT id_reporte
@@ -336,7 +401,9 @@ else {
              LIMIT 1"
         );
 
+
         if (!empty($pendiente)) {
+
             errorOperador(
                 'Este operador tiene una baja pendiente. Debe completarse antes de contratarlo.',
                 $db,
@@ -345,9 +412,12 @@ else {
         }
 
 
-        /* OPERADOR TODAVÍA ACTIVO */
+        /* =================================================
+           OPERADOR TODAVÍA ACTIVO
+           ================================================= */
 
         if ((int)$op['estatus'] === 1) {
+
             errorOperador(
                 'Este operador ya se encuentra activo en ' .
                 ($op['nombre_empresa'] ?? 'otra empresa') . '.',
@@ -357,7 +427,9 @@ else {
         }
 
 
-        /* ÚLTIMA BAJA */
+        /* =================================================
+           ÚLTIMA BAJA
+           ================================================= */
 
         $ultimaBaja = $db->obtenerRegistros(
             "SELECT estatus_evaluacion
@@ -367,12 +439,14 @@ else {
              LIMIT 1"
         );
 
+
         if (
             empty($ultimaBaja) ||
             strtoupper(
                 $ultimaBaja[0]['estatus_evaluacion']
             ) !== 'COMPLETADA'
         ) {
+
             errorOperador(
                 'El operador está inactivo pero no cuenta con una baja completada.',
                 $db,
@@ -381,9 +455,12 @@ else {
         }
 
 
-        /* RECONTRATACIÓN PERMITIDA */
+        /* =================================================
+           RECONTRATACIÓN PERMITIDA
+           ================================================= */
 
         $id_operador = $idExistente;
+
         $recontratacion = true;
     }
 }
@@ -395,11 +472,13 @@ else {
 
 $dir = "../uploads/pdf/";
 
+
 if (
     !is_dir($dir) &&
     !mkdir($dir,0755,true) &&
     !is_dir($dir)
 ) {
+
     errorOperador(
         'No fue posible preparar la carpeta de documentos.',
         $db
@@ -407,18 +486,26 @@ if (
 }
 
 
+/* =========================================================
+   FUNCIÓN SUBIR PDF
+   ========================================================= */
+
 function subirPDF($campo, $prefijo, $dir, $db)
 {
     if (
         !isset($_FILES[$campo]) ||
         $_FILES[$campo]['error'] === UPLOAD_ERR_NO_FILE
     ) {
+
         return '';
     }
 
+
     $a = $_FILES[$campo];
 
+
     if ($a['error'] !== UPLOAD_ERR_OK) {
+
         errorOperador(
             'No fue posible subir el documento.',
             $db
@@ -426,12 +513,15 @@ function subirPDF($campo, $prefijo, $dir, $db)
     }
 
 
-    /* MÁXIMO 10 MB */
+    /* =====================================================
+       MÁXIMO 10 MB
+       ===================================================== */
 
     if (
         (int)$a['size'] <= 0 ||
         (int)$a['size'] > 10 * 1024 * 1024
     ) {
+
         errorOperador(
             'Cada PDF debe pesar máximo 10 MB.',
             $db
@@ -439,7 +529,9 @@ function subirPDF($campo, $prefijo, $dir, $db)
     }
 
 
-    /* EXTENSIÓN */
+    /* =====================================================
+       EXTENSIÓN
+       ===================================================== */
 
     if (
         strtolower(
@@ -449,6 +541,7 @@ function subirPDF($campo, $prefijo, $dir, $db)
             )
         ) !== 'pdf'
     ) {
+
         errorOperador(
             'Solo se permiten archivos PDF.',
             $db
@@ -456,7 +549,9 @@ function subirPDF($campo, $prefijo, $dir, $db)
     }
 
 
-    /* FIRMA DEL ARCHIVO */
+    /* =====================================================
+       FIRMA DEL ARCHIVO
+       ===================================================== */
 
     $firma = @file_get_contents(
         $a['tmp_name'],
@@ -466,7 +561,9 @@ function subirPDF($campo, $prefijo, $dir, $db)
         5
     );
 
+
     if ($firma !== '%PDF-') {
+
         errorOperador(
             'El archivo seleccionado no es un PDF válido.',
             $db
@@ -474,13 +571,16 @@ function subirPDF($campo, $prefijo, $dir, $db)
     }
 
 
-    /* MIME */
+    /* =====================================================
+       MIME
+       ===================================================== */
 
     if (function_exists('mime_content_type')) {
 
         $mime = @mime_content_type(
             $a['tmp_name']
         );
+
 
         if (
             $mime !== false &&
@@ -494,6 +594,7 @@ function subirPDF($campo, $prefijo, $dir, $db)
                 true
             )
         ) {
+
             errorOperador(
                 'El tipo de archivo no está permitido.',
                 $db
@@ -502,7 +603,9 @@ function subirPDF($campo, $prefijo, $dir, $db)
     }
 
 
-    /* NOMBRE SEGURO */
+    /* =====================================================
+       NOMBRE SEGURO
+       ===================================================== */
 
     $nombre =
         $prefijo . '_' .
@@ -517,15 +620,21 @@ function subirPDF($campo, $prefijo, $dir, $db)
             $dir.$nombre
         )
     ) {
+
         errorOperador(
             'No fue posible guardar el PDF.',
             $db
         );
     }
 
+
     return $nombre;
 }
 
+
+/* =========================================================
+   SUBIR DOCUMENTOS
+   ========================================================= */
 
 $pdfLic = subirPDF(
     'archivo_pdf_licencia',
@@ -534,6 +643,7 @@ $pdfLic = subirPDF(
     $db
 );
 
+
 $pdfMed = subirPDF(
     'archivo_pdf_apto_medico',
     'med',
@@ -541,12 +651,14 @@ $pdfMed = subirPDF(
     $db
 );
 
+
 $pdfVisa = subirPDF(
     'archivo_pdf_visa',
     'visa',
     $dir,
     $db
 );
+
 
 $pdfFast = subirPDF(
     'fast_pdf',
@@ -562,10 +674,18 @@ $pdfFast = subirPDF(
 
 if ($id_operador > 0) {
 
+    /*
+     * IMPORTANTE:
+     *
+     * RFC ya NO aparece en este UPDATE.
+     *
+     * Una edición nunca debe sobrescribir
+     * el RFC del operador.
+     */
+
     $sql = "
         UPDATE operadores SET
             id_empresa=$id_empresa,
-            rfc='$rfc',
             nombres='$nombres',
             primer_apellido='$primer_apellido',
             segundo_apellido='$segundo_apellido',
@@ -584,9 +704,12 @@ if ($id_operador > 0) {
     ";
 
 
-    /* RECONTRATACIÓN */
+    /* =====================================================
+       RECONTRATACIÓN
+       ===================================================== */
 
     if ($recontratacion) {
+
         $sql .= ",
             estatus=1,
             fecha_ingreso=CURDATE()
@@ -594,27 +717,36 @@ if ($id_operador > 0) {
     }
 
 
-    /* PDFs NUEVOS */
+    /* =====================================================
+       PDFs NUEVOS
+       ===================================================== */
 
     if ($pdfLic !== '') {
+
         $sql .= ",
             archivo_pdf_licencia='$pdfLic'
         ";
     }
 
+
     if ($pdfMed !== '') {
+
         $sql .= ",
             archivo_pdf_apto_medico='$pdfMed'
         ";
     }
 
+
     if ($pdfVisa !== '') {
+
         $sql .= ",
             archivo_pdf_visa='$pdfVisa'
         ";
     }
 
+
     if ($pdfFast !== '') {
+
         $sql .= ",
             fast_pdf='$pdfFast'
         ";
@@ -625,6 +757,7 @@ if ($id_operador > 0) {
         WHERE id_operador=$id_operador
     ";
 
+
     $db->actualizar($sql);
 }
 
@@ -634,6 +767,10 @@ if ($id_operador > 0) {
    ========================================================= */
 
 else {
+
+    /*
+     * En un operador NUEVO sí se guarda el RFC.
+     */
 
     $sql = "
         INSERT INTO operadores (
@@ -687,6 +824,7 @@ else {
         )
     ";
 
+
     $db->insertar($sql);
 }
 
@@ -697,11 +835,17 @@ else {
 
 $id_operador = 0;
 
+
 if (file_exists("tabla.php")) {
+
     include "tabla.php";
+
 } else {
+
     include "../operadores/tabla.php";
 }
 
+
 $db->desconectar();
+
 ?>
