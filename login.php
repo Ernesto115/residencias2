@@ -154,7 +154,7 @@
             <div class="login-footer"> 
                 © 2026 Consejo Binacional de Transportistas
                 <br>
-                Todos los derechos reservados a Ernesto Marquez y Angel Sanchez. 
+                Todos los derechos reservados a Transportes 1° de Mayo S.A. de C.V. 
 
                 <div class="login-version">
                     Versión 1.0.2
