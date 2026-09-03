@@ -138,8 +138,47 @@
             </form> 
 
 
-            <!-- Mensajes de error -->
-            <div id="contenedorErroresLogin"></div> 
+     <!-- ==========================================
+     MENSAJE DE CUENTA DESACTIVADA
+     ========================================== -->
+
+<?php
+
+$motivo = $_GET['motivo'] ?? '';
+
+if ($motivo === 'cuenta_desactivada'):
+?>
+
+    <div style="
+        margin-top:18px;
+        padding:12px 14px;
+        border-radius:8px;
+        background:rgba(245,158,11,.12);
+        border:1px solid rgba(245,158,11,.45);
+        color:#f8fafc;
+        font-size:.9rem;
+        line-height:1.45;
+        text-align:left;
+    ">
+
+        ⚠️
+        <strong>Sesión finalizada.</strong>
+
+        <br>
+
+        Tu cuenta fue desactivada por un administrador
+        y ya no tiene acceso al sistema.
+
+    </div>
+
+<?php endif; ?>
+
+
+<!-- ==========================================
+     MENSAJES NORMALES DEL LOGIN
+     ========================================== -->
+
+<div id="contenedorErroresLogin"></div>
 
 
             <!-- Recuperar contraseña -->

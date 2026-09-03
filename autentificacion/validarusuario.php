@@ -6,117 +6,308 @@
 
 ini_set('display_errors', 0);
 
-if (session_status() === PHP_SESSION_NONE) {
+
+if (
+    session_status() ===
+    PHP_SESSION_NONE
+) {
+
     session_start();
 }
 
-header('Content-Type: application/json; charset=utf-8');
+
+header(
+    'Content-Type: application/json; charset=utf-8'
+);
+
 
 try {
 
-    /* 1. CONEXIÓN */
+
+    /* =====================================================
+       1. CONEXIÓN
+       ===================================================== */
+
     require_once "../DB/db.php";
 
-    $dbtransportistas = new db();
+
+    $dbtransportistas =
+        new db();
+
+
     $dbtransportistas->conectar();
 
 
-    /* 2. DATOS DEL LOGIN */
-    $usuario = trim($_POST['usuario'] ?? '');
-    $clave = $_POST['clave'] ?? '';
+    /* =====================================================
+       2. DATOS DEL LOGIN
+       ===================================================== */
 
-    if ($usuario === '' || $clave === '') {
+    $usuario =
+        trim(
+            $_POST['usuario'] ?? ''
+        );
+
+
+    $clave =
+        $_POST['clave'] ?? '';
+
+
+    if (
+        $usuario === '' ||
+        $clave === ''
+    ) {
+
         echo json_encode([
             "status" => "error",
-            "message" => "Debes ingresar usuario y contraseña."
+            "message" =>
+                "Debes ingresar usuario y contraseña."
         ]);
+
         exit;
     }
 
 
-    /* 3. BUSCAR USUARIO */
-    $sql = "SELECT * FROM usuarios WHERE nombre_usuario = :usuario LIMIT 1";
+    /* =====================================================
+       3. BUSCAR USUARIO
+       ===================================================== */
 
-    $stmt = $dbtransportistas->conn->prepare($sql);
-    $stmt->bindParam(':usuario', $usuario);
-    $stmt->execute();
-
-    $usuarioDB = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$usuarioDB || $clave !== $usuarioDB['contrasena']) {
-        echo json_encode([
-            "status" => "error",
-            "message" => "Usuario o contraseña incorrectos."
-        ]);
-        exit;
-    }
+    $sql =
+        "SELECT *
+         FROM usuarios
+         WHERE nombre_usuario = :usuario
+         LIMIT 1";
 
 
-    /* 4. ROL */
-    $rolNormalizado = strtoupper(trim($usuarioDB['rol']));
-
-    if ($rolNormalizado === 'ADMINISTRADOR') {
-        $rolNormalizado = 'ADMIN';
-    }
-
-    if (!in_array($rolNormalizado, ['ADMIN', 'PROPIETARIO', 'RRHH'], true)) {
-        echo json_encode([
-            "status" => "error",
-            "message" => "Tu rol no tiene acceso asignado a este sistema."
-        ]);
-        exit;
-    }
+    $stmt =
+        $dbtransportistas
+            ->conn
+            ->prepare($sql);
 
 
-    /* 5. NOMBRE COMPLETO */
-    $nombreCompleto = trim(
-        ($usuarioDB['nombres'] ?? '') . ' ' .
-        ($usuarioDB['primer_apellido'] ?? '') . ' ' .
-        ($usuarioDB['segundo_apellido'] ?? '')
+    $stmt->bindParam(
+        ':usuario',
+        $usuario
     );
 
-    // Si todavía no tiene nombre registrado, mostrar el usuario.
-    if ($nombreCompleto === '') {
-        $nombreCompleto = $usuarioDB['nombre_usuario'];
+
+    $stmt->execute();
+
+
+    $usuarioDB =
+        $stmt->fetch(
+            PDO::FETCH_ASSOC
+        );
+
+
+    /* =====================================================
+       4. VALIDAR CREDENCIALES
+       ===================================================== */
+
+    if (
+        !$usuarioDB ||
+        $clave !==
+        $usuarioDB['contrasena']
+    ) {
+
+        echo json_encode([
+            "status" => "error",
+            "message" =>
+                "Usuario o contraseña incorrectos."
+        ]);
+
+        exit;
     }
 
 
-    /* 6. CREAR SESIÓN */
+    /* =====================================================
+       5. VALIDAR ESTATUS DE LA CUENTA
+       ===================================================== */
+
+    /*
+     * Una cuenta desactivada permanece
+     * almacenada en la base de datos,
+     * pero NO puede iniciar sesión.
+     */
+
+    $estatusUsuario =
+        isset($usuarioDB['estatus'])
+            ? (int)$usuarioDB['estatus']
+            : 1;
+
+
+    if ($estatusUsuario !== 1) {
+
+        echo json_encode([
+            "status" => "error",
+            "message" =>
+                "Tu cuenta se encuentra desactivada. Contacta al administrador del sistema."
+        ]);
+
+        exit;
+    }
+
+
+    /* =====================================================
+       6. ROL
+       ===================================================== */
+
+    $rolNormalizado =
+        strtoupper(
+            trim(
+                $usuarioDB['rol']
+            )
+        );
+
+
+    if (
+        $rolNormalizado ===
+        'ADMINISTRADOR'
+    ) {
+
+        $rolNormalizado =
+            'ADMIN';
+    }
+
+
+    if (
+        !in_array(
+            $rolNormalizado,
+            [
+                'ADMIN',
+                'PROPIETARIO',
+                'RRHH'
+            ],
+            true
+        )
+    ) {
+
+        echo json_encode([
+            "status" => "error",
+            "message" =>
+                "Tu rol no tiene acceso asignado a este sistema."
+        ]);
+
+        exit;
+    }
+
+
+    /* =====================================================
+       7. NOMBRE COMPLETO
+       ===================================================== */
+
+    $nombreCompleto =
+        trim(
+            ($usuarioDB['nombres'] ?? '') .
+            ' ' .
+            ($usuarioDB['primer_apellido'] ?? '') .
+            ' ' .
+            ($usuarioDB['segundo_apellido'] ?? '')
+        );
+
+
+    if ($nombreCompleto === '') {
+
+        $nombreCompleto =
+            $usuarioDB[
+                'nombre_usuario'
+            ];
+    }
+
+
+    /* =====================================================
+       8. CREAR SESIÓN
+       ===================================================== */
+
     session_regenerate_id(true);
 
-    $_SESSION['id_usuario'] = (int)$usuarioDB['id_usuario'];
-    $_SESSION['nombre_usuario'] = $usuarioDB['nombre_usuario'];
-    $_SESSION['nombre_completo'] = $nombreCompleto;
-    $_SESSION['rol'] = $rolNormalizado;
 
-    $_SESSION['id_empresa'] = !empty($usuarioDB['id_empresa'])
-        ? (int)$usuarioDB['id_empresa']
-        : null;
-
-    $_SESSION['multiempresa'] = isset($usuarioDB['multiempresa'])
-        ? (int)$usuarioDB['multiempresa']
-        : 0;
+    $_SESSION['id_usuario'] =
+        (int)$usuarioDB[
+            'id_usuario'
+        ];
 
 
-    /* 7. RESPUESTA */
+    $_SESSION['nombre_usuario'] =
+        $usuarioDB[
+            'nombre_usuario'
+        ];
+
+
+    $_SESSION['nombre_completo'] =
+        $nombreCompleto;
+
+
+    $_SESSION['rol'] =
+        $rolNormalizado;
+
+
+    $_SESSION['id_empresa'] =
+        !empty(
+            $usuarioDB['id_empresa']
+        )
+            ? (int)$usuarioDB[
+                'id_empresa'
+            ]
+            : null;
+
+
+    $_SESSION['multiempresa'] =
+        isset(
+            $usuarioDB[
+                'multiempresa'
+            ]
+        )
+            ? (int)$usuarioDB[
+                'multiempresa'
+            ]
+            : 0;
+
+
+    /* =====================================================
+       9. RESPUESTA
+       ===================================================== */
+
     echo json_encode([
-        "status" => "success",
-        "message" => "Inicio de sesión correcto.",
-        "nombre_completo" => $_SESSION['nombre_completo'],
-        "rol" => $_SESSION['rol'],
-        "id_empresa" => $_SESSION['id_empresa'],
-        "multiempresa" => $_SESSION['multiempresa']
+        "status" =>
+            "success",
+
+        "message" =>
+            "Inicio de sesión correcto.",
+
+        "nombre_completo" =>
+            $_SESSION[
+                'nombre_completo'
+            ],
+
+        "rol" =>
+            $_SESSION['rol'],
+
+        "id_empresa" =>
+            $_SESSION[
+                'id_empresa'
+            ],
+
+        "multiempresa" =>
+            $_SESSION[
+                'multiempresa'
+            ]
     ]);
 
+
     exit;
+
 
 } catch (Throwable $e) {
 
+
     echo json_encode([
         "status" => "error",
-        "message" => "Error interno del servidor."
+        "message" =>
+            "Error interno del servidor."
     ]);
+
 
     exit;
 }
+
 ?>

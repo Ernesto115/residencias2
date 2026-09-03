@@ -10,51 +10,249 @@
 
 // Carga una página o módulo dentro del contenido principal.
 function ver(ruta) {
-    const contenedor = document.getElementById('contenido-principal');
 
-    // Si no existe el contenedor principal, utiliza contenedor1.
+    const contenedor =
+        document.getElementById(
+            'contenido-principal'
+        );
+
+
+    /* =========================================================
+       FUNCIÓN PARA REDIRIGIR AL LOGIN
+       ========================================================= */
+
+    function manejarSesionFinalizada(response) {
+
+        if (
+            !response.redirected ||
+            !response.url.includes('/login.php')
+        ) {
+            return false;
+        }
+
+
+        const url =
+            new URL(response.url);
+
+
+        const motivo =
+            url.searchParams.get('motivo');
+
+
+        /* =====================================================
+           CUENTA DESACTIVADA
+           ===================================================== */
+
+        if (
+            motivo ===
+            'cuenta_desactivada'
+        ) {
+
+            if (
+                typeof Swal !==
+                'undefined'
+            ) {
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sesión finalizada',
+                    text:
+                        'Tu cuenta fue desactivada por un administrador. Ya no tienes acceso al sistema.',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#e67e00',
+                    background: '#1e293b',
+                    color: '#ffffff',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                })
+                .then(() => {
+
+                    window.location.href =
+                        response.url;
+                });
+
+            } else {
+
+                alert(
+                    'Tu sesión fue finalizada porque tu cuenta fue desactivada.'
+                );
+
+
+                window.location.href =
+                    response.url;
+            }
+
+
+            return true;
+        }
+
+
+        /* Sesión normal finalizada */
+        window.location.href =
+            response.url;
+
+
+        return true;
+    }
+
+
+    /* =========================================================
+       CONTENEDOR ALTERNATIVO
+       ========================================================= */
+
     if (!contenedor) {
-        let div1 = document.querySelector("#contenedor1");
+
+        let div1 =
+            document.querySelector(
+                "#contenedor1"
+            );
+
 
         if (div1) {
+
             fetch(ruta)
-                .then(response => response.text())
-                .then(data => { div1.innerHTML = data; })
-                .catch(error => console.error("Error al cargar la página:", error));
+
+                .then(response => {
+
+                    if (
+                        manejarSesionFinalizada(
+                            response
+                        )
+                    ) {
+
+                        return null;
+                    }
+
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            'No se pudo cargar el módulo solicitado.'
+                        );
+                    }
+
+
+                    return response.text();
+                })
+
+                .then(data => {
+
+                    if (data === null) {
+                        return;
+                    }
+
+
+                    div1.innerHTML =
+                        data;
+                })
+
+                .catch(error => {
+
+                    console.error(
+                        "Error al cargar la página:",
+                        error
+                    );
+                });
         }
+
 
         return;
     }
 
-    // Mensaje mientras carga el módulo.
+
+    /* =========================================================
+       MENSAJE DE CARGA
+       ========================================================= */
+
     contenedor.innerHTML = `
         <div class="text-center p-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2 texto-secundario">Cargando módulo...</p>
+
+            <div
+                class="spinner-border text-primary"
+                role="status">
+            </div>
+
+            <p class="mt-2 texto-secundario">
+                Cargando módulo...
+            </p>
+
         </div>
     `;
 
+
+    /* =========================================================
+       CARGAR MÓDULO
+       ========================================================= */
+
     fetch(ruta)
+
         .then(response => {
-            if (!response.ok) {
-                throw new Error('No se pudo cargar el módulo solicitado.');
+
+
+            /* =================================================
+               COMPROBAR SESIÓN
+               ================================================= */
+
+            if (
+                manejarSesionFinalizada(
+                    response
+                )
+            ) {
+
+                return null;
             }
+
+
+            /* =================================================
+               ERROR NORMAL
+               ================================================= */
+
+            if (!response.ok) {
+
+                throw new Error(
+                    'No se pudo cargar el módulo solicitado.'
+                );
+            }
+
 
             return response.text();
         })
+
+
         .then(html => {
-            contenedor.innerHTML = html;
+
+            if (html === null) {
+                return;
+            }
+
+
+            contenedor.innerHTML =
+                html;
         })
+
+
         .catch(error => {
+
             contenedor.innerHTML = `
-                <div class="alert alert-danger m-3" role="alert">
-                    <h4 class="alert-heading">⚠️ Error de Carga</h4>
-                    <p class="mb-0">${error.message} (Ruta: <code>${ruta}</code>).</p>
+                <div
+                    class="alert alert-danger m-3"
+                    role="alert"
+                >
+
+                    <h4 class="alert-heading">
+                        ⚠️ Error de Carga
+                    </h4>
+
+                    <p class="mb-0">
+                        ${error.message}
+                        (Ruta:
+                        <code>${ruta}</code>).
+                    </p>
+
                 </div>
             `;
         });
 }
-
 
 // Ir al apartado de empresas.
 function irAApartadoEmpresas() {
