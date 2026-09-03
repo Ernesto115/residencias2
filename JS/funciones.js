@@ -5244,3 +5244,265 @@ function bloquearRfcEdicionOperador() {
     }
 
 }
+
+/* =========================================================
+   ACTIVAR / DESACTIVAR USUARIOS
+   ========================================================= */
+
+function cambiarEstatusUsuario(
+    idUsuario,
+    estatusActual,
+    pagina = 1,
+    rol = 'TODOS'
+) {
+
+    /* =====================================================
+       DETERMINAR ACCIÓN
+       ===================================================== */
+
+    const vaDesactivar =
+        Number(estatusActual) === 1;
+
+
+    const nuevoEstatus =
+        vaDesactivar
+            ? 0
+            : 1;
+
+
+    const titulo =
+        vaDesactivar
+            ? '¿Desactivar usuario?'
+            : '¿Reactivar usuario?';
+
+
+    const mensaje =
+        vaDesactivar
+            ? 'El usuario perderá el acceso al sistema, pero su cuenta y sus relaciones se conservarán.'
+            : 'El usuario recuperará el acceso al sistema.';
+
+
+    const textoConfirmar =
+        vaDesactivar
+            ? 'Sí, desactivar'
+            : 'Sí, reactivar';
+
+
+    /* =====================================================
+       EJECUTAR CAMBIO
+       ===================================================== */
+
+    function ejecutarCambio() {
+
+        const datos =
+            new FormData();
+
+
+        datos.append(
+            'id_usuario',
+            idUsuario
+        );
+
+
+        datos.append(
+            'estatus',
+            nuevoEstatus
+        );
+
+
+        fetch(
+            '/usuarios/estatus.php',
+            {
+                method: 'POST',
+                body: datos
+            }
+        )
+
+        .then(async response => {
+
+            const texto =
+                await response.text();
+
+
+            let data;
+
+
+            try {
+
+                data =
+                    JSON.parse(texto);
+
+            } catch (error) {
+
+                console.error(
+                    'Respuesta de estatus.php:',
+                    texto
+                );
+
+
+                throw new Error(
+                    'El servidor devolvió una respuesta no válida.'
+                );
+            }
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.mensaje ||
+                    'No fue posible cambiar el estatus del usuario.'
+                );
+            }
+
+
+            return data;
+        })
+
+        .then(data => {
+
+
+            /* =================================================
+               ERROR CONTROLADO
+               ================================================= */
+
+            if (!data.ok) {
+
+                throw new Error(
+                    data.mensaje ||
+                    'No fue posible cambiar el estatus.'
+                );
+            }
+
+
+            /* =================================================
+               MENSAJE DE ÉXITO
+               ================================================= */
+
+            if (
+                typeof mostrarToast ===
+                'function'
+            ) {
+
+                mostrarToast(
+                    data.mensaje
+                );
+            }
+
+
+            /* =================================================
+               RECARGAR TABLA
+               CONSERVANDO PÁGINA Y FILTRO
+               ================================================= */
+
+            cambiarPaginaUsuarios(
+                pagina,
+                rol
+            );
+        })
+
+        .catch(error => {
+
+            console.error(
+                'Error al cambiar estatus del usuario:',
+                error
+            );
+
+
+            if (
+                typeof Swal !==
+                'undefined'
+            ) {
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No se pudo realizar la operación',
+                    text: error.message,
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#dc2626',
+                    background: '#1e293b',
+                    color: '#ffffff'
+                });
+
+            } else {
+
+                alert(
+                    error.message
+                );
+            }
+        });
+    }
+
+
+    /* =====================================================
+       CONFIRMACIÓN
+       ===================================================== */
+
+    if (
+        typeof Swal !==
+        'undefined'
+    ) {
+
+        Swal.fire({
+
+            icon:
+                vaDesactivar
+                    ? 'warning'
+                    : 'question',
+
+            title:
+                titulo,
+
+            text:
+                mensaje,
+
+            showCancelButton:
+                true,
+
+            confirmButtonText:
+                textoConfirmar,
+
+            cancelButtonText:
+                'Cancelar',
+
+            confirmButtonColor:
+                vaDesactivar
+                    ? '#dc2626'
+                    : '#16a34a',
+
+            cancelButtonColor:
+                '#475569',
+
+            background:
+                '#1e293b',
+
+            color:
+                '#ffffff',
+
+            reverseButtons:
+                true
+
+        }).then(resultado => {
+
+            if (
+                resultado.isConfirmed
+            ) {
+
+                ejecutarCambio();
+            }
+        });
+
+    } else {
+
+        const confirmar =
+            confirm(
+                titulo + '\n\n' +
+                mensaje
+            );
+
+
+        if (confirmar) {
+
+            ejecutarCambio();
+        }
+    }
+}
