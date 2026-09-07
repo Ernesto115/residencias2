@@ -1,68 +1,41 @@
 <?php
 
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+
+
 /* =========================================================
    IMPORTAR EXCEL - OPERADORES
-   PRIMERA ETAPA: SOLO LEER Y MOSTRAR
-   NO GUARDA NADA EN BASE DE DATOS
+   SOLO LECTURA Y VALIDACIÓN
+   NO GUARDA DATOS
    ========================================================= */
 
 require_once "../configuracion/sesion.php";
+require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 verificarSesion();
 
 
 /* =========================================================
    VALIDAR ROL
-   SOLO PROPIETARIO Y RRHH
    ========================================================= */
 
-$rol = strtoupper(
-    trim($_SESSION['rol'] ?? '')
-);
+$rol = strtoupper(trim($_SESSION['rol'] ?? ''));
 
-if ($rol === 'ADMINISTRADOR') {
-    $rol = 'ADMIN';
-}
+if ($rol === 'ADMINISTRADOR') $rol = 'ADMIN';
 
-if (
-    in_array(
-        $rol,
-        ['RH', 'RECURSOS HUMANOS'],
-        true
-    )
-) {
+if (in_array($rol, ['RH', 'RECURSOS HUMANOS'], true)) {
     $rol = 'RRHH';
 }
 
-if (
-    !in_array(
-        $rol,
-        ['PROPIETARIO', 'RRHH'],
-        true
-    )
-) {
-
+if (!in_array($rol, ['PROPIETARIO', 'RRHH'], true)) {
     http_response_code(403);
-
-    exit(
-        'No tienes permiso para importar operadores.'
-    );
+    exit('No tienes permiso para importar operadores.');
 }
 
 
 /* =========================================================
-   CARGAR PHPSPREADSHEET
-   ========================================================= */
-
-require_once dirname(__DIR__) . '/vendor/autoload.php';
-
-
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
-
-
-/* =========================================================
-   ESCAPAR HTML
+   FUNCIONES PEQUEÑAS
    ========================================================= */
 
 function hExcel($valor)
@@ -75,6 +48,25 @@ function hExcel($valor)
 }
 
 
+function largoExcel($valor)
+{
+    return function_exists('mb_strlen')
+        ? mb_strlen((string)$valor, 'UTF-8')
+        : strlen((string)$valor);
+}
+
+
+function fechaValidaExcel($fecha)
+{
+    $f = DateTime::createFromFormat(
+        'Y-m-d',
+        $fecha
+    );
+
+    return $f && $f->format('Y-m-d') === $fecha;
+}
+
+
 /* =========================================================
    VARIABLES
    ========================================================= */
@@ -83,254 +75,151 @@ $error = '';
 
 $filasExcel = [];
 
+$procesado = false;
+
+$totalValidas = 0;
+$totalErrores = 0;
+$totalAvisos = 0;
+
 
 /* =========================================================
-   SI RECIBIMOS UN ARCHIVO
+   PROCESAR ARCHIVO
    ========================================================= */
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-
-    /* =====================================================
-       COMPROBAR ARCHIVO
-       ===================================================== */
 
     if (
         !isset($_FILES['archivo_excel']) ||
         $_FILES['archivo_excel']['error'] !== UPLOAD_ERR_OK
     ) {
 
-        $error =
-            'No se recibió correctamente el archivo Excel.';
+        $error = 'No se recibió correctamente el archivo Excel.';
 
     } else {
 
+        $archivo = $_FILES['archivo_excel'];
 
-        $archivo =
-            $_FILES['archivo_excel'];
+        $extension = strtolower(
+            pathinfo(
+                $archivo['name'] ?? '',
+                PATHINFO_EXTENSION
+            )
+        );
 
-
-        $nombreOriginal =
-            $archivo['name'] ?? '';
-
-
-        $extension =
-            strtolower(
-                pathinfo(
-                    $nombreOriginal,
-                    PATHINFO_EXTENSION
-                )
-            );
-
-
-        /* =================================================
-           SOLO XLSX
-           ================================================= */
 
         if ($extension !== 'xlsx') {
 
-            $error =
-                'El archivo debe estar en formato .xlsx';
+            $error = 'El archivo debe estar en formato .xlsx.';
 
-        } elseif (
-            ($archivo['size'] ?? 0) >
-            5 * 1024 * 1024
-        ) {
+        } elseif (($archivo['size'] ?? 0) > 5 * 1024 * 1024) {
 
-            $error =
-                'El archivo no puede superar los 5 MB.';
+            $error = 'El archivo no puede superar los 5 MB.';
 
         } else {
 
-
             try {
 
-
-                /* =========================================
+                /* =============================================
                    LEER EXCEL
-                   ========================================= */
+                   ============================================= */
 
-                $lector =
-                    IOFactory::createReaderForFile(
-                        $archivo['tmp_name']
-                    );
-
+                $lector = IOFactory::createReaderForFile(
+                    $archivo['tmp_name']
+                );
 
                 $lector->setReadDataOnly(true);
 
+                $excel = $lector->load(
+                    $archivo['tmp_name']
+                );
 
-                $excel =
-                    $lector->load(
-                        $archivo['tmp_name']
-                    );
+                $hoja = $excel->getActiveSheet();
 
+                $ultimaFila = $hoja->getHighestDataRow();
 
-                $hoja =
-                    $excel->getActiveSheet();
-
-
-                $ultimaFila =
-                    $hoja->getHighestDataRow();
-
-
-                /* =========================================
-                   EVITAR ARCHIVOS DEMASIADO GRANDES
-                   ========================================= */
 
                 if ($ultimaFila > 1001) {
-
                     throw new Exception(
-                        'La plantilla admite un máximo de 1000 operadores por archivo.'
+                        'Máximo 1000 operadores por archivo.'
                     );
                 }
 
 
-                /* =========================================
+                /* =============================================
                    VALIDAR ENCABEZADOS
-                   ========================================= */
+                   ============================================= */
 
-                $encabezadosEsperados = [
-
+                $esperados = [
                     'nombres',
-
                     'primer_apellido',
-
                     'segundo_apellido',
-
                     'rfc',
-
                     'fecha_ingreso'
-
                 ];
 
 
-                $encabezadosRecibidos = [];
+                $encabezados = $hoja->rangeToArray(
+                    'A1:E1',
+                    null,
+                    true,
+                    false,
+                    false
+                )[0];
 
 
-                for ($columna = 1; $columna <= 5; $columna++) {
-
-                    $valor =
-                        $hoja
-                            ->getCell([
-                                $columna,
-                                1
-                            ])
-                            ->getValue();
+                $encabezados = array_map(
+                    fn($v) => strtolower(trim((string)$v)),
+                    $encabezados
+                );
 
 
-                    $encabezadosRecibidos[] =
-                        strtolower(
-                            trim(
-                                (string)$valor
-                            )
-                        );
-                }
-
-
-                if (
-                    $encabezadosRecibidos !==
-                    $encabezadosEsperados
-                ) {
-
+                if ($encabezados !== $esperados) {
                     throw new Exception(
-                        'La estructura del Excel no corresponde con la plantilla oficial de operadores.'
+                        'El archivo no corresponde con la plantilla oficial.'
                     );
                 }
 
 
-                /* =========================================
+                /* =============================================
                    LEER FILAS
-                   EMPIEZA EN FILA 2
-                   ========================================= */
+                   ============================================= */
 
-                for (
-                    $fila = 2;
-                    $fila <= $ultimaFila;
-                    $fila++
-                ) {
+                for ($fila = 2; $fila <= $ultimaFila; $fila++) {
 
-
-                    $nombres =
-                        trim(
-                            (string)$hoja
-                                ->getCell("A$fila")
-                                ->getValue()
-                        );
+                    $datos = $hoja->rangeToArray(
+                        "A$fila:E$fila",
+                        null,
+                        true,
+                        false,
+                        false
+                    )[0];
 
 
-                    $primerApellido =
-                        trim(
-                            (string)$hoja
-                                ->getCell("B$fila")
-                                ->getValue()
-                        );
+                    $nombres = trim((string)$datos[0]);
+                    $primerApellido = trim((string)$datos[1]);
+                    $segundoApellido = trim((string)$datos[2]);
+
+                    $rfc = strtoupper(
+                        trim((string)$datos[3])
+                    );
 
 
-                    $segundoApellido =
-                        trim(
-                            (string)$hoja
-                                ->getCell("C$fila")
-                                ->getValue()
-                        );
-
-
-                    $rfc =
-                        strtoupper(
-                            trim(
-                                (string)$hoja
-                                    ->getCell("D$fila")
-                                    ->getValue()
-                            )
-                        );
-
-
-                    /* =====================================
-                       FECHA
-                       ===================================== */
-
-                    $celdaFecha =
-                        $hoja->getCell("E$fila");
-
-
-                    $valorFecha =
-                        $celdaFecha->getValue();
-
+                    $valorFecha = $datos[4];
 
                     $fechaIngreso = '';
 
 
-                    if (
-                        $valorFecha !== null &&
-                        $valorFecha !== ''
-                    ) {
+                    if ($valorFecha !== null && $valorFecha !== '') {
 
-
-                        if (
-                            is_numeric(
+                        $fechaIngreso = is_numeric($valorFecha)
+                            ? Date::excelToDateTimeObject(
                                 $valorFecha
-                            )
-                        ) {
-
-                            $fechaIngreso =
-                                Date::excelToDateTimeObject(
-                                    $valorFecha
-                                )->format(
-                                    'Y-m-d'
-                                );
-
-                        } else {
-
-                            $fechaIngreso =
-                                trim(
-                                    (string)$valorFecha
-                                );
-                        }
+                            )->format('Y-m-d')
+                            : trim((string)$valorFecha);
                     }
 
 
-                    /* =====================================
-                       IGNORAR FILAS COMPLETAMENTE VACÍAS
-                       ===================================== */
+                    /* Ignorar filas totalmente vacías */
 
                     if (
                         $nombres === '' &&
@@ -339,36 +228,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $rfc === '' &&
                         $fechaIngreso === ''
                     ) {
-
                         continue;
                     }
 
 
-                    /* =====================================
-                       GUARDAR SOLO EN MEMORIA
-                       NO EN MYSQL
-                       ===================================== */
-
                     $filasExcel[] = [
-
-                        'fila' =>
-                            $fila,
-
-                        'nombres' =>
-                            $nombres,
-
-                        'primer_apellido' =>
-                            $primerApellido,
-
-                        'segundo_apellido' =>
-                            $segundoApellido,
-
-                        'rfc' =>
-                            $rfc,
-
-                        'fecha_ingreso' =>
-                            $fechaIngreso
-
+                        'fila' => $fila,
+                        'nombres' => $nombres,
+                        'primer_apellido' => $primerApellido,
+                        'segundo_apellido' => $segundoApellido,
+                        'rfc' => $rfc,
+                        'fecha_ingreso' => $fechaIngreso,
+                        'estado' => '',
+                        'mensajes' => []
                     ];
                 }
 
@@ -378,10 +250,220 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 unset($excel);
 
 
+                /* =============================================
+                   CONTAR RFC REPETIDOS EN EL EXCEL
+                   ============================================= */
+
+                $rfcs = array_filter(
+                    array_column(
+                        $filasExcel,
+                        'rfc'
+                    )
+                );
+
+                $conteoRfc = array_count_values($rfcs);
+
+
+                /* =============================================
+                   BUSCAR RFC EXISTENTES EN MYSQL
+                   ============================================= */
+
+                $existentes = [];
+
+                $rfcsUnicos = array_values(
+                    array_unique($rfcs)
+                );
+
+
+                if (!empty($rfcsUnicos)) {
+
+                    include_once "../db/db.php";
+
+                    $dbExcel = new db();
+
+                    $dbExcel->conectar();
+
+
+                    $signos = implode(
+                        ',',
+                        array_fill(
+                            0,
+                            count($rfcsUnicos),
+                            '?'
+                        )
+                    );
+
+
+                    $stmt = $dbExcel->conn->prepare(
+                        "SELECT rfc, estatus
+                         FROM operadores
+                         WHERE UPPER(rfc) IN ($signos)"
+                    );
+
+
+                    $stmt->execute($rfcsUnicos);
+
+
+                    foreach (
+                        $stmt->fetchAll(PDO::FETCH_ASSOC)
+                        as $registro
+                    ) {
+
+                        $existentes[
+                            strtoupper($registro['rfc'])
+                        ] = (int)$registro['estatus'];
+                    }
+
+
+                    $dbExcel->desconectar();
+                }
+
+
+                /* =============================================
+                   VALIDAR FILAS
+                   ============================================= */
+
+                foreach ($filasExcel as &$dato) {
+
+                    $errores = [];
+                    $avisos = [];
+
+
+                    /* CAMPOS OBLIGATORIOS */
+
+                    if ($dato['nombres'] === '') {
+                        $errores[] = 'Nombres obligatorio.';
+                    }
+
+                    if ($dato['primer_apellido'] === '') {
+                        $errores[] = 'Primer apellido obligatorio.';
+                    }
+
+                    if ($dato['segundo_apellido'] === '') {
+                        $errores[] = 'Segundo apellido obligatorio.';
+                    }
+
+                    if ($dato['rfc'] === '') {
+                        $errores[] = 'RFC obligatorio.';
+                    }
+
+                    if ($dato['fecha_ingreso'] === '') {
+                        $errores[] = 'Fecha de ingreso obligatoria.';
+                    }
+
+
+                    /* LONGITUD */
+
+                    if (largoExcel($dato['nombres']) > 30) {
+                        $errores[] = 'Nombres supera 30 caracteres.';
+                    }
+
+                    if (largoExcel($dato['primer_apellido']) > 30) {
+                        $errores[] = 'Primer apellido supera 30 caracteres.';
+                    }
+
+                    if (largoExcel($dato['segundo_apellido']) > 30) {
+                        $errores[] = 'Segundo apellido supera 30 caracteres.';
+                    }
+
+                    if (largoExcel($dato['rfc']) > 13) {
+                        $errores[] = 'RFC supera 13 caracteres.';
+                    }
+
+
+                    /* RFC REPETIDO EN EXCEL */
+
+                    if (
+                        $dato['rfc'] !== '' &&
+                        ($conteoRfc[$dato['rfc']] ?? 0) > 1
+                    ) {
+
+                        $errores[] =
+                            'RFC repetido dentro del Excel.';
+                    }
+
+
+                    /* RFC YA EXISTENTE */
+
+                    if (
+                        $dato['rfc'] !== '' &&
+                        isset($existentes[$dato['rfc']])
+                    ) {
+
+                        if ($existentes[$dato['rfc']] === 1) {
+
+                            $errores[] =
+                                'RFC ya pertenece a un operador activo.';
+
+                        } else {
+
+                            $avisos[] =
+                                'Operador inactivo: debe utilizar recontratación.';
+                        }
+                    }
+
+
+                    /* FECHA */
+
+                    if (
+                        $dato['fecha_ingreso'] !== '' &&
+                        !fechaValidaExcel(
+                            $dato['fecha_ingreso']
+                        )
+                    ) {
+
+                        $errores[] =
+                            'Fecha inválida. Usa AAAA-MM-DD.';
+                    }
+
+
+                    /* RESULTADO */
+
+                    if (!empty($errores)) {
+
+                        $dato['estado'] = 'error';
+
+                        $dato['mensajes'] = array_merge(
+                            $errores,
+                            $avisos
+                        );
+
+                        $totalErrores++;
+
+                    } elseif (!empty($avisos)) {
+
+                        $dato['estado'] = 'aviso';
+                        $dato['mensajes'] = $avisos;
+
+                        $totalAvisos++;
+
+                    } else {
+
+                        $dato['estado'] = 'ok';
+
+                        $dato['mensajes'] = [
+                            'Lista para importar.'
+                        ];
+
+                        $totalValidas++;
+                    }
+                }
+
+
+                unset($dato);
+
+                $procesado = true;
+
+
             } catch (Throwable $e) {
 
+                error_log(
+                    'Excel operadores: ' .
+                    $e->getMessage()
+                );
+
                 $error =
-                    'No fue posible leer el archivo: ' .
+                    'No fue posible procesar el archivo: ' .
                     $e->getMessage();
             }
         }
@@ -408,131 +490,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         Importar Operadores
     </title>
 
-    <style>
 
-        body {
-            margin:0;
-            padding:25px;
-            font-family:Arial, sans-serif;
-            background:#0f172a;
-            color:#ffffff;
-        }
+    <!--
+        CAMBIA ESTA RUTA ÚNICAMENTE SI TU
+        ARCHIVO CSS GENERAL TIENE OTRO NOMBRE
+    -->
 
-        .contenedor-importacion {
-            max-width:1100px;
-            margin:auto;
-        }
-
-        .tarjeta-importacion {
-            background:#1e293b;
-            border:1px solid #334155;
-            border-radius:14px;
-            padding:22px;
-            margin-bottom:20px;
-        }
-
-        h2 {
-            margin-top:0;
-        }
-
-        .descripcion {
-            color:#a8b3c7;
-            line-height:1.5;
-        }
-
-        input[type="file"] {
-            display:block;
-            width:100%;
-            box-sizing:border-box;
-            margin:18px 0;
-            padding:14px;
-            border:1px solid #475569;
-            border-radius:9px;
-            background:#0f172a;
-            color:#ffffff;
-        }
-
-        .btn-importar {
-            border:none;
-            border-radius:9px;
-            padding:12px 20px;
-            cursor:pointer;
-            font-weight:bold;
-            background:#2563eb;
-            color:#ffffff;
-        }
-
-        .btn-volver {
-            display:inline-block;
-            margin-left:8px;
-            padding:12px 20px;
-            border-radius:9px;
-            background:#334155;
-            color:#ffffff;
-            text-decoration:none;
-            font-weight:bold;
-        }
-
-        .mensaje-error {
-            padding:14px;
-            margin-bottom:18px;
-            border-radius:9px;
-            background:rgba(239,68,68,.15);
-            border:1px solid rgba(239,68,68,.45);
-            color:#fca5a5;
-        }
-
-        .mensaje-correcto {
-            padding:14px;
-            margin-bottom:18px;
-            border-radius:9px;
-            background:rgba(16,185,129,.15);
-            border:1px solid rgba(16,185,129,.45);
-            color:#6ee7b7;
-        }
-
-        .tabla-responsive {
-            overflow-x:auto;
-        }
-
-        table {
-            width:100%;
-            border-collapse:collapse;
-            min-width:850px;
-        }
-
-        th,
-        td {
-            padding:12px;
-            border-bottom:1px solid #334155;
-            text-align:left;
-        }
-
-        th {
-            background:#334155;
-        }
-
-        .numero-fila {
-            color:#94a3b8;
-            font-weight:bold;
-        }
-
-    </style>
+    <link
+        rel="stylesheet"
+        href="../CSS/styles.css"
+    >
 
 </head>
 
 
-<body>
+<body class="importar-excel-page">
 
 
-<div class="contenedor-importacion">
+<div class="importar-excel-contenedor">
 
 
     <!-- =====================================================
          SELECCIONAR ARCHIVO
          ===================================================== -->
 
-    <div class="tarjeta-importacion">
+    <div class="importar-excel-card">
 
 
         <h2>
@@ -540,16 +522,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </h2>
 
 
-        <p class="descripcion">
+        <p class="importar-excel-descripcion">
 
-            Selecciona la plantilla oficial
-            <strong>plantilla_operadores.xlsx</strong>.
+            Selecciona la plantilla oficial.
 
-            Por ahora el sistema únicamente leerá y mostrará
-            los datos.
+            Por ahora únicamente se validarán los datos.
 
             <strong>
-                Ningún operador será registrado todavía.
+                No se registrará ningún operador.
             </strong>
 
         </p>
@@ -557,13 +537,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <?php if ($error !== ''): ?>
 
-
-            <div class="mensaje-error">
+            <div class="importar-excel-error">
 
                 ❌ <?= hExcel($error) ?>
 
             </div>
-
 
         <?php endif; ?>
 
@@ -582,24 +560,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             >
 
 
-            <button
-                type="submit"
-                class="btn-importar"
-            >
-
-                👁️ Leer archivo
-
-            </button>
+            <div class="importar-excel-botones">
 
 
-            <a
-                href="/index.php"
-                class="btn-volver"
-            >
+                <button
+                    type="submit"
+                    class="btn-action btn-info"
+                >
+                    🔍 Validar archivo
+                </button>
 
-                ← Volver al sistema
 
-            </a>
+                <a
+                    href="/index.php"
+                    class="btn-action importar-excel-volver"
+                >
+                    ← Volver
+                </a>
+
+
+            </div>
 
 
         </form>
@@ -609,171 +589,185 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
     <!-- =====================================================
-         VISTA PREVIA
+         RESULTADOS
          ===================================================== -->
 
     <?php if (
         $error === '' &&
-        !empty($filasExcel)
+        $procesado
     ): ?>
 
 
-        <div class="tarjeta-importacion">
-
-
-            <div class="mensaje-correcto">
-
-                ✅ Archivo leído correctamente.
-
-                Se encontraron
-
-                <strong>
-                    <?= count($filasExcel) ?>
-                </strong>
-
-                operador(es).
-
-            </div>
+        <div class="importar-excel-card">
 
 
             <h2>
-                Vista previa
+                Resultado de la validación
             </h2>
 
 
-            <div class="tabla-responsive">
+            <div class="importar-excel-resumen">
 
 
-                <table>
+                <div>
+                    ✅ <?= $totalValidas ?>
+                    listos
+                </div>
 
 
-                    <thead>
+                <div>
+                    ❌ <?= $totalErrores ?>
+                    con errores
+                </div>
 
 
-                        <tr>
-
-                            <th>
-                                Fila
-                            </th>
-
-                            <th>
-                                Nombres
-                            </th>
-
-                            <th>
-                                Primer apellido
-                            </th>
-
-                            <th>
-                                Segundo apellido
-                            </th>
-
-                            <th>
-                                RFC
-                            </th>
-
-                            <th>
-                                Fecha ingreso
-                            </th>
-
-                        </tr>
-
-
-                    </thead>
-
-
-                    <tbody>
-
-
-                    <?php foreach (
-                        $filasExcel as $dato
-                    ): ?>
-
-
-                        <tr>
-
-
-                            <td class="numero-fila">
-
-                                <?= (int)$dato['fila'] ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?= hExcel(
-                                    $dato['nombres']
-                                ) ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?= hExcel(
-                                    $dato[
-                                        'primer_apellido'
-                                    ]
-                                ) ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?= hExcel(
-                                    $dato[
-                                        'segundo_apellido'
-                                    ]
-                                ) ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?= hExcel(
-                                    $dato['rfc']
-                                ) ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?= hExcel(
-                                    $dato[
-                                        'fecha_ingreso'
-                                    ]
-                                ) ?>
-
-                            </td>
-
-
-                        </tr>
-
-
-                    <?php endforeach; ?>
-
-
-                    </tbody>
-
-
-                </table>
+                <div>
+                    ⚠️ <?= $totalAvisos ?>
+                    requieren revisión
+                </div>
 
 
             </div>
 
 
-            <p class="descripcion">
+            <?php if (!empty($filasExcel)): ?>
 
-                ⚠️ Esta es únicamente una vista previa.
 
-                No existe ningún INSERT ni UPDATE
-                en esta etapa.
+                <div class="importar-excel-tabla">
 
-            </p>
+
+                    <table>
+
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Fila</th>
+                                <th>Nombres</th>
+                                <th>Primer apellido</th>
+                                <th>Segundo apellido</th>
+                                <th>RFC</th>
+                                <th>Fecha ingreso</th>
+                                <th>Resultado</th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+
+                        <?php foreach ($filasExcel as $dato): ?>
+
+
+                            <tr>
+
+
+                                <td>
+                                    <?= (int)$dato['fila'] ?>
+                                </td>
+
+
+                                <td>
+                                    <?= hExcel($dato['nombres']) ?>
+                                </td>
+
+
+                                <td>
+                                    <?= hExcel($dato['primer_apellido']) ?>
+                                </td>
+
+
+                                <td>
+                                    <?= hExcel($dato['segundo_apellido']) ?>
+                                </td>
+
+
+                                <td>
+                                    <?= hExcel($dato['rfc']) ?>
+                                </td>
+
+
+                                <td>
+                                    <?= hExcel($dato['fecha_ingreso']) ?>
+                                </td>
+
+
+                                <td>
+
+
+                                    <span
+                                        class="estado-<?= hExcel($dato['estado']) ?>"
+                                    >
+
+                                        <?php if ($dato['estado'] === 'ok'): ?>
+
+                                            ✅ LISTO
+
+                                        <?php elseif ($dato['estado'] === 'aviso'): ?>
+
+                                            ⚠️ REVISAR
+
+                                        <?php else: ?>
+
+                                            ❌ ERROR
+
+                                        <?php endif; ?>
+
+                                    </span>
+
+
+                                    <?php foreach (
+                                        $dato['mensajes']
+                                        as $mensaje
+                                    ): ?>
+
+                                        <div class="importar-excel-mensaje">
+
+                                            <?= hExcel($mensaje) ?>
+
+                                        </div>
+
+                                    <?php endforeach; ?>
+
+
+                                </td>
+
+
+                            </tr>
+
+
+                        <?php endforeach; ?>
+
+
+                        </tbody>
+
+
+                    </table>
+
+
+                </div>
+
+
+            <?php else: ?>
+
+
+                <p>
+                    El archivo no contiene operadores.
+                </p>
+
+
+            <?php endif; ?>
+
+
+            <div class="importar-excel-aviso">
+
+                ℹ️ No se ha ejecutado ningún
+                INSERT ni UPDATE.
+
+            </div>
 
 
         </div>
