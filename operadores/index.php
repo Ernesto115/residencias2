@@ -1,43 +1,207 @@
 <?php
+
 require_once "../configuracion/sesion.php";
+
 verificarSesion();
 
-$rolModulo = strtoupper(trim($_SESSION['rol'] ?? ''));
 
-if ($rolModulo === 'ADMINISTRADOR') $rolModulo = 'ADMIN';
-if (in_array($rolModulo, ['RH','RECURSOS HUMANOS'], true)) $rolModulo = 'RRHH';
+/* =========================================================
+   ROL DEL MÓDULO
+   ========================================================= */
 
-if (!in_array($rolModulo, ['ADMIN','PROPIETARIO','RRHH'], true)) {
+$rolModulo =
+    strtoupper(
+        trim($_SESSION['rol'] ?? '')
+    );
+
+
+if ($rolModulo === 'ADMINISTRADOR') {
+
+    $rolModulo = 'ADMIN';
+}
+
+
+if (
+    in_array(
+        $rolModulo,
+        ['RH', 'RECURSOS HUMANOS'],
+        true
+    )
+) {
+
+    $rolModulo = 'RRHH';
+}
+
+
+if (
+    !in_array(
+        $rolModulo,
+        [
+            'ADMIN',
+            'PROPIETARIO',
+            'RRHH'
+        ],
+        true
+    )
+) {
+
     http_response_code(403);
-    echo '<div class="alert alert-danger">No tienes permiso para acceder a Operadores.</div>';
+
+    echo '
+        <div class="alert alert-danger">
+            No tienes permiso para acceder a Operadores.
+        </div>
+    ';
+
     exit;
 }
+
+
+/* =========================================================
+   CONEXIÓN
+   ========================================================= */
 
 include_once "../db/db.php";
 
 $dbtransportistas = new db();
+
 $dbtransportistas->conectar();
+
 ?>
+
 
 <div class="main-wrapper modulo-operadores">
 
-    <nav class="d-flex justify-content-end align-items-center gap-2 p-3">
-        <button type="button" class="btn-back"
-                onclick="window.location.href='../index.php'">
+
+    <!-- =====================================================
+         NAVEGACIÓN
+         ===================================================== -->
+
+    <nav
+        class="
+            d-flex
+            justify-content-end
+            align-items-center
+            gap-2
+            p-3
+        "
+    >
+
+        <button
+            type="button"
+            class="btn-back"
+            onclick="window.location.href='../index.php'"
+        >
+
             ⬅️ Volver al Inicio
+
         </button>
+
     </nav>
 
-    <section>
-        <h3>OPERADORES</h3>
 
-        <?php include "../operadores/frm.php"; ?>
+    <section>
+
+
+        <h3>
+            OPERADORES
+        </h3>
+
+
+        <!-- =================================================
+             HERRAMIENTAS CSV
+
+             ADMIN:
+             solo consulta.
+
+             PROPIETARIO / RRHH:
+             pueden realizar cargas masivas.
+             ================================================= -->
+
+        <?php if (
+            in_array(
+                $rolModulo,
+                ['PROPIETARIO', 'RRHH'],
+                true
+            )
+        ): ?>
+
+
+            <div
+                style="
+                    display:flex;
+                    justify-content:flex-end;
+                    align-items:center;
+                    flex-wrap:wrap;
+                    gap:10px;
+                    margin:0 0 18px 0;
+                "
+            >
+
+                            <!-- Descargar plantilla -->
+
+            <button
+                type="button"
+                class="btn-action btn-info"
+                id="btnPlantillaOperadores"
+                onclick="window.location.href='/operadores/plantilla_excel.php'"
+                title="Descargar plantilla para alta masiva de operadores"
+                >
+                ⬇️ Descargar plantilla Excel
+                </button>
+
+
+                <!-- IMPORTAR CSV -->
+
+                <button
+                type="button"
+                class="btn-action btn-edit"
+                id="btnImportarOperadoresExcel"
+                onclick="window.location.href='/operadores/importar_excel.php'"
+                title="Importar operadores desde un archivo Excel"
+                >
+                    📊 Importar Excel
+                    </button>
+
+
+            </div>
+
+
+        <?php endif; ?>
+
+
+        <!-- =================================================
+             REGISTRO MANUAL
+             NO SE MODIFICA
+             ================================================= -->
+
+        <?php
+        include "../operadores/frm.php";
+        ?>
+
+
+        <!-- =================================================
+             TABLA
+             NO SE MODIFICA
+             ================================================= -->
 
         <div id="contenedor3">
-            <?php include "../operadores/tabla.php"; ?>
+
+            <?php
+            include "../operadores/tabla.php";
+            ?>
+
         </div>
+
+
     </section>
+
 
 </div>
 
-<?php $dbtransportistas->desconectar(); ?>
+
+<?php
+
+$dbtransportistas->desconectar();
+
+?>
