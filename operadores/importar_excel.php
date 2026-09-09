@@ -4,6 +4,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 require_once "../configuracion/sesion.php";
+require_once "../db/db.php";
 require_once dirname(__DIR__) . "/vendor/autoload.php";
 
 verificarSesion();
@@ -22,8 +23,13 @@ if (!in_array($rol, ["PROPIETARIO", "RRHH"], true)) {
     exit("No tienes permiso para importar operadores.");
 }
 
-$idEmpresa = (int)($_SESSION["id_empresa"] ?? 0);
+$idUsuario = (int)($_SESSION["id_usuario"] ?? 0);
+$idEmpresaSesion = (int)($_SESSION["id_empresa"] ?? 0);
 $multiempresa = (int)($_SESSION["multiempresa"] ?? 0);
+
+$esMultiempresa =
+    $rol === "PROPIETARIO" &&
+    $multiempresa === 1;
 
 
 /* =========================================================
@@ -31,7 +37,7 @@ $multiempresa = (int)($_SESSION["multiempresa"] ?? 0);
    ========================================================= */
 
 $maxOperadores = 250;
-$maxArchivoBytes = 2 * 1024 * 1024; // 2 MB
+$maxArchivoBytes = 2 * 1024 * 1024;
 
 if (empty($_SESSION["csrf_import_operadores"])) {
     $_SESSION["csrf_import_operadores"] = bin2hex(random_bytes(32));
@@ -62,6 +68,61 @@ function fechaValidaExcel($fecha)
     return $f && $f->format("Y-m-d") === $fecha;
 }
 
+function empresasUsuario($idUsuario)
+{
+    $db = new db();
+    $db->conectar();
+
+    $stmt = $db->conn->prepare(
+        "SELECT e.id_empresa, e.nombre_empresa
+         FROM usuario_empresas ue
+         INNER JOIN empresas e
+            ON e.id_empresa = ue.id_empresa
+         WHERE ue.id_usuario = ?
+         ORDER BY e.nombre_empresa"
+    );
+
+    $stmt->execute([$idUsuario]);
+    $empresas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $db->desconectar();
+
+    return $empresas;
+}
+
+function buscarEmpresa($empresas, $idEmpresa)
+{
+    foreach ($empresas as $empresa) {
+        if ((int)$empresa["id_empresa"] === (int)$idEmpresa) {
+            return $empresa;
+        }
+    }
+
+    return false;
+}
+
+function nombreEmpresa($idEmpresa)
+{
+    if ($idEmpresa <= 0) return "";
+
+    $db = new db();
+    $db->conectar();
+
+    $stmt = $db->conn->prepare(
+        "SELECT nombre_empresa
+         FROM empresas
+         WHERE id_empresa = ?
+         LIMIT 1"
+    );
+
+    $stmt->execute([$idEmpresa]);
+    $nombre = $stmt->fetchColumn();
+
+    $db->desconectar();
+
+    return $nombre ?: "";
+}
+
 
 /* =========================================================
    VARIABLES
@@ -80,6 +141,34 @@ $totalAvisos = 0;
 $insertados = 0;
 $omitidos = 0;
 
+$empresasPermitidas =
+    $esMultiempresa
+        ? empresasUsuario($idUsuario)
+        : [];
+
+$empresaDestino =
+    $esMultiempresa
+        ? (int)($_POST["id_empresa_destino"] ?? 0)
+        : $idEmpresaSesion;
+
+$nombreEmpresaDestino = "";
+
+if ($esMultiempresa && $empresaDestino > 0) {
+
+    $empresaEncontrada =
+        buscarEmpresa($empresasPermitidas, $empresaDestino);
+
+    if ($empresaEncontrada) {
+        $nombreEmpresaDestino =
+            $empresaEncontrada["nombre_empresa"];
+    }
+
+} elseif (!$esMultiempresa) {
+
+    $nombreEmpresaDestino =
+        nombreEmpresa($empresaDestino);
+}
+
 
 /* =========================================================
    POST
@@ -88,7 +177,10 @@ $omitidos = 0;
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if (!hash_equals($csrf, $_POST["csrf"] ?? "")) {
-        $error = "La solicitud no es válida. Recarga la página.";
+
+        $error =
+            "La solicitud no es válida. Recarga la página.";
+
     } else {
 
         $accion = $_POST["accion"] ?? "validar";
@@ -100,32 +192,73 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         if ($accion === "confirmar") {
 
-            $pendientes = $_SESSION["importacion_operadores_validos"] ?? [];
-            $empresaGuardada = (int)(
-                $_SESSION["importacion_operadores_empresa"] ?? 0
-            );
+            $pendientes =
+                $_SESSION["importacion_operadores_validos"] ?? [];
 
-            if ($multiempresa === 1) {
-                $error = "La importación para propietario multiempresa se habilitará en el siguiente paso.";
+            $empresaGuardada =
+                (int)(
+                    $_SESSION["importacion_operadores_empresa"]
+                    ?? 0
+                );
 
-            } elseif ($idEmpresa <= 0) {
-                $error = "Tu usuario no tiene una empresa asignada.";
+            /*
+             * La empresa viene de la sesión del servidor,
+             * NO de un input oculto del navegador.
+             */
+            $empresaDestino = $empresaGuardada;
 
-            } elseif ($empresaGuardada !== $idEmpresa) {
-                $error = "La empresa de la importación ya no coincide con tu sesión.";
 
-            } elseif (empty($pendientes)) {
-                $error = "No hay operadores pendientes para importar.";
+            /* MULTIEMPRESA: volver a comprobar asociación */
 
-            } else {
+            if ($esMultiempresa) {
 
-                include_once "../db/db.php";
+                $empresaEncontrada =
+                    buscarEmpresa(
+                        $empresasPermitidas,
+                        $empresaDestino
+                    );
+
+                if (!$empresaEncontrada) {
+                    $error =
+                        "La empresa seleccionada no pertenece a tu usuario.";
+                } else {
+                    $nombreEmpresaDestino =
+                        $empresaEncontrada["nombre_empresa"];
+                }
+
+
+            /* EMPRESA NORMAL */
+
+            } elseif (
+                $empresaDestino !== $idEmpresaSesion
+            ) {
+
+                $error =
+                    "La empresa de la importación ya no coincide con tu sesión.";
+            }
+
+
+            if ($error === "" && empty($pendientes)) {
+                $error =
+                    "No hay operadores pendientes para importar.";
+            }
+
+
+            if ($error === "" && $empresaDestino <= 0) {
+                $error =
+                    "No se encontró una empresa válida para importar.";
+            }
+
+
+            if ($error === "") {
+
                 $db = new db();
 
                 try {
 
                     $db->conectar();
                     $pdo = $db->conn;
+
                     $pdo->beginTransaction();
 
                     $buscar = $pdo->prepare(
@@ -136,8 +269,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     );
 
                     $insertar = $pdo->prepare(
-                        "INSERT INTO operadores
-                        (
+                        "INSERT INTO operadores (
                             estatus,
                             id_empresa,
                             fecha_ingreso,
@@ -149,9 +281,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         VALUES (1, ?, ?, ?, ?, ?, ?)"
                     );
 
+
                     foreach ($pendientes as $dato) {
 
-                        /* Revisar RFC otra vez antes del INSERT */
                         $buscar->execute([$dato["rfc"]]);
 
                         if ($buscar->fetch()) {
@@ -160,7 +292,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         }
 
                         $insertar->execute([
-                            $idEmpresa,
+                            $empresaDestino,
                             $dato["fecha_ingreso"],
                             $dato["rfc"],
                             $dato["nombres"],
@@ -171,6 +303,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $insertados++;
                     }
 
+
                     $pdo->commit();
 
                     unset(
@@ -179,23 +312,31 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     );
 
                     $mensajeExito =
-                        "Importación completada. $insertados operador(es) registrado(s).";
+                        "Importación completada. " .
+                        "$insertados operador(es) registrado(s).";
 
                     if ($omitidos > 0) {
                         $mensajeExito .=
-                            " $omitidos operador(es) fueron omitidos porque su RFC ya existía.";
+                            " $omitidos fueron omitidos porque su RFC ya existía.";
                     }
 
                 } catch (Throwable $e) {
 
-                    if (isset($pdo) && $pdo->inTransaction()) {
+                    if (
+                        isset($pdo) &&
+                        $pdo->inTransaction()
+                    ) {
                         $pdo->rollBack();
                     }
 
-                    error_log("Importación operadores: " . $e->getMessage());
+                    error_log(
+                        "Importación operadores: " .
+                        $e->getMessage()
+                    );
 
                     $error =
-                        "No fue posible completar la importación. No se guardaron cambios.";
+                        "No fue posible completar la importación. " .
+                        "No se guardaron cambios.";
 
                 } finally {
 
@@ -217,51 +358,99 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $_SESSION["importacion_operadores_empresa"]
             );
 
+
+            /* VALIDAR EMPRESA DESTINO */
+
+            if ($esMultiempresa) {
+
+                $empresaEncontrada =
+                    buscarEmpresa(
+                        $empresasPermitidas,
+                        $empresaDestino
+                    );
+
+                if (!$empresaEncontrada) {
+                    $error =
+                        "Selecciona una empresa válida de tu cuenta.";
+                } else {
+                    $nombreEmpresaDestino =
+                        $empresaEncontrada["nombre_empresa"];
+                }
+
+            } elseif ($empresaDestino <= 0) {
+
+                $error =
+                    "Tu usuario no tiene una empresa asignada.";
+            }
+
+
+            /* VALIDAR ARCHIVO */
+
             if (
-                !isset($_FILES["archivo_excel"]) ||
-                $_FILES["archivo_excel"]["error"] !== UPLOAD_ERR_OK
+                $error === "" &&
+                (
+                    !isset($_FILES["archivo_excel"]) ||
+                    $_FILES["archivo_excel"]["error"]
+                        !== UPLOAD_ERR_OK
+                )
             ) {
 
-                $error = "No se recibió correctamente el archivo Excel.";
+                $error =
+                    "No se recibió correctamente el archivo Excel.";
+            }
 
-            } else {
+
+            if ($error === "") {
 
                 $archivo = $_FILES["archivo_excel"];
 
                 $extension = strtolower(
-                    pathinfo($archivo["name"] ?? "", PATHINFO_EXTENSION)
+                    pathinfo(
+                        $archivo["name"] ?? "",
+                        PATHINFO_EXTENSION
+                    )
                 );
 
 
-                /* =============================================
-                   ARCHIVO
-                   ============================================= */
-
                 if ($extension !== "xlsx") {
-                    $error = "El archivo debe estar en formato .xlsx.";
 
-                } elseif (($archivo["size"] ?? 0) > $maxArchivoBytes) {
-                    $error = "El archivo no puede superar los 2 MB.";
+                    $error =
+                        "El archivo debe estar en formato .xlsx.";
+
+                } elseif (
+                    ($archivo["size"] ?? 0)
+                    > $maxArchivoBytes
+                ) {
+
+                    $error =
+                        "El archivo no puede superar los 2 MB.";
 
                 } else {
 
                     try {
 
-                        $lector = IOFactory::createReaderForFile(
-                            $archivo["tmp_name"]
-                        );
+                        /* LEER EXCEL */
+
+                        $lector =
+                            IOFactory::createReaderForFile(
+                                $archivo["tmp_name"]
+                            );
 
                         $lector->setReadDataOnly(true);
 
-                        $excel = $lector->load($archivo["tmp_name"]);
-                        $hoja = $excel->getActiveSheet();
+                        $excel =
+                            $lector->load(
+                                $archivo["tmp_name"]
+                            );
 
-                        $ultimaFila = $hoja->getHighestDataRow();
+                        $hoja =
+                            $excel->getActiveSheet();
+
+                        $ultimaFila =
+                            $hoja->getHighestDataRow();
 
 
-                        /* =====================================
-                           ENCABEZADOS
-                           ===================================== */
+                        /* ENCABEZADOS */
 
                         $esperados = [
                             "nombres",
@@ -271,56 +460,84 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             "fecha_ingreso"
                         ];
 
-                        $encabezados = $hoja->rangeToArray(
-                            "A1:E1",
-                            null,
-                            true,
-                            false,
-                            false
-                        )[0];
-
-                        $encabezados = array_map(
-                            fn($v) => strtolower(trim((string)$v)),
-                            $encabezados
-                        );
-
-                        if ($encabezados !== $esperados) {
-                            throw new Exception(
-                                "El archivo no corresponde con la plantilla oficial."
-                            );
-                        }
-
-
-                        /* =====================================
-                           LEER FILAS
-                           ===================================== */
-
-                        for ($fila = 2; $fila <= $ultimaFila; $fila++) {
-
-                            $datos = $hoja->rangeToArray(
-                                "A$fila:E$fila",
+                        $encabezados =
+                            $hoja->rangeToArray(
+                                "A1:E1",
                                 null,
                                 true,
                                 false,
                                 false
                             )[0];
 
-                            $nombres = trim((string)$datos[0]);
-                            $primerApellido = trim((string)$datos[1]);
-                            $segundoApellido = trim((string)$datos[2]);
-                            $rfc = strtoupper(trim((string)$datos[3]));
+                        $encabezados =
+                            array_map(
+                                fn($v) =>
+                                    strtolower(
+                                        trim((string)$v)
+                                    ),
+                                $encabezados
+                            );
+
+                        if ($encabezados !== $esperados) {
+                            throw new Exception(
+                                "El archivo no corresponde " .
+                                "con la plantilla oficial."
+                            );
+                        }
+
+
+                        /* LEER FILAS */
+
+                        for (
+                            $fila = 2;
+                            $fila <= $ultimaFila;
+                            $fila++
+                        ) {
+
+                            $datos =
+                                $hoja->rangeToArray(
+                                    "A$fila:E$fila",
+                                    null,
+                                    true,
+                                    false,
+                                    false
+                                )[0];
+
+                            $nombres =
+                                trim((string)$datos[0]);
+
+                            $primerApellido =
+                                trim((string)$datos[1]);
+
+                            $segundoApellido =
+                                trim((string)$datos[2]);
+
+                            $rfc =
+                                strtoupper(
+                                    trim((string)$datos[3])
+                                );
 
                             $valorFecha = $datos[4];
                             $fechaIngreso = "";
 
-                            if ($valorFecha !== null && $valorFecha !== "") {
-                                $fechaIngreso = is_numeric($valorFecha)
-                                    ? Date::excelToDateTimeObject($valorFecha)
-                                        ->format("Y-m-d")
-                                    : trim((string)$valorFecha);
+                            if (
+                                $valorFecha !== null &&
+                                $valorFecha !== ""
+                            ) {
+
+                                $fechaIngreso =
+                                    is_numeric($valorFecha)
+                                        ? Date::
+                                            excelToDateTimeObject(
+                                                $valorFecha
+                                            )
+                                            ->format("Y-m-d")
+                                        : trim(
+                                            (string)$valorFecha
+                                        );
                             }
 
-                            /* Ignorar fila totalmente vacía */
+
                             if (
                                 $nombres === "" &&
                                 $primerApellido === "" &&
@@ -331,130 +548,195 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 continue;
                             }
 
+
                             $filasExcel[] = [
                                 "fila" => $fila,
                                 "nombres" => $nombres,
-                                "primer_apellido" => $primerApellido,
-                                "segundo_apellido" => $segundoApellido,
+                                "primer_apellido" =>
+                                    $primerApellido,
+                                "segundo_apellido" =>
+                                    $segundoApellido,
                                 "rfc" => $rfc,
-                                "fecha_ingreso" => $fechaIngreso,
+                                "fecha_ingreso" =>
+                                    $fechaIngreso,
                                 "estado" => "",
                                 "mensajes" => []
                             ];
                         }
 
 
-                        /* =====================================
-                           LÍMITES
-                           ===================================== */
+                        /* LÍMITES */
 
                         if (empty($filasExcel)) {
                             throw new Exception(
-                                "El archivo no contiene operadores para importar."
+                                "El archivo no contiene " .
+                                "operadores para importar."
                             );
                         }
 
-                        if (count($filasExcel) > $maxOperadores) {
+                        if (
+                            count($filasExcel)
+                            > $maxOperadores
+                        ) {
                             throw new Exception(
-                                "Máximo $maxOperadores operadores por archivo."
+                                "Máximo $maxOperadores " .
+                                "operadores por archivo."
                             );
                         }
+
 
                         $excel->disconnectWorksheets();
                         unset($excel);
 
 
-                        /* =====================================
-                           RFC DEL EXCEL
-                           ===================================== */
+                        /* RFC */
 
-                        $rfcs = array_filter(
-                            array_column($filasExcel, "rfc")
-                        );
+                        $rfcs =
+                            array_filter(
+                                array_column(
+                                    $filasExcel,
+                                    "rfc"
+                                )
+                            );
 
-                        $conteoRfc = array_count_values($rfcs);
-                        $rfcsUnicos = array_values(array_unique($rfcs));
+                        $conteoRfc =
+                            array_count_values($rfcs);
+
+                        $rfcsUnicos =
+                            array_values(
+                                array_unique($rfcs)
+                            );
+
                         $existentes = [];
 
 
-                        /* =====================================
-                           RFC EXISTENTES EN MYSQL
-                           ===================================== */
+                        /* RFC EXISTENTES MYSQL */
 
                         if (!empty($rfcsUnicos)) {
-
-                            include_once "../db/db.php";
 
                             $dbExcel = new db();
                             $dbExcel->conectar();
 
-                            $signos = implode(
-                                ",",
-                                array_fill(0, count($rfcsUnicos), "?")
-                            );
+                            $signos =
+                                implode(
+                                    ",",
+                                    array_fill(
+                                        0,
+                                        count($rfcsUnicos),
+                                        "?"
+                                    )
+                                );
 
-                            $stmt = $dbExcel->conn->prepare(
-                                "SELECT rfc, estatus
-                                 FROM operadores
-                                 WHERE UPPER(rfc) IN ($signos)"
-                            );
+                            $stmt =
+                                $dbExcel->conn->prepare(
+                                    "SELECT rfc, estatus
+                                     FROM operadores
+                                     WHERE UPPER(rfc)
+                                     IN ($signos)"
+                                );
 
                             $stmt->execute($rfcsUnicos);
 
                             foreach (
-                                $stmt->fetchAll(PDO::FETCH_ASSOC)
+                                $stmt->fetchAll(
+                                    PDO::FETCH_ASSOC
+                                )
                                 as $registro
                             ) {
+
                                 $existentes[
-                                    strtoupper($registro["rfc"])
-                                ] = (int)$registro["estatus"];
+                                    strtoupper(
+                                        $registro["rfc"]
+                                    )
+                                ] =
+                                    (int)$registro["estatus"];
                             }
 
                             $dbExcel->desconectar();
                         }
 
 
-                        /* =====================================
-                           VALIDAR OPERADORES
-                           ===================================== */
+                        /* VALIDAR OPERADORES */
 
-                        foreach ($filasExcel as &$dato) {
+                        foreach (
+                            $filasExcel
+                            as &$dato
+                        ) {
 
                             $errores = [];
                             $avisos = [];
 
+
                             if ($dato["nombres"] === "")
-                                $errores[] = "Nombres obligatorio.";
+                                $errores[] =
+                                    "Nombres obligatorio.";
 
-                            if ($dato["primer_apellido"] === "")
-                                $errores[] = "Primer apellido obligatorio.";
+                            if (
+                                $dato["primer_apellido"]
+                                === ""
+                            )
+                                $errores[] =
+                                    "Primer apellido obligatorio.";
 
-                            if ($dato["segundo_apellido"] === "")
-                                $errores[] = "Segundo apellido obligatorio.";
+                            if (
+                                $dato["segundo_apellido"]
+                                === ""
+                            )
+                                $errores[] =
+                                    "Segundo apellido obligatorio.";
 
                             if ($dato["rfc"] === "")
-                                $errores[] = "RFC obligatorio.";
+                                $errores[] =
+                                    "RFC obligatorio.";
 
-                            if ($dato["fecha_ingreso"] === "")
-                                $errores[] = "Fecha de ingreso obligatoria.";
+                            if (
+                                $dato["fecha_ingreso"]
+                                === ""
+                            )
+                                $errores[] =
+                                    "Fecha de ingreso obligatoria.";
 
 
-                            if (largoExcel($dato["nombres"]) > 30)
-                                $errores[] = "Nombres supera 30 caracteres.";
+                            if (
+                                largoExcel(
+                                    $dato["nombres"]
+                                ) > 30
+                            )
+                                $errores[] =
+                                    "Nombres supera 30 caracteres.";
 
-                            if (largoExcel($dato["primer_apellido"]) > 30)
-                                $errores[] = "Primer apellido supera 30 caracteres.";
+                            if (
+                                largoExcel(
+                                    $dato["primer_apellido"]
+                                ) > 30
+                            )
+                                $errores[] =
+                                    "Primer apellido supera 30 caracteres.";
 
-                            if (largoExcel($dato["segundo_apellido"]) > 30)
-                                $errores[] = "Segundo apellido supera 30 caracteres.";
+                            if (
+                                largoExcel(
+                                    $dato["segundo_apellido"]
+                                ) > 30
+                            )
+                                $errores[] =
+                                    "Segundo apellido supera 30 caracteres.";
 
-                            if (largoExcel($dato["rfc"]) > 13)
-                                $errores[] = "RFC supera 13 caracteres.";
+                            if (
+                                largoExcel(
+                                    $dato["rfc"]
+                                ) > 13
+                            )
+                                $errores[] =
+                                    "RFC supera 13 caracteres.";
 
 
                             if (
                                 $dato["rfc"] !== "" &&
-                                ($conteoRfc[$dato["rfc"]] ?? 0) > 1
+                                (
+                                    $conteoRfc[
+                                        $dato["rfc"]
+                                    ] ?? 0
+                                ) > 1
                             ) {
                                 $errores[] =
                                     "RFC repetido dentro del Excel.";
@@ -463,33 +745,50 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                             if (
                                 $dato["rfc"] !== "" &&
-                                isset($existentes[$dato["rfc"]])
+                                isset(
+                                    $existentes[
+                                        $dato["rfc"]
+                                    ]
+                                )
                             ) {
 
-                                if ($existentes[$dato["rfc"]] === 1) {
+                                if (
+                                    $existentes[
+                                        $dato["rfc"]
+                                    ] === 1
+                                ) {
                                     $errores[] =
-                                        "RFC ya pertenece a un operador activo.";
+                                        "RFC ya pertenece a " .
+                                        "un operador activo.";
                                 } else {
                                     $avisos[] =
-                                        "Operador inactivo: debe utilizar recontratación.";
+                                        "Operador inactivo: " .
+                                        "debe utilizar recontratación.";
                                 }
                             }
 
 
                             if (
                                 $dato["fecha_ingreso"] !== "" &&
-                                !fechaValidaExcel($dato["fecha_ingreso"])
+                                !fechaValidaExcel(
+                                    $dato["fecha_ingreso"]
+                                )
                             ) {
                                 $errores[] =
-                                    "Fecha inválida. Usa AAAA-MM-DD.";
+                                    "Fecha inválida. " .
+                                    "Usa AAAA-MM-DD.";
                             }
 
 
                             if ($errores) {
 
                                 $dato["estado"] = "error";
+
                                 $dato["mensajes"] =
-                                    array_merge($errores, $avisos);
+                                    array_merge(
+                                        $errores,
+                                        $avisos
+                                    );
 
                                 $totalErrores++;
 
@@ -503,6 +802,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             } else {
 
                                 $dato["estado"] = "ok";
+
                                 $dato["mensajes"] = [
                                     "Lista para importar."
                                 ];
@@ -516,31 +816,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $procesado = true;
 
 
-                        /* =====================================
-                           GUARDAR VÁLIDOS EN SESIÓN
-                           ===================================== */
+                        /* GUARDAR VÁLIDOS EN SESIÓN */
 
                         if (
                             $totalValidas > 0 &&
-                            $multiempresa !== 1 &&
-                            $idEmpresa > 0
+                            $empresaDestino > 0
                         ) {
 
-                            $validos = array_filter(
-                                $filasExcel,
-                                fn($d) => $d["estado"] === "ok"
-                            );
+                            $validos =
+                                array_filter(
+                                    $filasExcel,
+                                    fn($d) =>
+                                        $d["estado"] === "ok"
+                                );
 
-                            $_SESSION["importacion_operadores_validos"] =
+                            $_SESSION[
+                                "importacion_operadores_validos"
+                            ] =
                                 array_values(
                                     array_map(
                                         fn($d) => [
-                                            "nombres" => $d["nombres"],
+                                            "nombres" =>
+                                                $d["nombres"],
                                             "primer_apellido" =>
                                                 $d["primer_apellido"],
                                             "segundo_apellido" =>
                                                 $d["segundo_apellido"],
-                                            "rfc" => $d["rfc"],
+                                            "rfc" =>
+                                                $d["rfc"],
                                             "fecha_ingreso" =>
                                                 $d["fecha_ingreso"]
                                         ],
@@ -548,14 +851,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     )
                                 );
 
-                            $_SESSION["importacion_operadores_empresa"] =
-                                $idEmpresa;
+                            $_SESSION[
+                                "importacion_operadores_empresa"
+                            ] =
+                                $empresaDestino;
                         }
 
                     } catch (Throwable $e) {
 
                         error_log(
-                            "Excel operadores: " . $e->getMessage()
+                            "Excel operadores: " .
+                            $e->getMessage()
                         );
 
                         $error =
@@ -574,29 +880,39 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <html lang="es">
 
 <head>
+
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
+
     <title>Importar Operadores</title>
 
-    <link rel="stylesheet" href="../CSS/styles.css">
+    <link
+        rel="stylesheet"
+        href="../CSS/styles.css"
+    >
+
 </head>
 
 <body class="importar-excel-page">
 
 <div class="importar-excel-contenedor">
 
-    <!-- SUBIR EXCEL -->
 
     <div class="importar-excel-card">
 
-        <h2>📊 Importar Operadores desde Excel</h2>
+        <h2>
+            📊 Importar Operadores desde Excel
+        </h2>
 
         <p class="importar-excel-descripcion">
+
             Selecciona la plantilla oficial.
-            El sistema validará los operadores antes de registrarlos.
+            El sistema validará los operadores
+            antes de registrarlos.
 
             <br><br>
 
@@ -604,13 +920,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <strong>250 operadores</strong>
             y archivo de hasta
             <strong>2 MB</strong>.
+
         </p>
 
 
         <?php if ($error !== ""): ?>
 
             <div class="importar-excel-error">
+
                 ❌ <?= hExcel($error) ?>
+
             </div>
 
         <?php endif; ?>
@@ -619,7 +938,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <?php if ($mensajeExito !== ""): ?>
 
             <div class="importar-excel-aviso">
+
                 ✅ <?= hExcel($mensajeExito) ?>
+
+                <?php if ($nombreEmpresaDestino !== ""): ?>
+
+                    <br>
+                    🏢 Empresa:
+                    <strong>
+                        <?= hExcel($nombreEmpresaDestino) ?>
+                    </strong>
+
+                <?php endif; ?>
+
             </div>
 
         <?php endif; ?>
@@ -642,12 +973,59 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 value="validar"
             >
 
+
+            <?php if ($esMultiempresa): ?>
+
+                <label
+                    for="id_empresa_destino"
+                    class="importar-excel-label"
+                >
+                    🏢 Empresa destino
+                </label>
+
+                <select
+                    name="id_empresa_destino"
+                    id="id_empresa_destino"
+                    class="importar-excel-select"
+                    required
+                >
+
+                    <option value="">
+                        Selecciona una empresa
+                    </option>
+
+                    <?php foreach (
+                        $empresasPermitidas
+                        as $empresa
+                    ): ?>
+
+                        <option
+                            value="<?= (int)$empresa["id_empresa"] ?>"
+                            <?= $empresaDestino ===
+                                (int)$empresa["id_empresa"]
+                                ? "selected"
+                                : ""
+                            ?>
+                        >
+                            <?= hExcel(
+                                $empresa["nombre_empresa"]
+                            ) ?>
+                        </option>
+
+                    <?php endforeach; ?>
+
+                </select>
+
+            <?php endif; ?>
+
+
             <input
                 type="file"
                 name="archivo_excel"
                 accept=".xlsx"
                 required
             >
+
 
             <div class="importar-excel-botones">
 
@@ -672,18 +1050,50 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     </div>
 
 
-    <!-- RESULTADOS -->
-
-    <?php if ($error === "" && $procesado): ?>
+    <?php if (
+        $error === "" &&
+        $procesado
+    ): ?>
 
         <div class="importar-excel-card">
 
-            <h2>Resultado de la validación</h2>
+            <h2>
+                Resultado de la validación
+            </h2>
+
+
+            <?php if (
+                $nombreEmpresaDestino !== ""
+            ): ?>
+
+                <div class="importar-excel-aviso">
+
+                    🏢 Empresa destino:
+                    <strong>
+                        <?= hExcel(
+                            $nombreEmpresaDestino
+                        ) ?>
+                    </strong>
+
+                </div>
+
+            <?php endif; ?>
+
 
             <div class="importar-excel-resumen">
-                <div>✅ <?= $totalValidas ?> listos</div>
-                <div>❌ <?= $totalErrores ?> con errores</div>
-                <div>⚠️ <?= $totalAvisos ?> requieren revisión</div>
+
+                <div>
+                    ✅ <?= $totalValidas ?> listos
+                </div>
+
+                <div>
+                    ❌ <?= $totalErrores ?> con errores
+                </div>
+
+                <div>
+                    ⚠️ <?= $totalAvisos ?> requieren revisión
+                </div>
+
             </div>
 
 
@@ -705,28 +1115,64 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     <tbody>
 
-                    <?php foreach ($filasExcel as $dato): ?>
+                    <?php foreach (
+                        $filasExcel
+                        as $dato
+                    ): ?>
 
                         <tr>
 
-                            <td><?= (int)$dato["fila"] ?></td>
-                            <td><?= hExcel($dato["nombres"]) ?></td>
-                            <td><?= hExcel($dato["primer_apellido"]) ?></td>
-                            <td><?= hExcel($dato["segundo_apellido"]) ?></td>
-                            <td><?= hExcel($dato["rfc"]) ?></td>
-                            <td><?= hExcel($dato["fecha_ingreso"]) ?></td>
+                            <td>
+                                <?= (int)$dato["fila"] ?>
+                            </td>
+
+                            <td>
+                                <?= hExcel(
+                                    $dato["nombres"]
+                                ) ?>
+                            </td>
+
+                            <td>
+                                <?= hExcel(
+                                    $dato["primer_apellido"]
+                                ) ?>
+                            </td>
+
+                            <td>
+                                <?= hExcel(
+                                    $dato["segundo_apellido"]
+                                ) ?>
+                            </td>
+
+                            <td>
+                                <?= hExcel(
+                                    $dato["rfc"]
+                                ) ?>
+                            </td>
+
+                            <td>
+                                <?= hExcel(
+                                    $dato["fecha_ingreso"]
+                                ) ?>
+                            </td>
 
                             <td>
 
                                 <span
-                                    class="estado-<?= hExcel($dato["estado"]) ?>"
+                                    class="estado-<?= hExcel(
+                                        $dato["estado"]
+                                    ) ?>"
                                 >
 
-                                    <?php if ($dato["estado"] === "ok"): ?>
+                                    <?php if (
+                                        $dato["estado"] === "ok"
+                                    ): ?>
 
                                         ✅ LISTO
 
-                                    <?php elseif ($dato["estado"] === "aviso"): ?>
+                                    <?php elseif (
+                                        $dato["estado"] === "aviso"
+                                    ): ?>
 
                                         ⚠️ REVISAR
 
@@ -739,10 +1185,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 </span>
 
 
-                                <?php foreach ($dato["mensajes"] as $mensaje): ?>
+                                <?php foreach (
+                                    $dato["mensajes"]
+                                    as $mensaje
+                                ): ?>
 
-                                    <div class="importar-excel-mensaje">
-                                        <?= hExcel($mensaje) ?>
+                                    <div
+                                        class="importar-excel-mensaje"
+                                    >
+                                        <?= hExcel(
+                                            $mensaje
+                                        ) ?>
                                     </div>
 
                                 <?php endforeach; ?>
@@ -760,12 +1213,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </div>
 
 
-            <!-- CONFIRMAR -->
-
             <?php if (
                 $totalValidas > 0 &&
-                $multiempresa !== 1 &&
-                $idEmpresa > 0
+                $empresaDestino > 0
             ): ?>
 
                 <form method="POST">
@@ -791,16 +1241,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     </button>
 
                 </form>
-
-            <?php elseif ($multiempresa === 1): ?>
-
-                <div class="importar-excel-aviso">
-
-                    ℹ️ Este propietario administra varias empresas.
-                    La selección de empresa destino será el
-                    siguiente paso.
-
-                </div>
 
             <?php endif; ?>
 
