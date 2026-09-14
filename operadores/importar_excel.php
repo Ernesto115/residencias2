@@ -1082,15 +1082,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             <div class="importar-excel-resumen">
 
-                <div>
+                <div
+                    class="importar-excel-resumen-item"
+                    data-ir-estado="ok"
+                >
                     ✅ <?= $totalValidas ?> listos
                 </div>
 
-                <div>
+                <div
+                    class="importar-excel-resumen-item"
+                    data-ir-estado="error"
+                >
                     ❌ <?= $totalErrores ?> con errores
                 </div>
 
-                <div>
+                <div
+                    class="importar-excel-resumen-item"
+                    data-ir-estado="aviso"
+                >
                     ⚠️ <?= $totalAvisos ?> requieren revisión
                 </div>
 
@@ -1120,7 +1129,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         as $dato
                     ): ?>
 
-                        <tr>
+                        <tr
+                            data-estado="<?= hExcel($dato["estado"]) ?>"
+                        >
 
                             <td>
                                 <?= (int)$dato["fila"] ?>
@@ -1258,6 +1269,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <?php endif; ?>
 
 </div>
+
+<!-- JavaScript general del proyecto -->
+<script src="/JS/funciones.js"></script>
 
 </body>
 </html>

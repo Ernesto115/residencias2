@@ -5506,3 +5506,70 @@ function cambiarEstatusUsuario(
         }
     }
 }
+
+/* =========================================================
+   IMPORTAR EXCEL - NAVEGACIÓN ENTRE RESULTADOS
+   ========================================================= */
+
+/*
+ * Se utiliza delegación de eventos porque importar_excel.php
+ * puede cargarse dinámicamente dentro del sistema.
+ *
+ * De esta forma no importa si los elementos aparecen después
+ * de que funciones.js ya fue cargado.
+ */
+
+document.addEventListener('click', function (event) {
+
+    const item =
+        event.target.closest(
+            '.importar-excel-resumen-item[data-ir-estado]'
+        );
+
+    /*
+     * Si el clic no fue en uno de los cuadros
+     * del resumen, no hacemos nada.
+     */
+    if (!item) {
+        return;
+    }
+
+
+    const estado =
+        item.getAttribute(
+            'data-ir-estado'
+        );
+
+
+    /*
+     * Buscar la primera fila que tenga
+     * el mismo estado.
+     */
+    const fila =
+        document.querySelector(
+            `.importar-excel-tabla tbody tr[data-estado="${estado}"]`
+        );
+
+
+    /*
+     * Por ejemplo:
+     *
+     * 0 errores
+     *
+     * No existirá ninguna fila "error",
+     * así que simplemente no hace nada.
+     */
+    if (!fila) {
+        return;
+    }
+
+
+    /*
+     * Ir suavemente hasta el resultado.
+     */
+    fila.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+    });
+
+});
