@@ -1106,6 +1106,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </div>
 
 
+            <?php if (
+                $totalValidas > 0 &&
+                $empresaDestino > 0
+            ): ?>
+
+                <div class="importar-excel-barra-confirmacion">
+
+                    <button
+                        type="submit"
+                        form="formConfirmarImportacion"
+                        class="btn-action btn-info importar-excel-confirmar importar-excel-confirmar-rapido"
+                    >
+                        ✅ Confirmar importación
+                        (<?= $totalValidas ?>)
+                    </button>
+
+                </div>
+
+            <?php endif; ?>
+
+
             <div class="importar-excel-tabla">
 
                 <table>
@@ -1223,42 +1244,40 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             </div>
 
+<?php if (
+    $totalValidas > 0 &&
+    $empresaDestino > 0
+): ?>
 
-            <?php if (
-                $totalValidas > 0 &&
-                $empresaDestino > 0
-            ): ?>
+    <!--
+        Formulario real de confirmación.
+        El botón visible ubicado arriba de la tabla
+        envía este mismo formulario mediante:
+        form="formConfirmarImportacion"
+    -->
 
-                <form
-                    method="POST"
-                    id="formConfirmarImportacion"
-                    data-total="<?= (int)$totalValidas ?>"
-                    data-empresa="<?= hExcel($nombreEmpresaDestino) ?>"
-                >
+    <form
+        method="POST"
+        id="formConfirmarImportacion"
+        data-total="<?= (int)$totalValidas ?>"
+        data-empresa="<?= hExcel($nombreEmpresaDestino) ?>"
+    >
 
-                    <input
-                        type="hidden"
-                        name="csrf"
-                        value="<?= hExcel($csrf) ?>"
-                    >
+        <input
+            type="hidden"
+            name="csrf"
+            value="<?= hExcel($csrf) ?>"
+        >
 
-                    <input
-                        type="hidden"
-                        name="accion"
-                        value="confirmar"
-                    >
+        <input
+            type="hidden"
+            name="accion"
+            value="confirmar"
+        >
 
-                    <button
-                        type="submit"
-                        class="btn-action btn-info importar-excel-confirmar"
-                    >
-                        ✅ Confirmar importación
-                        (<?= $totalValidas ?>)
-                    </button>
+    </form>
 
-                </form>
-
-            <?php endif; ?>
+<?php endif; ?>
 
 
             <div class="importar-excel-aviso">

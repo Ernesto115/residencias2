@@ -4029,3 +4029,71 @@ button[type="submit"]:hover {
     border: 1px solid #3b4d68;
     border-radius: 8px;
 }
+
+/* =========================================================
+   IMPORTAR EXCEL - CONFIRMACIÓN RÁPIDA STICKY
+   ========================================================= */
+
+.importar-excel-card .importar-excel-barra-confirmacion {
+    width: 100%;
+
+    display: grid !important;
+    place-items: center !important;
+
+    position: sticky;
+    top: 12px;
+    z-index: 50;
+
+    margin: 10px 0 22px;
+    padding: 8px 0;
+
+    border-radius: 12px;
+
+    transition:
+        background-color .2s ease,
+        box-shadow .2s ease;
+}
+
+
+.importar-excel-card .importar-excel-confirmar-rapido {
+    min-width: 300px;
+
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+
+    margin: 0 auto !important;
+
+    text-align: center;
+
+    box-shadow:
+        0 6px 18px
+        rgba(0, 0, 0, .25);
+}
+
+
+/* =========================================================
+   TELÉFONO
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .importar-excel-card .importar-excel-barra-confirmacion {
+        top: 8px;
+
+        width: 100%;
+
+        margin: 10px 0 18px;
+
+        padding: 6px 0;
+    }
+
+
+    .importar-excel-card .importar-excel-confirmar-rapido {
+        width: calc(100% - 20px);
+        max-width: 300px;
+        min-width: 0;
+
+        margin: 0 auto !important;
+    }
+}
