@@ -5573,3 +5573,234 @@ document.addEventListener('click', function (event) {
     });
 
 });
+
+/* =========================================================
+   IMPORTAR EXCEL - DOBLE CONFIRMACIÓN
+   ========================================================= */
+
+document.addEventListener('submit', function (event) {
+
+    const formulario =
+        event.target.closest(
+            '#formConfirmarImportacion'
+        );
+
+    /*
+     * Si no corresponde al formulario de importación,
+     * dejamos que cualquier otro formulario funcione normal.
+     */
+    if (!formulario) {
+        return;
+    }
+
+
+    /*
+     * Detener temporalmente el envío.
+     */
+    event.preventDefault();
+
+
+    const total =
+        formulario.getAttribute('data-total') || '0';
+
+    const empresa =
+        formulario.getAttribute('data-empresa') ||
+        'la empresa seleccionada';
+
+
+    /* =====================================================
+       PRIMERA CONFIRMACIÓN
+       ===================================================== */
+
+    Swal.fire({
+
+        icon: 'question',
+
+        title: '¿Continuar con la importación?',
+
+        html: `
+            <div style="line-height: 1.6;">
+                Se registrarán
+                <strong>${total} operador(es)</strong>
+                en:
+
+                <br><br>
+
+                <strong style="font-size: 1.1rem;">
+                    🏢 ${empresa}
+                </strong>
+            </div>
+        `,
+
+        showCancelButton: true,
+
+        confirmButtonText:
+            'Sí, continuar',
+
+        cancelButtonText:
+            'Cancelar',
+
+        reverseButtons: true,
+
+        confirmButtonColor:
+            '#0f4c5c',
+
+        cancelButtonColor:
+            '#475569',
+
+        background:
+            '#0d2530',
+
+        color:
+            '#f3f8fa',
+
+        allowOutsideClick: false
+
+    }).then(function (primeraRespuesta) {
+
+
+        /*
+         * Si cancela aquí,
+         * no se importa absolutamente nada.
+         */
+        if (!primeraRespuesta.isConfirmed) {
+            return;
+        }
+
+
+        /* =================================================
+           SEGUNDA CONFIRMACIÓN
+           ================================================= */
+
+        Swal.fire({
+
+            icon: 'warning',
+
+            title: 'Confirmación final',
+
+            html: `
+                <div style="line-height: 1.6;">
+
+                    Estás a punto de registrar definitivamente
+
+                    <strong>
+                        ${total} operador(es)
+                    </strong>.
+
+                    <br><br>
+
+                    Solo los registros marcados como
+
+                    <strong style="color: #34d399;">
+                        ✅ LISTO
+                    </strong>
+
+                    serán guardados.
+
+                    <br><br>
+
+                    <strong>
+                        ¿Deseas confirmar la importación?
+                    </strong>
+
+                </div>
+            `,
+
+            showCancelButton: true,
+
+            confirmButtonText:
+                'Sí, confirmar importación',
+
+            cancelButtonText:
+                'Cancelar',
+
+            reverseButtons: true,
+
+            confirmButtonColor:
+                '#0f4c5c',
+
+            cancelButtonColor:
+                '#475569',
+
+            background:
+                '#0d2530',
+
+            color:
+                '#f3f8fa',
+
+            allowOutsideClick: false
+
+        }).then(function (segundaRespuesta) {
+
+
+            /*
+             * Si cancela en la confirmación final,
+             * tampoco se envía el formulario.
+             */
+            if (!segundaRespuesta.isConfirmed) {
+                return;
+            }
+
+
+            /* =================================================
+               BLOQUEAR BOTÓN PARA EVITAR DOBLE CLIC
+               ================================================= */
+
+            const boton =
+                formulario.querySelector(
+                    'button[type="submit"]'
+                );
+
+
+            if (boton) {
+
+                boton.disabled = true;
+
+                boton.textContent =
+                    '⏳ Importando operadores...';
+            }
+
+
+            /* =================================================
+               MENSAJE DE PROCESAMIENTO
+               ================================================= */
+
+            Swal.fire({
+
+                title:
+                    'Importando operadores...',
+
+                text:
+                    'Por favor espera mientras se registran los operadores.',
+
+                allowOutsideClick: false,
+
+                allowEscapeKey: false,
+
+                showConfirmButton: false,
+
+                background:
+                    '#0d2530',
+
+                color:
+                    '#f3f8fa',
+
+                didOpen: () => {
+
+                    Swal.showLoading();
+                }
+
+            });
+
+
+            /*
+             * submit() nativo evita volver a disparar
+             * este listener de "submit".
+             */
+            formulario.submit();
+
+        });
+
+    });
+
+});

@@ -1229,7 +1229,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $empresaDestino > 0
             ): ?>
 
-                <form method="POST">
+                <form
+                    method="POST"
+                    id="formConfirmarImportacion"
+                    data-total="<?= (int)$totalValidas ?>"
+                    data-empresa="<?= hExcel($nombreEmpresaDestino) ?>"
+                >
 
                     <input
                         type="hidden"
@@ -1245,7 +1250,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     <button
                         type="submit"
-                        class="btn-action btn-info"
+                        class="btn-action btn-info importar-excel-confirmar"
                     >
                         ✅ Confirmar importación
                         (<?= $totalValidas ?>)
@@ -1269,6 +1274,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <?php endif; ?>
 
 </div>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <!-- JavaScript general del proyecto -->
 <script src="/JS/funciones.js"></script>
