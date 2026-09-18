@@ -1678,8 +1678,8 @@ function cambiarPagina(
 
 
     fetch(
-        `/operadores/tabla.php?${params}`
-    )
+    `/operadores/index.php?solo_tabla=1&${params}`
+        )
 
     .then(response => {
 

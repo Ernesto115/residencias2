@@ -5,6 +5,12 @@ require_once "../configuracion/sesion.php";
 verificarSesion();
 
 
+define(
+    'OPERADORES_TABLA_INTERNA',
+    true
+);
+
+
 /* =========================================================
    ROL DEL MÓDULO
    ========================================================= */
@@ -15,43 +21,28 @@ $rolModulo =
     );
 
 
-if ($rolModulo === 'ADMINISTRADOR') {
-
-    $rolModulo = 'ADMIN';
-}
+// ... TODO TU CÓDIGO ACTUAL DE ROLES ...
 
 
-if (
-    in_array(
-        $rolModulo,
-        ['RH', 'RECURSOS HUMANOS'],
-        true
-    )
-) {
+include_once "../db/db.php";
 
-    $rolModulo = 'RRHH';
-}
+$dbtransportistas = new db();
 
+$dbtransportistas->conectar();
+
+
+/* =========================================================
+   PETICIÓN SOLO DE TABLA
+   ========================================================= */
 
 if (
-    !in_array(
-        $rolModulo,
-        [
-            'ADMIN',
-            'PROPIETARIO',
-            'RRHH'
-        ],
-        true
-    )
+    isset($_GET['solo_tabla']) &&
+    $_GET['solo_tabla'] === '1'
 ) {
 
-    http_response_code(403);
+    include "../operadores/tabla.php";
 
-    echo '
-        <div class="alert alert-danger">
-            No tienes permiso para acceder a Operadores.
-        </div>
-    ';
+    $dbtransportistas->desconectar();
 
     exit;
 }
