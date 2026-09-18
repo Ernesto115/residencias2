@@ -1,32 +1,16 @@
 <?php
 
-/* =========================================================
-   TABLA DE OPERADORES
-   ========================================================= */
-
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-
 if (!isset($dbtransportistas) && !isset($db)) {
-
     include_once "../db/db.php";
-
     $db = new db();
     $db->conectar();
-
     $conexionLocal = true;
-
 } else {
-
     $db = $dbtransportistas ?? $db;
-
     $conexionLocal = false;
 }
-
-
-/* =========================================================
-   SESIÓN Y ROLES
-   ========================================================= */
 
 $rol = strtoupper(trim($_SESSION['rol'] ?? ''));
 
@@ -36,12 +20,9 @@ if (in_array($rol, ['RH', 'RECURSOS HUMANOS'], true)) {
     $rol = 'RRHH';
 }
 
-
 if (!in_array($rol, ['ADMIN', 'PROPIETARIO', 'RRHH'], true)) {
 
-    if ($conexionLocal) {
-        $db->desconectar();
-    }
+    if ($conexionLocal) $db->desconectar();
 
     http_response_code(403);
 
@@ -55,19 +36,75 @@ if (!in_array($rol, ['ADMIN', 'PROPIETARIO', 'RRHH'], true)) {
 }
 
 
-$id_usuario =
-    (int)($_SESSION['id_usuario'] ?? 0);
+$id_usuario = (int)($_SESSION['id_usuario'] ?? 0);
+$id_empresa = (int)($_SESSION['id_empresa'] ?? 0);
+$multiempresa = (int)($_SESSION['multiempresa'] ?? 0);
 
-$id_empresa =
-    (int)($_SESSION['id_empresa'] ?? 0);
+$esPropietarioMultiempresa =
+    $rol === 'PROPIETARIO' &&
+    $multiempresa === 1;
 
-$multiempresa =
-    (int)($_SESSION['multiempresa'] ?? 0);
+$empresasFiltro = [];
+
+$id_empresa_filtro =
+    max(
+        0,
+        (int)($_GET['id_empresa_filtro'] ?? 0)
+    );
 
 
-/* =========================================================
-   FILTROS
-   ========================================================= */
+if ($esPropietarioMultiempresa) {
+
+    $empresasFiltro =
+        $db->obtenerRegistros("
+            SELECT
+                e.id_empresa,
+                e.nombre_empresa
+            FROM usuario_empresas ue
+            INNER JOIN empresas e
+                ON e.id_empresa = ue.id_empresa
+            WHERE ue.id_usuario = $id_usuario
+            ORDER BY e.nombre_empresa
+        ");
+
+
+    if ($id_empresa_filtro > 0) {
+
+        $idsPermitidos =
+            array_map(
+                'intval',
+                array_column(
+                    $empresasFiltro,
+                    'id_empresa'
+                )
+            );
+
+
+        if (
+            !in_array(
+                $id_empresa_filtro,
+                $idsPermitidos,
+                true
+            )
+        ) {
+
+            if ($conexionLocal) {
+                $db->desconectar();
+            }
+
+            http_response_code(403);
+
+            echo '
+                <div class="alert alert-danger">
+                    La empresa seleccionada no pertenece a tu usuario.
+                </div>
+            ';
+
+            exit;
+        }
+    }
+}
+
 
 $busqueda =
     trim($_GET['busqueda'] ?? '');
@@ -100,14 +137,7 @@ $registros_por_pagina = 5;
 $condiciones = [];
 
 
-/* =========================================================
-   PERMISOS POR EMPRESA
-   ========================================================= */
-
-if (
-    $rol === 'PROPIETARIO' &&
-    $multiempresa === 1
-) {
+if ($esPropietarioMultiempresa) {
 
     $condiciones[] = "
         o.id_empresa IN (
@@ -129,9 +159,14 @@ if (
 }
 
 
-/* =========================================================
-   BÚSQUEDA
-   ========================================================= */
+if (
+    $esPropietarioMultiempresa &&
+    $id_empresa_filtro > 0
+) {
+    $condiciones[] =
+        "o.id_empresa = $id_empresa_filtro";
+}
+
 
 if ($busqueda !== '') {
 
@@ -152,51 +187,33 @@ if ($busqueda !== '') {
 }
 
 
-/* ESTATUS */
-
 if ($estatus_filtro === 'activos') {
-
-    $condiciones[] =
-        "o.estatus = 1";
+    $condiciones[] = "o.estatus = 1";
 }
 
-
 if ($estatus_filtro === 'inactivos') {
-
-    $condiciones[] =
-        "o.estatus = 0";
+    $condiciones[] = "o.estatus = 0";
 }
 
 
 $where =
     $condiciones
-        ? " WHERE " .
-          implode(" AND ", $condiciones)
+        ? " WHERE " . implode(" AND ", $condiciones)
         : "";
 
 
-/* =========================================================
-   PAGINACIÓN
-   ========================================================= */
-
-$sql_total = "
-    SELECT COUNT(*) AS total
-    FROM operadores o
-    LEFT JOIN empresas e
-        ON e.id_empresa = o.id_empresa
-    $where
-";
-
-
 $res_total =
-    $db->obtenerRegistros(
-        $sql_total
-    );
+    $db->obtenerRegistros("
+        SELECT COUNT(*) AS total
+        FROM operadores o
+        LEFT JOIN empresas e
+            ON e.id_empresa = o.id_empresa
+        $where
+    ");
 
 
 $total_registros =
     (int)($res_total[0]['total'] ?? 0);
-
 
 $total_paginas =
     max(
@@ -209,9 +226,7 @@ $total_paginas =
 
 
 if ($pagina_actual > $total_paginas) {
-
-    $pagina_actual =
-        $total_paginas;
+    $pagina_actual = $total_paginas;
 }
 
 
@@ -220,28 +235,19 @@ $offset =
     $registros_por_pagina;
 
 
-/* =========================================================
-   CONSULTAR OPERADORES
-   ========================================================= */
-
-$sql = "
-    SELECT
-        o.*,
-        e.nombre_empresa
-    FROM operadores o
-    LEFT JOIN empresas e
-        ON e.id_empresa = o.id_empresa
-    $where
-    ORDER BY o.id_operador DESC
-    LIMIT $registros_por_pagina
-    OFFSET $offset
-";
-
-
 $datos2 =
-    $db->obtenerRegistros(
-        $sql
-    );
+    $db->obtenerRegistros("
+        SELECT
+            o.*,
+            e.nombre_empresa
+        FROM operadores o
+        LEFT JOIN empresas e
+            ON e.id_empresa = o.id_empresa
+        $where
+        ORDER BY o.id_operador DESC
+        LIMIT $registros_por_pagina
+        OFFSET $offset
+    ");
 
 
 if ($conexionLocal) {
@@ -259,107 +265,153 @@ $h = fn($v) =>
 ?>
 
 
-<!-- =========================================================
-     TABLA
-     ========================================================= -->
-
 <div class="table-container">
 
 
-    <div class="table-header-title"
-         style="
+    <div
+        class="table-header-title"
+        style="
             display:flex;
             flex-wrap:wrap;
             justify-content:space-between;
             align-items:center;
             gap:12px;
             padding:15px;
-         ">
+        "
+    >
 
 
-        <!-- FILTROS -->
+        <?php if ($esPropietarioMultiempresa): ?>
+
+            <div
+                class="filtro-empresa-operadores"
+                style="
+                    min-width:260px;
+                    max-width:340px;
+                    flex:1;
+                "
+            >
+
+                <label
+                    for="selectEmpresaOperadores"
+                    class="form-label"
+                >
+                    🏢 Empresa
+                </label>
+
+
+                <select
+                    id="selectEmpresaOperadores"
+                    class="form-control"
+                >
+
+                    <option value="0">
+                        Todas mis empresas
+                    </option>
+
+
+                    <?php foreach ($empresasFiltro as $empresaFiltro): ?>
+
+                        <option
+                            value="<?= (int)$empresaFiltro['id_empresa'] ?>"
+                            <?= $id_empresa_filtro ===
+                                (int)$empresaFiltro['id_empresa']
+                                    ? 'selected'
+                                    : ''
+                            ?>
+                        >
+                            <?= $h(
+                                $empresaFiltro['nombre_empresa']
+                            ) ?>
+                        </option>
+
+                    <?php endforeach; ?>
+
+
+                </select>
+
+            </div>
+
+        <?php endif; ?>
+
 
         <div class="table-tabs">
 
-
-            <button type="button"
-                    class="tab-btn <?= $estatus_filtro === 'todos' ? 'active' : '' ?>"
-                    onclick="cambiarPagina(1,'todos')">
-
+            <button
+                type="button"
+                class="tab-btn <?= $estatus_filtro === 'todos' ? 'active' : '' ?>"
+                onclick="cambiarPagina(
+                    1,
+                    'todos',
+                    null,
+                    <?= (int)$id_empresa_filtro ?>
+                )"
+            >
                 Todos
-
             </button>
 
 
-            <button type="button"
-                    class="tab-btn <?= $estatus_filtro === 'activos' ? 'active' : '' ?>"
-                    onclick="cambiarPagina(1,'activos')">
-
+            <button
+                type="button"
+                class="tab-btn <?= $estatus_filtro === 'activos' ? 'active' : '' ?>"
+                onclick="cambiarPagina(
+                    1,
+                    'activos',
+                    null,
+                    <?= (int)$id_empresa_filtro ?>
+                )"
+            >
                 Activos
-
             </button>
 
 
-            <button type="button"
-                    class="tab-btn <?= $estatus_filtro === 'inactivos' ? 'active' : '' ?>"
-                    onclick="cambiarPagina(1,'inactivos')">
-
+            <button
+                type="button"
+                class="tab-btn <?= $estatus_filtro === 'inactivos' ? 'active' : '' ?>"
+                onclick="cambiarPagina(
+                    1,
+                    'inactivos',
+                    null,
+                    <?= (int)$id_empresa_filtro ?>
+                )"
+            >
                 Inactivos
-
             </button>
-
 
         </div>
 
 
-        <!-- BUSCADOR -->
-
-        <div class="search-box-wrapper"
-             style="
+        <div
+            class="search-box-wrapper"
+            style="
                 position:relative;
                 min-width:280px;
                 flex:1;
                 max-width:360px;
-             ">
+            "
+        >
 
-
-            <input type="text"
-                   id="inputBuscadorOperador"
-                   class="form-control"
-                   placeholder="🔍 Buscar por Nombre, RFC o Empresa..."
-                   value="<?= $h($busqueda) ?>"
-                   style="
-                      padding-right:35px;
-                      height:40px;
-                      font-size:.9rem;
-                   ">
+            <input
+                type="text"
+                id="inputBuscadorOperador"
+                class="form-control"
+                placeholder="🔍 Buscar por Nombre, RFC o Empresa..."
+                value="<?= $h($busqueda) ?>"
+            >
 
 
             <?php if ($busqueda !== ''): ?>
 
-
-                <button type="button"
-                        onclick="limpiarBuscadorBD()"
-                        title="Limpiar búsqueda"
-                        style="
-                            position:absolute;
-                            right:8px;
-                            top:50%;
-                            transform:translateY(-50%);
-                            background:none;
-                            border:none;
-                            font-size:1.1rem;
-                            cursor:pointer;
-                            color:var(--texto-secundario);
-                        ">
-
+                <button
+                    type="button"
+                    onclick="limpiarBuscadorBD()"
+                    title="Limpiar búsqueda"
+                    class="btn-limpiar-busqueda"
+                >
                     &times;
-
                 </button>
 
-
             <?php endif; ?>
-
 
         </div>
 
@@ -367,30 +419,20 @@ $h = fn($v) =>
     </div>
 
 
-    <!-- =====================================================
-         DATOS
-         ===================================================== -->
-
     <div class="table-responsive">
 
-
-        <table class="custom-table"
-               id="tablaOperadores">
-
+        <table
+            class="custom-table"
+            id="tablaOperadores"
+        >
 
             <thead>
 
                 <tr>
 
                     <th>RFC</th>
-
-                    <th>
-                        Nombre Completo
-                    </th>
-
-                    <th>
-                        Empresa
-                    </th>
+                    <th>Nombre Completo</th>
+                    <th>Empresa</th>
 
                     <th class="text-center">
                         Estatus
@@ -413,12 +455,11 @@ $h = fn($v) =>
 
                 <?php foreach ($datos2 as $dato):
 
-
                     $id =
                         (int)(
-                            $dato['id_operador'] ?? 0
+                            $dato['id_operador']
+                            ?? 0
                         );
-
 
                     $nombreCompleto =
                         trim(
@@ -427,18 +468,15 @@ $h = fn($v) =>
                             ($dato['segundo_apellido'] ?? '')
                         );
 
-
                     $esActivo =
                         (int)(
                             $dato['estatus'] ?? 1
                         ) === 1;
 
-
                     $categoriaEstatus =
                         $esActivo
                             ? 'activos'
                             : 'inactivos';
-
 
                     $categoriaCruce =
                         (
@@ -448,158 +486,113 @@ $h = fn($v) =>
                             ? 'internacional'
                             : 'nacional';
 
-
                     $nombreEmpresa =
                         $dato['nombre_empresa']
                             ?: 'Sin empresa asignada';
 
-
                 ?>
 
 
-                <tr data-estatus="<?= $categoriaEstatus ?>"
-                    data-cruce="<?= $categoriaCruce ?>">
-
-
-                    <!-- RFC -->
+                <tr
+                    data-estatus="<?= $categoriaEstatus ?>"
+                    data-cruce="<?= $categoriaCruce ?>"
+                >
 
                     <td class="font-medium cell-rfc">
-
-                        <?= $h(
-                            $dato['rfc'] ?? ''
-                        ) ?>
-
+                        <?= $h($dato['rfc'] ?? '') ?>
                     </td>
 
-
-                    <!-- NOMBRE -->
 
                     <td class="cell-nombre">
-
-                        <?= $h(
-                            $nombreCompleto
-                        ) ?>
-
+                        <?= $h($nombreCompleto) ?>
                     </td>
 
-
-                    <!-- EMPRESA -->
 
                     <td>
-
-                        <?= $h(
-                            $nombreEmpresa
-                        ) ?>
-
+                        <?= $h($nombreEmpresa) ?>
                     </td>
 
-
-                    <!-- ESTATUS -->
 
                     <td class="text-center">
 
-
-                        <span class="badge-status <?= $esActivo ? 'status-activo' : 'status-inactivo' ?>">
-
+                        <span
+                            class="badge-status <?= $esActivo ? 'status-activo' : 'status-inactivo' ?>"
+                        >
                             <?= $esActivo
                                 ? 'Activo'
                                 : 'Inactivo'
                             ?>
-
                         </span>
-
 
                     </td>
 
 
-                    <!-- ACCIONES -->
-
                     <td class="text-center">
-
 
                         <div class="acciones-operador">
 
 
-                            <!-- VER MÁS -->
-
                             <?php if ($esActivo): ?>
 
-
-                                <button type="button"
-                                        class="btn-action btn-info"
-                                        onclick="abrirModalDetalles('<?= $id ?>')"
-                                        title="Ver información">
-
+                                <button
+                                    type="button"
+                                    class="btn-action btn-info"
+                                    onclick="abrirModalDetalles('<?= $id ?>')"
+                                >
                                     👁️ Ver más
-
                                 </button>
-
 
                             <?php else: ?>
 
-
-                                <button type="button"
-                                        class="btn-action btn-info btn-op-disabled"
-                                        disabled
-                                        title="No disponible para operador inactivo">
-
+                                <button
+                                    type="button"
+                                    class="btn-action btn-info btn-op-disabled"
+                                    disabled
+                                >
                                     👁️ Ver más
-
                                 </button>
-
 
                             <?php endif; ?>
 
 
-                            <!-- HISTORIAL -->
-
-                            <button type="button"
-                                    class="btn-action btn-historial"
-                                    onclick="abrirHistorialOperador('<?= $id ?>')"
-                                    title="Consultar historial laboral">
-
+                            <button
+                                type="button"
+                                class="btn-action btn-historial"
+                                onclick="abrirHistorialOperador('<?= $id ?>')"
+                            >
                                 📋 Historial
-
                             </button>
 
-
-                            <!-- =====================================
-                                 EDITAR
-                                 SOLO PROPIETARIO / RRHH
-                                 RFC BLOQUEADO
-                                 ===================================== -->
 
                             <?php if ($rol !== 'ADMIN'): ?>
 
 
                                 <?php if ($esActivo): ?>
 
-
-                                    <button type="button"
-                                            class="btn-action btn-edit btn-accion-icono"
-                                            onclick="
-                                                bloquearRfcEdicionOperador();
-                                                editar('<?= $id ?>','operadores','frm');
-                                            "
-                                            title="Editar operador">
-
+                                    <button
+                                        type="button"
+                                        class="btn-action btn-edit btn-accion-icono"
+                                        onclick="
+                                            bloquearRfcEdicionOperador();
+                                            editar(
+                                                '<?= $id ?>',
+                                                'operadores',
+                                                'frm'
+                                            );
+                                        "
+                                    >
                                         ✏️
-
                                     </button>
-
 
                                 <?php else: ?>
 
-
-                                    <button type="button"
-                                            class="btn-action btn-edit btn-accion-icono btn-op-disabled"
-                                            disabled
-                                            title="Editar no disponible">
-
+                                    <button
+                                        type="button"
+                                        class="btn-action btn-edit btn-accion-icono btn-op-disabled"
+                                        disabled
+                                    >
                                         ✏️
-
                                     </button>
-
 
                                 <?php endif; ?>
 
@@ -609,9 +602,7 @@ $h = fn($v) =>
 
                         </div>
 
-
                     </td>
-
 
                 </tr>
 
@@ -621,34 +612,26 @@ $h = fn($v) =>
 
             <?php else: ?>
 
-
                 <tr>
 
-                    <td colspan="5"
-                        class="text-center">
-
+                    <td
+                        colspan="5"
+                        class="text-center"
+                    >
                         No se encontraron registros de operadores.
-
                     </td>
 
                 </tr>
-
 
             <?php endif; ?>
 
 
             </tbody>
 
-
         </table>
-
 
     </div>
 
-
-    <!-- =====================================================
-         PAGINACIÓN
-         ===================================================== -->
 
     <?php if ($total_paginas > 1): ?>
 
@@ -676,48 +659,46 @@ $h = fn($v) =>
             <div class="pagination-controls">
 
 
-                <button type="button"
-                        <?= $pagina_actual <= 1
-                            ? 'disabled'
-                            : ''
-                        ?>
-                        onclick="cambiarPagina(
-                            <?= $pagina_actual - 1 ?>,
-                            '<?= $h($estatus_filtro) ?>'
-                        )"
-                        class="pagination-btn <?= $pagina_actual <= 1 ? 'disabled' : '' ?>">
+                <button
+                    type="button"
+                    <?= $pagina_actual <= 1 ? 'disabled' : '' ?>
 
+                    onclick="cambiarPagina(
+                        <?= $pagina_actual - 1 ?>,
+                        '<?= $h($estatus_filtro) ?>',
+                        null,
+                        <?= (int)$id_empresa_filtro ?>
+                    )"
+
+                    class="pagination-btn <?= $pagina_actual <= 1 ? 'disabled' : '' ?>"
+                >
                     ← Anterior
-
                 </button>
 
 
                 <div class="pagination-current">
-
-                    Página
-                    <?= $pagina_actual ?>
-
+                    Página <?= $pagina_actual ?>
                 </div>
 
 
-                <button type="button"
-                        <?= $pagina_actual >= $total_paginas
-                            ? 'disabled'
-                            : ''
-                        ?>
-                        onclick="cambiarPagina(
-                            <?= $pagina_actual + 1 ?>,
-                            '<?= $h($estatus_filtro) ?>'
-                        )"
-                        class="pagination-btn <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>">
+                <button
+                    type="button"
+                    <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>
 
+                    onclick="cambiarPagina(
+                        <?= $pagina_actual + 1 ?>,
+                        '<?= $h($estatus_filtro) ?>',
+                        null,
+                        <?= (int)$id_empresa_filtro ?>
+                    )"
+
+                    class="pagination-btn <?= $pagina_actual >= $total_paginas ? 'disabled' : '' ?>"
+                >
                     Siguiente →
-
                 </button>
 
 
             </div>
-
 
         </div>
 
@@ -728,12 +709,7 @@ $h = fn($v) =>
 </div>
 
 
-<!-- =========================================================
-     MODALES VER MÁS
-     ========================================================= -->
-
 <?php foreach ($datos2 as $dato):
-
 
     if (
         (int)($dato['estatus'] ?? 1) !== 1
@@ -741,85 +717,65 @@ $h = fn($v) =>
         continue;
     }
 
-
     $id =
         (int)$dato['id_operador'];
-
 
     $nombreEmpresa =
         $dato['nombre_empresa']
             ?: 'Sin empresa asignada';
 
-
 ?>
 
 
-<div id="modal-detalle-<?= $id ?>"
-     class="modal-overlay"
-     style="display:none;">
+<div
+    id="modal-detalle-<?= $id ?>"
+    class="modal-overlay"
+    style="display:none;"
+>
 
 
-    <div class="modal-card"
-         style="
+    <div
+        class="modal-card"
+        style="
             width:90%;
             max-width:550px;
             max-height:85vh;
             overflow-y:auto;
-         ">
+        "
+    >
 
 
-        <!-- ENCABEZADO -->
+        <div class="historial-modal-header">
 
-        <div style="
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            margin-bottom:15px;
-        ">
-
-
-            <h3 style="
-                margin:0;
-                color:var(--accent-color);
-                font-size:1.1rem;
-            ">
-
+            <h3>
                 📋 Detalles de
                 <?= $h(
                     $dato['nombres'] ?? ''
                 ) ?>
-
             </h3>
 
 
-            <button type="button"
-                    onclick="cerrarModalDetalles('<?= $id ?>')"
-                    style="
-                        background:none;
-                        border:none;
-                        font-size:1.4rem;
-                        cursor:pointer;
-                        color:var(--texto-secundario);
-                    ">
-
+            <button
+                type="button"
+                class="historial-modal-cerrar"
+                onclick="cerrarModalDetalles('<?= $id ?>')"
+            >
                 &times;
-
             </button>
-
 
         </div>
 
 
-        <div style="
-            display:grid;
-            grid-template-columns:1fr 1fr;
-            gap:15px;
-            font-size:.9rem;
-            text-align:left;
-        ">
+        <div
+            style="
+                display:grid;
+                grid-template-columns:1fr 1fr;
+                gap:15px;
+                font-size:.9rem;
+                text-align:left;
+            "
+        >
 
-
-            <!-- EMPRESA -->
 
             <div>
 
@@ -828,34 +784,24 @@ $h = fn($v) =>
                 </strong>
 
                 <p>
-                    <?= $h(
-                        $nombreEmpresa
-                    ) ?>
+                    <?= $h($nombreEmpresa) ?>
                 </p>
 
 
-                <?php if (
-                    !empty($dato['fecha_ingreso'])
-                ): ?>
+                <?php if (!empty($dato['fecha_ingreso'])): ?>
 
                     <p>
-
-                        <strong>
-                            Fecha ingreso:
-                        </strong>
+                        <strong>Fecha ingreso:</strong>
 
                         <?= $h(
                             $dato['fecha_ingreso']
                         ) ?>
-
                     </p>
 
                 <?php endif; ?>
 
             </div>
 
-
-            <!-- CONTACTO -->
 
             <div>
 
@@ -864,22 +810,16 @@ $h = fn($v) =>
                 </strong>
 
                 <p>
-
-                    <strong>
-                        Teléfono:
-                    </strong>
+                    <strong>Teléfono:</strong>
 
                     <?= $h(
                         $dato['telefono_celular']
                             ?: 'N/A'
                     ) ?>
-
                 </p>
 
             </div>
 
-
-            <!-- DIRECCIÓN -->
 
             <div>
 
@@ -888,50 +828,36 @@ $h = fn($v) =>
                 </strong>
 
                 <p>
-
-                    <strong>
-                        Calle/No:
-                    </strong>
+                    <strong>Calle/No:</strong>
 
                     <?= $h(
                         $dato['calle_y_numero']
                             ?: 'N/A'
                     ) ?>
-
                 </p>
 
 
                 <p>
-
-                    <strong>
-                        Colonia:
-                    </strong>
+                    <strong>Colonia:</strong>
 
                     <?= $h(
                         $dato['colonia']
                             ?: 'N/A'
                     ) ?>
-
                 </p>
 
 
                 <p>
-
-                    <strong>
-                        C.P.:
-                    </strong>
+                    <strong>C.P.:</strong>
 
                     <?= $h(
                         $dato['codigo_postal']
                             ?: 'N/A'
                     ) ?>
-
                 </p>
 
             </div>
 
-
-            <!-- LICENCIA -->
 
             <div>
 
@@ -940,60 +866,39 @@ $h = fn($v) =>
                 </strong>
 
                 <p>
-
                     <?= $h(
                         $dato['licencia_federal_actual']
                             ?: 'N/A'
                     ) ?>
-
                 </p>
 
 
-                <?php if (
-                    !empty(
-                        $dato[
-                            'vencimiento_lic_federal'
-                        ]
-                    )
-                ): ?>
+                <?php if (!empty($dato['vencimiento_lic_federal'])): ?>
 
                     <p class="fecha-vencimiento">
-
                         Vence:
-
                         <?= $h(
-                            $dato[
-                                'vencimiento_lic_federal'
-                            ]
+                            $dato['vencimiento_lic_federal']
                         ) ?>
-
                     </p>
 
                 <?php endif; ?>
 
 
-                <?php if (
-                    !empty(
-                        $dato[
-                            'archivo_pdf_licencia'
-                        ]
-                    )
-                ): ?>
+                <?php if (!empty($dato['archivo_pdf_licencia'])): ?>
 
-                    <a href="../uploads/pdf/<?= $h($dato['archivo_pdf_licencia']) ?>"
-                       target="_blank"
-                       class="btn-pdf-link">
-
+                    <a
+                        href="../uploads/pdf/<?= $h($dato['archivo_pdf_licencia']) ?>"
+                        target="_blank"
+                        class="btn-pdf-link"
+                    >
                         📄 Ver PDF Licencia
-
                     </a>
 
                 <?php endif; ?>
 
             </div>
 
-
-            <!-- APTO MÉDICO -->
 
             <div>
 
@@ -1002,62 +907,39 @@ $h = fn($v) =>
                 </strong>
 
                 <p>
-
                     <?= $h(
                         $dato['apto_medico_actual']
                             ?: 'N/A'
                     ) ?>
-
                 </p>
 
 
-                <?php if (
-                    !empty(
-                        $dato[
-                            'vencimiento_apto_medico'
-                        ]
-                    )
-                ): ?>
+                <?php if (!empty($dato['vencimiento_apto_medico'])): ?>
 
                     <p class="fecha-vencimiento">
-
                         Vence:
-
                         <?= $h(
-                            $dato[
-                                'vencimiento_apto_medico'
-                            ]
+                            $dato['vencimiento_apto_medico']
                         ) ?>
-
                     </p>
 
                 <?php endif; ?>
 
 
-                <?php if (
-                    !empty(
-                        $dato[
-                            'archivo_pdf_apto_medico'
-                        ]
-                    )
-                ): ?>
+                <?php if (!empty($dato['archivo_pdf_apto_medico'])): ?>
 
-                    <a href="../uploads/pdf/<?= $h($dato['archivo_pdf_apto_medico']) ?>"
-                       target="_blank"
-                       class="btn-pdf-link">
-
+                    <a
+                        href="../uploads/pdf/<?= $h($dato['archivo_pdf_apto_medico']) ?>"
+                        target="_blank"
+                        class="btn-pdf-link"
+                    >
                         📄 Ver PDF Apto
-
                     </a>
 
                 <?php endif; ?>
 
             </div>
 
-
-            <!-- =================================================
-                 CRUCE INTERNACIONAL
-                 ================================================= -->
 
             <div>
 
@@ -1066,204 +948,84 @@ $h = fn($v) =>
                 </strong>
 
 
-                <!-- VISA -->
-
-                <div style="
-                    margin-top:10px;
-                    padding-bottom:14px;
-                    border-bottom:1px solid var(--borde-sutil);
-                ">
-
+                <div style="margin-top:10px;">
 
                     <strong>
                         🇺🇸 VISA
                     </strong>
 
-
-                    <p style="margin:8px 0;">
-
+                    <p>
                         <?= !empty($dato['visa'])
                             ? '✓ Cuenta con VISA'
                             : '✗ No cuenta con VISA'
                         ?>
-
                     </p>
 
 
-                    <?php if (
-                        !empty(
-                            $dato[
-                                'vencimiento_visa'
-                            ]
-                        )
-                    ): ?>
+                    <?php if (!empty($dato['vencimiento_visa'])): ?>
 
-
-                        <div style="
-                            padding:9px 11px;
-                            border-radius:8px;
-                            background:rgba(245,158,11,.10);
-                            border:1px solid rgba(245,158,11,.35);
-                            display:inline-block;
-                        ">
-
-
-                            <small style="
-                                display:block;
-                                opacity:.8;
-                            ">
-
-                                📅 VENCIMIENTO
-
-                            </small>
-
-
-                            <strong>
-
-                                <?= $h(
-                                    $dato[
-                                        'vencimiento_visa'
-                                    ]
-                                ) ?>
-
-                            </strong>
-
-
-                        </div>
-
+                        <p class="fecha-vencimiento">
+                            Vence:
+                            <?= $h(
+                                $dato['vencimiento_visa']
+                            ) ?>
+                        </p>
 
                     <?php endif; ?>
 
 
-                    <?php if (
-                        !empty(
-                            $dato[
-                                'archivo_pdf_visa'
-                            ]
-                        )
-                    ): ?>
+                    <?php if (!empty($dato['archivo_pdf_visa'])): ?>
 
-
-                        <div style="
-                            margin-top:10px;
-                        ">
-
-
-                            <a href="../uploads/pdf/<?= $h($dato['archivo_pdf_visa']) ?>"
-                               target="_blank"
-                               class="btn-pdf-link">
-
-                                👁️ Ver VISA
-
-                            </a>
-
-
-                        </div>
-
+                        <a
+                            href="../uploads/pdf/<?= $h($dato['archivo_pdf_visa']) ?>"
+                            target="_blank"
+                            class="btn-pdf-link"
+                        >
+                            👁️ Ver VISA
+                        </a>
 
                     <?php endif; ?>
-
 
                 </div>
 
 
-                <!-- FAST / SENTRI -->
-
-                <div style="
-                    margin-top:14px;
-                ">
-
+                <div style="margin-top:15px;">
 
                     <strong>
                         ⚡ FAST / SENTRI
                     </strong>
 
-
-                    <p style="
-                        margin:8px 0;
-                    ">
-
+                    <p>
                         <?= !empty($dato['fast'])
                             ? '✓ Cuenta con FAST / SENTRI'
                             : '✗ No cuenta con FAST / SENTRI'
                         ?>
-
                     </p>
 
 
-                    <?php if (
-                        !empty(
-                            $dato[
-                                'vencimiento_fast'
-                            ]
-                        )
-                    ): ?>
+                    <?php if (!empty($dato['vencimiento_fast'])): ?>
 
-
-                        <div style="
-                            padding:9px 11px;
-                            border-radius:8px;
-                            background:rgba(245,158,11,.10);
-                            border:1px solid rgba(245,158,11,.35);
-                            display:inline-block;
-                        ">
-
-
-                            <small style="
-                                display:block;
-                                opacity:.8;
-                            ">
-
-                                📅 VENCIMIENTO
-
-                            </small>
-
-
-                            <strong>
-
-                                <?= $h(
-                                    $dato[
-                                        'vencimiento_fast'
-                                    ]
-                                ) ?>
-
-                            </strong>
-
-
-                        </div>
-
+                        <p class="fecha-vencimiento">
+                            Vence:
+                            <?= $h(
+                                $dato['vencimiento_fast']
+                            ) ?>
+                        </p>
 
                     <?php endif; ?>
 
 
-                    <?php if (
-                        !empty(
-                            $dato[
-                                'fast_pdf'
-                            ]
-                        )
-                    ): ?>
+                    <?php if (!empty($dato['fast_pdf'])): ?>
 
-
-                        <div style="
-                            margin-top:10px;
-                        ">
-
-
-                            <a href="../uploads/pdf/<?= $h($dato['fast_pdf']) ?>"
-                               target="_blank"
-                               class="btn-pdf-link">
-
-                                👁️ Ver FAST
-
-                            </a>
-
-
-                        </div>
-
+                        <a
+                            href="../uploads/pdf/<?= $h($dato['fast_pdf']) ?>"
+                            target="_blank"
+                            class="btn-pdf-link"
+                        >
+                            👁️ Ver FAST
+                        </a>
 
                     <?php endif; ?>
-
 
                 </div>
 
@@ -1274,20 +1036,15 @@ $h = fn($v) =>
         </div>
 
 
-        <div style="
-            text-align:right;
-            margin-top:15px;
-        ">
+        <div style="text-align:right; margin-top:15px;">
 
-
-            <button type="button"
-                    class="btn-action"
-                    onclick="cerrarModalDetalles('<?= $id ?>')">
-
+            <button
+                type="button"
+                class="btn-action"
+                onclick="cerrarModalDetalles('<?= $id ?>')"
+            >
                 Cerrar
-
             </button>
-
 
         </div>
 
@@ -1301,20 +1058,16 @@ $h = fn($v) =>
 <?php endforeach; ?>
 
 
-<!-- =========================================================
-     MODAL HISTORIAL
-     ========================================================= -->
-
-<div id="modalHistorialOperador"
-     class="modal-overlay"
-     style="display:none;">
-
+<div
+    id="modalHistorialOperador"
+    class="modal-overlay"
+    style="display:none;"
+>
 
     <div class="modal-card historial-operador-modal">
 
 
         <div class="historial-modal-header">
-
 
             <div>
 
@@ -1329,14 +1082,13 @@ $h = fn($v) =>
             </div>
 
 
-            <button type="button"
-                    class="historial-modal-cerrar"
-                    onclick="cerrarHistorialOperador()">
-
+            <button
+                type="button"
+                class="historial-modal-cerrar"
+                onclick="cerrarHistorialOperador()"
+            >
                 &times;
-
             </button>
-
 
         </div>
 
@@ -1346,6 +1098,5 @@ $h = fn($v) =>
 
 
     </div>
-
 
 </div>

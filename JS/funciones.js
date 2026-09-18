@@ -1608,52 +1608,138 @@ let estatusActivoOperadores = 'TODOS';
 
 
 // Cargar operadores desde la base de datos  y de operadores para ser especificos
+// Cargar operadores desde la base de datos.
 function cambiarPagina(
     numPagina,
     estatus = estatusActivoOperadores,
-    busqueda = null
+    busqueda = null,
+    idEmpresa = null
 ) {
+
     estatusActivoOperadores = estatus;
 
-    const contenedor = document.getElementById('contenedor3');
+
+    const contenedor =
+        document.getElementById(
+            'contenedor3'
+        );
+
 
     if (!contenedor) {
-        console.error('No se encontró #contenedor3');
+
+        console.error(
+            'No se encontró #contenedor3'
+        );
+
         return;
     }
 
-    // Si no se manda búsqueda, conserva la que está escrita
+
+    /* =====================================================
+       CONSERVAR BÚSQUEDA
+       ===================================================== */
+
     if (busqueda === null) {
+
         busqueda =
-            document.getElementById('inputBuscadorOperador')
-            ?.value.trim() || '';
+            document
+                .getElementById(
+                    'inputBuscadorOperador'
+                )
+                ?.value
+                .trim() || '';
     }
 
-    contenedor.style.opacity = '.5';
+
+    /* =====================================================
+       CONSERVAR EMPRESA SELECCIONADA
+       ===================================================== */
+
+    if (idEmpresa === null) {
+
+        idEmpresa =
+            document
+                .getElementById(
+                    'selectEmpresaOperadores'
+                )
+                ?.value || '0';
+    }
+
+
+    contenedor.style.opacity =
+        '.5';
+
 
     const params =
-        `pagina=${numPagina}` +
+        `pagina=${encodeURIComponent(numPagina)}` +
         `&estatus=${encodeURIComponent(estatus)}` +
-        `&busqueda=${encodeURIComponent(busqueda)}`;
+        `&busqueda=${encodeURIComponent(busqueda)}` +
+        `&id_empresa_filtro=${encodeURIComponent(idEmpresa)}`;
 
-    fetch(`/operadores/tabla.php?${params}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
 
-            return response.text();
-        })
-        .then(html => {
-            contenedor.innerHTML = html;
-            contenedor.style.opacity = '1';
-        })
-        .catch(error => {
-            console.error('Error al cargar operadores:', error);
-            contenedor.style.opacity = '1';
-        });
+    fetch(
+        `/operadores/tabla.php?${params}`
+    )
+
+    .then(response => {
+
+        if (!response.ok) {
+
+            throw new Error(
+                `HTTP ${response.status}`
+            );
+        }
+
+
+        return response.text();
+    })
+
+    .then(html => {
+
+        contenedor.innerHTML =
+            html;
+
+        contenedor.style.opacity =
+            '1';
+    })
+
+    .catch(error => {
+
+        console.error(
+            'Error al cargar operadores:',
+            error
+        );
+
+
+        contenedor.style.opacity =
+            '1';
+    });
 }
 
+/* =========================================================
+   OPERADORES - CAMBIO DE EMPRESA
+   ========================================================= */
+
+document.addEventListener(
+    'change',
+    function (event) {
+
+        if (
+            event.target.id !==
+            'selectEmpresaOperadores'
+        ) {
+            return;
+        }
+
+
+        cambiarPagina(
+            1,
+            estatusActivoOperadores,
+            null,
+            event.target.value
+        );
+    }
+);
 
 /* =========================================================
    11. REPORTE DE BAJA
