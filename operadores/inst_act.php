@@ -25,8 +25,10 @@ $multiempresa = (int)($_SESSION['multiempresa'] ?? 0);
    ERROR CONTROLADO
    ========================================================= */
 
-function errorOperador($mensaje, $db, $cerrar = false)
+function errorOperador($mensaje, $db, $cerrar = false, $codigoHttp = 400)
 {
+    http_response_code($codigoHttp);
+
     $msg = json_encode(
         $mensaje,
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
@@ -68,7 +70,8 @@ if ($rol === 'ADMIN') {
     errorOperador(
         'El administrador solo puede consultar la información de los operadores. No puede registrar, editar ni recontratar operadores.',
         $db,
-        true
+        true,
+        403
     );
 }
 
@@ -77,7 +80,8 @@ if (!in_array($rol, ['PROPIETARIO','RRHH'], true)) {
     errorOperador(
         'No tienes permisos para registrar o editar operadores.',
         $db,
-        true
+        true,
+        403
     );
 }
 
@@ -167,7 +171,9 @@ if (
     ) {
         errorOperador(
             'No tienes permiso para utilizar esa empresa.',
-            $db
+            $db,
+            false,
+            403
         );
     }
 
@@ -296,7 +302,9 @@ if ($id_operador > 0) {
 
             errorOperador(
                 'No puedes editar operadores de otra empresa.',
-                $db
+                $db,
+                false,
+                403
             );
         }
 
@@ -304,7 +312,9 @@ if ($id_operador > 0) {
 
         errorOperador(
             'No puedes editar operadores de otra empresa.',
-            $db
+            $db,
+            false,
+            403
         );
     }
 
@@ -327,7 +337,9 @@ if ($id_operador > 0) {
 
         errorOperador(
             'El RFC de un operador registrado no puede modificarse.',
-            $db
+            $db,
+            false,
+            403
         );
     }
 
@@ -834,6 +846,12 @@ else {
    ========================================================= */
 
 $id_operador = 0;
+
+
+/* Permitir carga interna de tabla.php después de guardar */
+if (!defined('OPERADORES_TABLA_INTERNA')) {
+    define('OPERADORES_TABLA_INTERNA', true);
+}
 
 
 if (file_exists("tabla.php")) {

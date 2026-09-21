@@ -531,12 +531,19 @@ function habilitarBotonesMenu() {
 
 // Guarda o actualiza registros de cualquier módulo.
 function guardar(tb, pfrm, event) {
-    if (event && typeof event.preventDefault === 'function') {
+
+    if (
+        event &&
+        typeof event.preventDefault === 'function'
+    ) {
         event.preventDefault();
     }
 
 
-    // Buscar formulario.
+    /* =====================================================
+       BUSCAR FORMULARIO
+       ===================================================== */
+
     let frm =
         document.getElementById(pfrm) ||
         document.getElementById(
@@ -547,7 +554,10 @@ function guardar(tb, pfrm, event) {
         document.getElementById('frm');
 
 
-    // Buscar contenedor de la tabla.
+    /* =====================================================
+       BUSCAR CONTENEDOR DE TABLA
+       ===================================================== */
+
     let cont =
         document.querySelector("#contenedor3") ||
         document.querySelector(".table-container") ||
@@ -555,6 +565,7 @@ function guardar(tb, pfrm, event) {
 
 
     if (!frm) {
+
         console.error(
             "⚠️ No se encontró el formulario:",
             pfrm,
@@ -562,26 +573,46 @@ function guardar(tb, pfrm, event) {
             tb
         );
 
-        alert("Error: No se encontró el formulario " + pfrm);
+        alert(
+            "Error: No se encontró el formulario " +
+            pfrm
+        );
 
         return;
     }
 
 
-    // Validar campos obligatorios.
+    /* =====================================================
+       VALIDACIÓN HTML
+       ===================================================== */
+
     if (!frm.checkValidity()) {
+
         frm.reportValidity();
+
         return;
     }
 
 
-    // Detectar si se está editando.
-    let singularTb = tb.replace(/s$/, '');
+    /* =====================================================
+       DETECTAR EDICIÓN
+       ===================================================== */
+
+    let singularTb =
+        tb.replace(/s$/, '');
+
 
     let campoId =
-        frm.querySelector(`#id_${singularTb}`) ||
-        frm.querySelector(`#id_${tb}`) ||
-        frm.querySelector('input[type="hidden"]');
+        frm.querySelector(
+            `#id_${singularTb}`
+        ) ||
+        frm.querySelector(
+            `#id_${tb}`
+        ) ||
+        frm.querySelector(
+            'input[type="hidden"]'
+        );
+
 
     let esEditar =
         campoId &&
@@ -589,9 +620,13 @@ function guardar(tb, pfrm, event) {
         campoId.value !== "0";
 
 
-    // Confirmar reporte de baja.
+    /* =====================================================
+       CONFIRMACIÓN REPORTE DE BAJA
+       ===================================================== */
+
     if (
-        (tb === 'reporte_baja' || tb === 'reportes_baja') &&
+        (tb === 'reporte_baja' ||
+         tb === 'reportes_baja') &&
         !esEditar &&
         !window.confirmadoBaja
     ) {
@@ -599,38 +634,66 @@ function guardar(tb, pfrm, event) {
         if (typeof Swal !== 'undefined') {
 
             Swal.fire({
-                title: '¿Seguro que deseas grabar este reporte?',
-                text: 'Esta acción es irreversible y afectará el historial del operador.',
+
+                title:
+                    '¿Seguro que deseas grabar este reporte?',
+
+                text:
+                    'Esta acción es irreversible y afectará el historial del operador.',
+
                 icon: 'warning',
                 iconColor: '#dc2626',
+
                 showCancelButton: true,
-                confirmButtonText: 'Sí, Grabar Reporte',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#dc2626',
-                cancelButtonColor: '#334155',
-                background: '#1e293b',
-                color: '#f8fafc',
+
+                confirmButtonText:
+                    'Sí, Grabar Reporte',
+
+                cancelButtonText:
+                    'Cancelar',
+
+                confirmButtonColor:
+                    '#dc2626',
+
+                cancelButtonColor:
+                    '#334155',
+
+                background:
+                    '#1e293b',
+
+                color:
+                    '#f8fafc',
+
                 heightAuto: false,
 
                 didOpen: () => {
+
                     const swalContainer =
-                        document.querySelector('.swal2-container');
+                        document.querySelector(
+                            '.swal2-container'
+                        );
 
                     if (swalContainer) {
-                        swalContainer.style.zIndex = '999999';
+
+                        swalContainer.style.zIndex =
+                            '999999';
                     }
                 }
 
             }).then(result => {
 
                 if (result.isConfirmed) {
+
                     window.confirmadoBaja = true;
 
-                    guardar(tb, pfrm, null);
+                    guardar(
+                        tb,
+                        pfrm,
+                        null
+                    );
 
                     window.confirmadoBaja = false;
                 }
-
             });
 
             return;
@@ -641,22 +704,38 @@ function guardar(tb, pfrm, event) {
                 "Esta acción afectará el historial del operador."
             )
         ) {
+
             return;
         }
     }
 
 
-    // Preparar datos.
-    let datos = new FormData(frm);
+    /* =====================================================
+       PREPARAR DATOS
+       ===================================================== */
+
+    let datos =
+        new FormData(frm);
+
 
     if (!datos.has('tabla')) {
-        datos.append('tabla', tb);
+
+        datos.append(
+            'tabla',
+            tb
+        );
     }
 
 
-    // Determinar la ruta correcta.
+    /* =====================================================
+       RUTAS
+       ===================================================== */
+
     let enSubcarpeta =
-        window.location.pathname.includes('/' + tb + '/');
+        window.location.pathname.includes(
+            '/' + tb + '/'
+        );
+
 
     let rutaDirecta =
         enSubcarpeta
@@ -664,50 +743,184 @@ function guardar(tb, pfrm, event) {
             : `${tb}/inst_act.php`;
 
 
-    // Enviar datos.
-    fetch(rutaDirecta, {
-        method: "POST",
-        body: datos
-    })
-    .then(response => {
+    let rutaAlternativa =
+        `../${tb}/inst_act.php`;
 
-        if (!response.ok) {
-            return fetch(`../${tb}/inst_act.php`, {
+
+    /* =====================================================
+       FUNCIÓN PARA ENVIAR
+       ===================================================== */
+
+    function enviarPeticion(ruta) {
+
+        return fetch(
+            ruta,
+            {
                 method: "POST",
                 body: datos
-            });
-        }
+            }
+        );
+    }
 
-        return response;
-    })
-    .then(response => {
 
-        if (!response.ok) {
-            throw new Error(
-                "Error HTTP " +
-                response.status +
-                " en la ruta: " +
-                rutaDirecta
+    /* =====================================================
+       EJECUTAR SCRIPTS DEVUELTOS POR PHP
+       ===================================================== */
+
+    function ejecutarScriptsRespuesta(html) {
+
+        let tempDiv =
+            document.createElement('div');
+
+        tempDiv.innerHTML =
+            html;
+
+
+        let scripts =
+            tempDiv.getElementsByTagName(
+                'script'
             );
+
+
+        for (
+            let i = 0;
+            i < scripts.length;
+            i++
+        ) {
+
+            try {
+
+                eval(
+                    scripts[i].innerText
+                );
+
+            } catch (e) {
+
+                console.error(
+                    "Error al ejecutar script de respuesta:",
+                    e
+                );
+            }
+        }
+    }
+
+
+    /* =====================================================
+       ENVIAR PETICIÓN
+       ===================================================== */
+
+    enviarPeticion(
+        rutaDirecta
+    )
+
+    .then(async response => {
+
+        /*
+         * Solo intentamos la ruta alternativa
+         * cuando la ruta realmente NO EXISTE.
+         *
+         * 400 y 403 NO vuelven a enviar el POST.
+         */
+
+        if (response.status === 404) {
+
+            response =
+                await enviarPeticion(
+                    rutaAlternativa
+                );
         }
 
-        return response.text();
+
+        const data =
+            await response.text();
+
+
+        return {
+            response,
+            data
+        };
     })
-    .then(data => {
+
+
+    .then(resultado => {
+
+        const response =
+            resultado.response;
+
+        const data =
+            resultado.data;
+
 
         console.log(
-            "📩 Respuesta Servidor (" + tb + "):",
+            "📩 Respuesta Servidor (" +
+            tb +
+            "):",
             data
         );
 
 
-        // Detectar errores de MySQL o registros duplicados.
+        /* =================================================
+           EJECUTAR SWEETALERT / SCRIPTS DEL PHP
+           ================================================= */
+
+        ejecutarScriptsRespuesta(
+            data
+        );
+
+
+        /* =================================================
+           ERROR HTTP 400 / 403 / ETC.
+           NO CONTINUAR COMO ÉXITO
+           ================================================= */
+
+        if (!response.ok) {
+
+            console.warn(
+                "Petición rechazada:",
+                response.status
+            );
+
+
+            /*
+             * Si PHP no devolvió un script
+             * mostramos un mensaje genérico.
+             */
+
+            if (
+                !data.includes(
+                    '<script'
+                )
+            ) {
+
+                alert(
+                    "El servidor rechazó la operación. " +
+                    "Código HTTP: " +
+                    response.status
+                );
+            }
+
+
+            return;
+        }
+
+
+        /* =================================================
+           DETECTAR ERRORES ANTIGUOS
+           ================================================= */
+
         let tieneErrorDuplicado =
-            data.includes('Error MySQL') ||
-            data.includes('ya se encuentra registrado');
+            data.includes(
+                'Error MySQL'
+            ) ||
+            data.includes(
+                'ya se encuentra registrado'
+            );
 
 
-        // Actualizar la tabla.
+        /* =================================================
+           ACTUALIZAR TABLA
+           ================================================= */
+
         if (
             cont &&
             (
@@ -717,86 +930,107 @@ function guardar(tb, pfrm, event) {
                 data.includes('cell-')
             )
         ) {
-            cont.innerHTML = data;
-        }
 
-
-        // Ejecutar scripts que regrese PHP.
-        let tempDiv = document.createElement('div');
-        tempDiv.innerHTML = data;
-
-        let scripts =
-            tempDiv.getElementsByTagName('script');
-
-        for (let i = 0; i < scripts.length; i++) {
-
-            try {
-                eval(scripts[i].innerText);
-
-            } catch (e) {
-                console.error(
-                    "Error al ejecutar script de respuesta:",
-                    e
-                );
-            }
+            cont.innerHTML =
+                data;
         }
 
 
         if (tieneErrorDuplicado) {
+
             return;
         }
 
 
-        // Limpiar formulario.
+        /* =================================================
+           LIMPIAR FORMULARIO
+           ================================================= */
+
         frm.reset();
 
+
         if (campoId) {
-            campoId.value = "";
+
+            campoId.value =
+                "";
         }
 
 
-        // Cerrar modales.
-        if (typeof cerrarModalOperador === 'function') {
+        /* =================================================
+           CERRAR MODALES
+           ================================================= */
+
+        if (
+            typeof cerrarModalOperador ===
+            'function'
+        ) {
+
             cerrarModalOperador();
         }
 
-        if (typeof cerrarModalActivo === 'function') {
+
+        if (
+            typeof cerrarModalActivo ===
+            'function'
+        ) {
+
             cerrarModalActivo();
         }
 
 
         let modalEl =
-            document.getElementById('modalOperador') ||
-            document.querySelector('.modal-overlay');
+            document.getElementById(
+                'modalOperador'
+            ) ||
+            document.querySelector(
+                '.modal-overlay'
+            );
+
 
         if (modalEl) {
+
             modalEl.classList.remove(
                 'active',
                 'show',
                 'open'
             );
 
-            modalEl.style.display = 'none';
+            modalEl.style.display =
+                'none';
         }
 
 
-        // Mostrar confirmación.
-        if (typeof mostrarToast === 'function') {
+        /* =================================================
+           MENSAJE DE ÉXITO
+           ================================================= */
+
+        if (
+            typeof mostrarToast ===
+            'function'
+        ) {
 
             let mensaje =
                 esEditar
                     ? "Registro actualizado correctamente"
                     : "Registro guardado correctamente";
 
-            mostrarToast(mensaje);
+
+            mostrarToast(
+                mensaje
+            );
         }
     })
+
+
     .catch(error => {
 
         console.error(
-            "❌ Error AJAX al guardar en " + tb + ":",
+            "❌ Error AJAX al guardar en " +
+            tb +
+            ":",
             error
         );
+
 
         alert(
             "Ocurrió un error al guardar en " +
@@ -805,7 +1039,6 @@ function guardar(tb, pfrm, event) {
         );
     });
 }
-
 
 // Envía un formulario mediante POST.
 function enviardatos(url_tabla) {
