@@ -38,7 +38,7 @@ function errorOperador($mensaje, $db, $cerrar = false, $codigoHttp = 400)
         ? "if(typeof cerrarModalOperador==='function') cerrarModalOperador();"
         : "";
 
-    echo "<!-- Error MySQL -->
+    echo "<!-- Error controlado de operadores -->
     <script>
         $cerrarJS
 
