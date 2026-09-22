@@ -1140,9 +1140,10 @@ function enviarDetallesVenta() {
 }
 
 
-// Carga los datos de un registro para editarlo.
 function editar(id, tb, pfrm) {
+
     let datos = new FormData();
+
 
     let campo_id =
         tb === 'empresas' ? 'id_empresa' :
@@ -1152,6 +1153,12 @@ function editar(id, tb, pfrm) {
         'id';
 
 
+    /*
+     * Compatibilidad con módulos antiguos.
+     *
+     * Por ahora conservamos este parámetro porque
+     * otros registro.php del proyecto podrían utilizarlo.
+     */
     let sql =
         "select * from " +
         tb +
@@ -1160,76 +1167,194 @@ function editar(id, tb, pfrm) {
         " = " +
         id;
 
-    datos.append("sql", sql);
+
+    datos.append(
+        "sql",
+        sql
+    );
 
 
-    fetch("../" + tb + "/registro.php?id=" + id, {
-        body: datos,
-        method: "post"
+    /* =====================================================
+       SOLICITAR REGISTRO
+       ===================================================== */
+
+    fetch(
+        "../" + tb + "/registro.php?id=" +
+        encodeURIComponent(id),
+        {
+            body: datos,
+            method: "post"
+        }
+    )
+
+    .then(async response => {
+
+        /*
+         * Primero leemos el texto.
+         *
+         * Así podemos controlar correctamente respuestas
+         * 400, 401, 403, 404, 405, etc.
+         */
+        const texto =
+            await response.text();
+
+
+        let registro;
+
+
+        try {
+
+            registro =
+                JSON.parse(texto);
+
+        } catch (error) {
+
+            throw new Error(
+                'El servidor devolvió una respuesta no válida.'
+            );
+        }
+
+
+        /* =================================================
+           RESPUESTA HTTP DE ERROR
+           ================================================= */
+
+        if (!response.ok) {
+
+            const mensaje =
+                registro.mensaje ||
+                registro.error ||
+                'No fue posible consultar el registro.';
+
+
+            const error =
+                new Error(mensaje);
+
+
+            /*
+             * Guardamos el código HTTP para poder verlo
+             * claramente en consola.
+             */
+            error.status =
+                response.status;
+
+
+            throw error;
+        }
+
+
+        return registro;
     })
-    .then(response => response.json())
+
+
     .then(registro => {
+
 
         let frm =
             document.getElementById(pfrm) ||
-            document.getElementById('formGuardarUsuario') ||
+            document.getElementById(
+                'formGuardarUsuario'
+            ) ||
             document.getElementById('frm');
 
 
         if (frm) {
 
-            // Colocar los datos en los inputs.
-            Object.keys(registro).forEach(key => {
 
-                let campo =
-                    frm.querySelector("#" + key) ||
-                    frm.querySelector(`[name="${key}"]`);
+            /* =================================================
+               COLOCAR DATOS EN EL FORMULARIO
+               ================================================= */
 
-                if (
-                    campo &&
-                    registro[key] !== undefined &&
-                    campo.type !== 'file'
-                ) {
-                    campo.value = registro[key];
+            Object.keys(registro).forEach(
+                key => {
+
+                    let campo =
+                        frm.querySelector(
+                            "#" + key
+                        ) ||
+                        frm.querySelector(
+                            `[name="${key}"]`
+                        );
+
+
+                    if (
+                        campo &&
+                        registro[key] !== undefined &&
+                        campo.type !== 'file'
+                    ) {
+
+                        campo.value =
+                            registro[key];
+                    }
                 }
-            });
+            );
 
+
+            /* =================================================
+               ID DEL REGISTRO
+               ================================================= */
 
             let campoOculto =
-                frm.querySelector(`#${campo_id}`) ||
-                frm.querySelector(`[name="${campo_id}"]`) ||
-                frm.querySelector('input[type="hidden"]');
+                frm.querySelector(
+                    `#${campo_id}`
+                ) ||
+                frm.querySelector(
+                    `[name="${campo_id}"]`
+                ) ||
+                frm.querySelector(
+                    'input[type="hidden"]'
+                );
+
 
             if (campoOculto) {
-                campoOculto.value = id;
+
+                campoOculto.value =
+                    id;
             }
 
 
-            // Actualizar empresa cuando se edita un usuario.
+            /* =================================================
+               USUARIOS
+               ================================================= */
+
             if (
                 tb === 'usuarios' &&
-                typeof controlarDespliegueEmpresa === 'function'
+                typeof controlarDespliegueEmpresa ===
+                'function'
             ) {
+
                 controlarDespliegueEmpresa();
             }
 
 
-            // Actualizar motivo cuando se edita un reporte.
+            /* =================================================
+               REPORTE DE BAJA
+               ================================================= */
+
             if (
                 tb === 'reporte_baja' &&
-                typeof evaluarMotivoBaja === 'function'
+                typeof evaluarMotivoBaja ===
+                'function'
             ) {
 
                 let selectMotivo =
-                    frm.querySelector('#motivo_baja');
+                    frm.querySelector(
+                        '#motivo_baja'
+                    );
+
 
                 if (selectMotivo) {
+
                     evaluarMotivoBaja(
                         selectMotivo.value
                     );
                 }
             }
 
+
+            /* =================================================
+               MODAL
+               ================================================= */
 
             let singularTb =
                 tb.endsWith('s')
@@ -1241,22 +1366,33 @@ function editar(id, tb, pfrm) {
                 tb === 'reporte_baja'
                     ? 'modalReporte'
                     : 'modal' +
-                      singularTb.charAt(0).toUpperCase() +
+                      singularTb
+                          .charAt(0)
+                          .toUpperCase() +
                       singularTb.slice(1);
 
 
             const modalPadre =
-                frm.closest('.modal-overlay') ||
-                frm.closest('.modal') ||
-                document.getElementById(idModalEspecifico);
+                frm.closest(
+                    '.modal-overlay'
+                ) ||
+                frm.closest(
+                    '.modal'
+                ) ||
+                document.getElementById(
+                    idModalEspecifico
+                );
 
 
             if (modalPadre) {
 
                 const tituloModal =
                     modalPadre.querySelector(
-                        '.modal-title, .modal-title-text, h2, h3'
+                        '.modal-title, ' +
+                        '.modal-title-text, ' +
+                        'h2, h3'
                     );
+
 
                 if (tituloModal) {
 
@@ -1265,14 +1401,20 @@ function editar(id, tb, pfrm) {
                             .replace(/s$/, '')
                             .replace('_', ' ');
 
+
                     tituloModal.innerText =
                         `Editar ${
-                            nombreEntidad.charAt(0).toUpperCase() +
+                            nombreEntidad
+                                .charAt(0)
+                                .toUpperCase() +
                             nombreEntidad.slice(1)
                         }`;
                 }
 
-                modalPadre.classList.add('active');
+
+                modalPadre.classList.add(
+                    'active'
+                );
 
             } else {
 
@@ -1282,15 +1424,58 @@ function editar(id, tb, pfrm) {
             }
         }
     })
-    .catch(error =>
+
+
+    /* =====================================================
+       ERROR CONTROLADO
+       ===================================================== */
+
+    .catch(error => {
+
         console.error(
             "Error al cargar datos para edición:",
             error
-        )
-    );
+        );
 
 
-    // Cargar detalles de compra.
+        if (error.status) {
+
+            console.error(
+                "Código HTTP:",
+                error.status
+            );
+        }
+
+
+        if (
+            typeof Swal !==
+            'undefined'
+        ) {
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Acceso no permitido',
+                text:
+                    error.message ||
+                    'No fue posible consultar el registro.',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#e67e00'
+            });
+
+        } else {
+
+            alert(
+                error.message ||
+                'No fue posible consultar el registro.'
+            );
+        }
+    });
+
+
+    /* =====================================================
+       COMPATIBILIDAD CON DETALLES DE COMPRA
+       ===================================================== */
+
     if (pfrm === "frm") {
 
         let contenedor =
@@ -1298,20 +1483,25 @@ function editar(id, tb, pfrm) {
                 "#contenedor_detalle"
             );
 
+
         if (contenedor) {
 
             fetch(
                 "../detalles_compra/index.php?id=" +
                 id
             )
-            .then(response => response.text())
+            .then(
+                response =>
+                    response.text()
+            )
             .then(data => {
-                contenedor.innerHTML = data;
+
+                contenedor.innerHTML =
+                    data;
             });
         }
     }
 }
-
 
 // Elimina un registro.
 function eliminar(id, tb) { 
