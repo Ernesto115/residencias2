@@ -33,14 +33,16 @@ $multiempresa = (int)($_SESSION['multiempresa'] ?? 0);
    ERROR CONTROLADO
    ========================================================= */
 
-function errorReporte($mensaje, $db)
+function errorReporte($mensaje, $db, $codigoHttp = 400)
 {
+    http_response_code($codigoHttp);
+
     $mensajeJS = json_encode(
         $mensaje,
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
     );
 
-    echo "<!-- Error MySQL -->
+    echo "<!-- Error controlado de reporte de baja -->
     <script>
         if(typeof Swal!=='undefined'){
             Swal.fire({
@@ -68,9 +70,26 @@ function errorReporte($mensaje, $db)
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
+    header('Allow: POST');
+
     errorReporte(
         'Método de solicitud no permitido.',
-        $db
+        $db,
+        405
+    );
+}
+
+
+/* =========================================================
+   SESIÓN VÁLIDA
+   ========================================================= */
+
+if ($id_usuario <= 0 || $rol === '') {
+
+    errorReporte(
+        'Tu sesión no es válida o ha finalizado.',
+        $db,
+        401
     );
 }
 
@@ -83,7 +102,8 @@ if ($rol === 'ADMIN') {
 
     errorReporte(
         'El administrador solo puede consultar los reportes de baja. La solicitud debe realizarla la empresa responsable del operador.',
-        $db
+        $db,
+        403
     );
 }
 
@@ -96,7 +116,8 @@ if (!in_array($rol, ['PROPIETARIO', 'RRHH'], true)) {
 
     errorReporte(
         'No tienes permiso para solicitar bajas de operadores.',
-        $db
+        $db,
+        403
     );
 }
 
@@ -126,7 +147,8 @@ if ($id_reporte > 0) {
 
     errorReporte(
         'Las solicitudes de baja existentes no pueden modificarse.',
-        $db
+        $db,
+        409
     );
 }
 
@@ -233,7 +255,8 @@ if (!$operador) {
 
     errorReporte(
         'El operador seleccionado no existe.',
-        $db
+        $db,
+        400
     );
 }
 
@@ -250,7 +273,8 @@ if ((int)$operador['estatus'] !== 1) {
 
     errorReporte(
         'Este operador ya se encuentra inactivo.',
-        $db
+        $db,
+        409
     );
 }
 
@@ -319,7 +343,8 @@ if (!$permitido) {
 
     errorReporte(
         'No tienes permiso para reportar la baja de este operador.',
-        $db
+        $db,
+        403
     );
 }
 
@@ -345,7 +370,8 @@ if ($stmt->fetchColumn()) {
 
     errorReporte(
         'Este operador ya tiene una solicitud de baja pendiente.',
-        $db
+        $db,
+        409
     );
 }
 
@@ -402,7 +428,8 @@ if (!$guardado) {
 
     errorReporte(
         'No se pudo registrar la solicitud de baja.',
-        $db
+        $db,
+        500
     );
 }
 
