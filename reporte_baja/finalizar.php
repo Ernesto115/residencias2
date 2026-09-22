@@ -13,11 +13,17 @@ $db->conectar();
 
 
 /* =========================================================
-   RESPUESTA JSON
+   RESPUESTA JSON CON CÓDIGO HTTP
    ========================================================= */
 
-function responder($ok, $mensaje, $extra = [])
-{
+function responder(
+    $ok,
+    $mensaje,
+    $extra = [],
+    $codigoHttp = 200
+) {
+    http_response_code($codigoHttp);
+
     echo json_encode(
         array_merge(
             [
@@ -26,7 +32,8 @@ function responder($ok, $mensaje, $extra = [])
             ],
             $extra
         ),
-        JSON_UNESCAPED_UNICODE
+        JSON_UNESCAPED_UNICODE |
+        JSON_UNESCAPED_SLASHES
     );
 
     exit;
@@ -39,9 +46,13 @@ function responder($ok, $mensaje, $extra = [])
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
+    header('Allow: POST');
+
     responder(
         false,
-        'Método de solicitud no permitido.'
+        'Método de solicitud no permitido.',
+        [],
+        405
     );
 }
 
@@ -60,12 +71,11 @@ if ($rol === 'ADMINISTRADOR') {
 
 if (in_array(
     $rol,
-    ['RH','RECURSOS HUMANOS'],
+    ['RH', 'RECURSOS HUMANOS'],
     true
 )) {
     $rol = 'RRHH';
 }
-
 
 $id_usuario = (int)(
     $_SESSION['id_usuario'] ?? 0
@@ -81,6 +91,24 @@ $multiempresa = (int)(
 
 
 /* =========================================================
+   SESIÓN VÁLIDA
+   ========================================================= */
+
+if (
+    $id_usuario <= 0 ||
+    $rol === ''
+) {
+
+    responder(
+        false,
+        'Tu sesión no es válida o ha finalizado.',
+        [],
+        401
+    );
+}
+
+
+/* =========================================================
    SOLO PROPIETARIO PUEDE EVALUAR Y FINALIZAR
    ========================================================= */
 
@@ -88,7 +116,9 @@ if ($rol !== 'PROPIETARIO') {
 
     responder(
         false,
-        'Solo el propietario puede revisar, evaluar y confirmar una baja.'
+        'Solo el propietario puede revisar, evaluar y confirmar una baja.',
+        [],
+        403
     );
 }
 
@@ -101,7 +131,6 @@ $id_reporte = (int)(
     $_POST['id_reporte'] ?? 0
 );
 
-
 $eval_distancia = (int)(
     $_POST['eval_distancia'] ?? 0
 );
@@ -113,7 +142,6 @@ $eval_tiempo = (int)(
 $eval_ganancias = (int)(
     $_POST['eval_ganancias'] ?? 0
 );
-
 
 $eval_cuidado_vehiculo = (int)(
     $_POST['eval_cuidado_vehiculo'] ?? 0
@@ -140,7 +168,9 @@ if ($id_reporte <= 0) {
 
     responder(
         false,
-        'Reporte de baja no válido.'
+        'Reporte de baja no válido.',
+        [],
+        400
     );
 }
 
@@ -152,17 +182,17 @@ if ($id_reporte <= 0) {
 if (
     $eval_distancia < 1 ||
     $eval_distancia > 5 ||
-
     $eval_tiempo < 1 ||
     $eval_tiempo > 5 ||
-
     $eval_ganancias < 1 ||
     $eval_ganancias > 5
 ) {
 
     responder(
         false,
-        'Completa las evaluaciones de servicio del 1 al 5.'
+        'Completa las evaluaciones de servicio del 1 al 5.',
+        [],
+        400
     );
 }
 
@@ -174,20 +204,19 @@ if (
 if (
     $eval_cuidado_vehiculo < 1 ||
     $eval_cuidado_vehiculo > 10 ||
-
     $eval_productividad < 1 ||
     $eval_productividad > 10 ||
-
     $eval_rendimiento < 1 ||
     $eval_rendimiento > 10 ||
-
     $eval_cuidado_fisico < 1 ||
     $eval_cuidado_fisico > 10
 ) {
 
     responder(
         false,
-        'Completa las evaluaciones de desempeño del 1 al 10.'
+        'Completa las evaluaciones de desempeño del 1 al 10.',
+        [],
+        400
     );
 }
 
@@ -224,39 +253,9 @@ if (!$reporte) {
 
     responder(
         false,
-        'El reporte de baja no existe.'
-    );
-}
-
-
-/* =========================================================
-   SOLO REPORTES PENDIENTES
-   ========================================================= */
-
-if (
-    strtoupper(
-        $reporte['estatus_evaluacion']
-    ) !== 'PENDIENTE'
-) {
-
-    responder(
-        false,
-        'Esta baja ya fue finalizada anteriormente.'
-    );
-}
-
-
-/* =========================================================
-   OPERADOR DEBE SEGUIR ACTIVO
-   ========================================================= */
-
-if (
-    (int)$reporte['estatus_operador'] !== 1
-) {
-
-    responder(
-        false,
-        'El operador ya se encuentra inactivo.'
+        'El reporte de baja no existe.',
+        [],
+        404
     );
 }
 
@@ -275,33 +274,11 @@ $id_operador = (int)(
 
 
 /* =========================================================
-   OPERADOR NO DEBE HABER CAMBIADO DE EMPRESA
-   ========================================================= */
-
-if (
-    $id_empresa_operador !==
-    $id_empresa_reporte
-) {
-
-    responder(
-        false,
-        'El operador cambió de empresa después de solicitar la baja. Revisa su información antes de continuar.'
-    );
-}
-
-
-/* =========================================================
    PERMISO DEL PROPIETARIO
+   SE VALIDA ANTES DE REVELAR EL ESTADO DEL REPORTE
    ========================================================= */
 
 if ($multiempresa === 1) {
-
-    /*
-       PROPIETARIO MULTIEMPRESA
-
-       El reporte debe pertenecer a una
-       de las empresas asociadas al usuario.
-    */
 
     $stmt = $db->conn->prepare(
         "SELECT 1
@@ -321,38 +298,86 @@ if ($multiempresa === 1) {
 
         responder(
             false,
-            'No tienes permiso para dar de baja operadores de esta empresa.'
+            'No tienes permiso para dar de baja operadores de esta empresa.',
+            [],
+            403
         );
     }
 
 } else {
 
-    /*
-       PROPIETARIO DE UNA SOLA EMPRESA
-    */
-
     if (
         $id_empresa_sesion <= 0 ||
-        $id_empresa_sesion !==
-        $id_empresa_reporte
+        $id_empresa_sesion !== $id_empresa_reporte
     ) {
 
         responder(
             false,
-            'No tienes permiso para dar de baja operadores de esta empresa.'
+            'No tienes permiso para dar de baja operadores de esta empresa.',
+            [],
+            403
         );
     }
 }
 
 
 /* =========================================================
-   CÁLCULOS DEL SERVIDOR
+   SOLO REPORTES PENDIENTES
    ========================================================= */
 
-/*
-   PROMEDIO DE SERVICIO
-   Escala de 1 a 5
-*/
+if (
+    strtoupper(
+        $reporte['estatus_evaluacion']
+    ) !== 'PENDIENTE'
+) {
+
+    responder(
+        false,
+        'Esta baja ya fue finalizada anteriormente.',
+        [],
+        409
+    );
+}
+
+
+/* =========================================================
+   OPERADOR DEBE SEGUIR ACTIVO
+   ========================================================= */
+
+if (
+    (int)$reporte['estatus_operador'] !== 1
+) {
+
+    responder(
+        false,
+        'El operador ya se encuentra inactivo.',
+        [],
+        409
+    );
+}
+
+
+/* =========================================================
+   OPERADOR NO DEBE HABER CAMBIADO DE EMPRESA
+   ========================================================= */
+
+if (
+    $id_empresa_operador !==
+    $id_empresa_reporte
+) {
+
+    responder(
+        false,
+        'El operador cambió de empresa después de solicitar la baja. Revisa su información antes de continuar.',
+        [],
+        409
+    );
+}
+
+
+/* =========================================================
+   CÁLCULOS DEL SERVIDOR
+   ========================================================= */
 
 $promedio_servicio = round(
     (
@@ -363,10 +388,6 @@ $promedio_servicio = round(
     2
 );
 
-
-/*
-   CALIFICACIÓN GENERAL
-*/
 
 $calificacion_general = round(
     (
@@ -421,44 +442,24 @@ try {
 
 
     $stmt->execute([
-
-        ':distancia' =>
-            $eval_distancia,
-
-        ':tiempo' =>
-            $eval_tiempo,
-
-        ':ganancias' =>
-            $eval_ganancias,
-
-        ':promedio' =>
-            $promedio_servicio,
-
-        ':cuidado' =>
-            $eval_cuidado_vehiculo,
-
-        ':productividad' =>
-            $eval_productividad,
-
-        ':rendimiento' =>
-            $eval_rendimiento,
-
-        ':fisico' =>
-            $eval_cuidado_fisico,
-
-        ':general' =>
-            $calificacion_general,
-
-        ':reporte' =>
-            $id_reporte
-
+        ':distancia' => $eval_distancia,
+        ':tiempo' => $eval_tiempo,
+        ':ganancias' => $eval_ganancias,
+        ':promedio' => $promedio_servicio,
+        ':cuidado' => $eval_cuidado_vehiculo,
+        ':productividad' => $eval_productividad,
+        ':rendimiento' => $eval_rendimiento,
+        ':fisico' => $eval_cuidado_fisico,
+        ':general' => $calificacion_general,
+        ':reporte' => $id_reporte
     ]);
 
 
     if ($stmt->rowCount() !== 1) {
 
-        throw new Exception(
-            'No fue posible completar el reporte.'
+        throw new RuntimeException(
+            'El reporte cambió de estado antes de poder finalizarlo.',
+            409
         );
     }
 
@@ -477,20 +478,16 @@ try {
 
 
     $stmt->execute([
-
-        ':operador' =>
-            $id_operador,
-
-        ':empresa' =>
-            $id_empresa_reporte
-
+        ':operador' => $id_operador,
+        ':empresa' => $id_empresa_reporte
     ]);
 
 
     if ($stmt->rowCount() !== 1) {
 
-        throw new Exception(
-            'No fue posible cambiar el estatus del operador.'
+        throw new RuntimeException(
+            'El operador cambió de estado antes de poder completar la baja.',
+            409
         );
     }
 
@@ -511,22 +508,35 @@ try {
 
             'promedio_servicio' =>
                 $promedio_servicio
-        ]
+        ],
+        200
     );
 
 
 } catch (Throwable $e) {
 
     if ($db->conn->inTransaction()) {
-
         $db->conn->rollBack();
+    }
 
+
+    if ((int)$e->getCode() === 409) {
+
+        responder(
+            false,
+            $e->getMessage(),
+            [],
+            409
+        );
     }
 
 
     responder(
         false,
-        'No se pudo confirmar la baja.'
+        'No se pudo confirmar la baja.',
+        [],
+        500
     );
 }
+
 ?>
