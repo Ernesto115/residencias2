@@ -13,8 +13,8 @@ if ($rolSesion !== 'ADMIN') {
 /* Si se abre directamente, cargar empresas */
 if (!isset($empresas)) {
 
-    include_once "../db/db.php";
-
+    require_once __DIR__ . "/../DB/db.php";
+    
     $dbFrm = new db();
     $dbFrm->conectar();
 
