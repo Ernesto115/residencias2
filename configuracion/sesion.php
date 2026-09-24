@@ -79,8 +79,8 @@ function verificarSesion()
        VALIDAR CUENTA EN BASE DE DATOS
        ===================================================== */
 
-    require_once __DIR__ . "/../db/db.php";
-
+    require_once __DIR__ . "/../DB/db.php";
+    
     $dbSesion = new db();
 
 

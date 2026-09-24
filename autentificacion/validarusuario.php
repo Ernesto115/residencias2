@@ -28,8 +28,7 @@ try {
        1. CONEXIÓN
        ===================================================== */
 
-    require_once "../DB/db.php";
-
+require_once __DIR__ . "/../DB/db.php";
 
     $dbtransportistas =
         new db();
