@@ -10,7 +10,7 @@ if ($rolSesion !== 'ADMIN') {
     exit('<div class="alert alert-danger">No tienes permiso para administrar usuarios.</div>');
 }
 
-include_once "../db/db.php";
+require_once __DIR__ . "/../DB/db.php";
 
 $dbtransportistas = new db();
 $dbtransportistas->conectar();

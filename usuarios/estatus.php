@@ -160,7 +160,7 @@ if ($idUsuario === $idUsuarioSesion) {
    CONEXIÓN
    ========================================================= */
 
-require_once "../db/db.php";
+require_once __DIR__ . "/../DB/db.php";
 
 $db = new db();
 $db->conectar();
