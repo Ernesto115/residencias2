@@ -1,29 +1,46 @@
 <?php
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 
+/* =========================================================
+   ROL DE LA SESIÓN
+   ========================================================= */
+
 $rolFormulario =
     strtoupper(
-        trim($_SESSION['rol'] ?? '')
+        trim(
+            $_SESSION['rol'] ?? ''
+        )
     );
 
 
 if ($rolFormulario === 'ADMINISTRADOR') {
+
     $rolFormulario = 'ADMIN';
+
 }
 
+
+/* =========================================================
+   SEGURIDAD
+   ========================================================= */
 
 if (
     !in_array(
         $rolFormulario,
-        ['ADMIN','PROPIETARIO'],
+        [
+            'ADMIN',
+            'PROPIETARIO'
+        ],
         true
     )
 ) {
 
     http_response_code(403);
+
 
     echo '
         <div class="alert alert-danger">
@@ -31,12 +48,17 @@ if (
         </div>
     ';
 
+
     return;
 }
+
 ?>
 
 
-<!-- BOTÓN AGREGAR -->
+<!-- =========================================================
+     BOTÓN AGREGAR
+     ========================================================= -->
+
 <div class="table-header-title">
 
     <div class="table-tabs-wrapper">
@@ -55,7 +77,10 @@ if (
 
 
 
-<!-- MODAL -->
+<!-- =========================================================
+     MODAL EMPRESA
+     ========================================================= -->
+
 <div
     id="modalEmpresa"
     class="modal-overlay"
@@ -64,12 +89,16 @@ if (
     <div class="modal-container">
 
 
-        <!-- ENCABEZADO -->
+        <!-- =====================================================
+             ENCABEZADO
+             ===================================================== -->
+
         <div class="modal-header">
 
             <h2 class="modal-title-text">
                 Formulario de Empresa
             </h2>
+
 
             <button
                 type="button"
@@ -83,6 +112,10 @@ if (
 
 
 
+        <!-- =====================================================
+             CUERPO DEL MODAL
+             ===================================================== -->
+
         <div class="modal-body-scroll">
 
 
@@ -94,6 +127,13 @@ if (
             >
 
 
+                <!-- =================================================
+                     ID DE EMPRESA
+
+                     VACÍO   = NUEVA EMPRESA
+                     CON ID  = EDITAR EMPRESA
+                     ================================================= -->
+
                 <input
                     type="hidden"
                     id="id_empresa"
@@ -103,15 +143,51 @@ if (
 
 
 
-                <!-- DATOS PRINCIPALES -->
+                <!-- =================================================
+                     ROL ACTUAL
+
+                     JavaScript lo utiliza para decidir si debe
+                     mostrar la sección del propietario.
+                     ================================================= -->
+
+                <input
+                    type="hidden"
+                    id="rol_formulario_empresa"
+                    value="<?= htmlspecialchars(
+                        $rolFormulario,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
+                >
+
+
+
+                <!-- =================================================
+                     DATOS PRINCIPALES DE LA EMPRESA
+                     ================================================= -->
+
+                <p
+                    style="
+                        font-weight:bold;
+                        color:var(--accent-color);
+                        margin-bottom:10px;
+                    "
+                >
+                    🏢 Datos de la Empresa
+                </p>
+
+
+
                 <div class="form-row">
 
 
+                    <!-- NOMBRE COMERCIAL -->
                     <div class="form-group">
 
                         <label class="form-label">
                             Nombre Comercial de la Empresa
                         </label>
+
 
                         <input
                             type="text"
@@ -127,11 +203,13 @@ if (
 
 
 
+                    <!-- RAZÓN SOCIAL -->
                     <div class="form-group">
 
                         <label class="form-label">
                             Razón Social
                         </label>
+
 
                         <input
                             type="text"
@@ -145,6 +223,7 @@ if (
 
                     </div>
 
+
                 </div>
 
 
@@ -152,6 +231,7 @@ if (
                 <div class="form-row">
 
 
+                    <!-- DIRECCIÓN FISCAL -->
                     <div
                         class="form-group"
                         style="flex:2;"
@@ -160,6 +240,7 @@ if (
                         <label class="form-label">
                             Dirección Fiscal
                         </label>
+
 
                         <input
                             type="text"
@@ -175,11 +256,13 @@ if (
 
 
 
+                    <!-- RESPONSABLE ADMINISTRATIVO -->
                     <div class="form-group">
 
                         <label class="form-label">
                             Nombre del Responsable Administrativo
                         </label>
+
 
                         <input
                             type="text"
@@ -193,9 +276,255 @@ if (
 
                     </div>
 
+
                 </div>
 
 
+
+                <!-- =================================================
+                     CUENTA DEL PROPIETARIO
+
+                     Se muestra únicamente cuando:
+
+                     - La sesión es ADMIN.
+                     - Se está creando una empresa nueva.
+
+                     La contraseña NO se captura manualmente.
+                     El sistema la generará automáticamente.
+                     ================================================= -->
+
+                <div
+                    id="seccion_propietario_empresa"
+                    style="display:none;"
+                >
+
+
+                    <hr
+                        style="
+                            margin:20px 0;
+                            border:0;
+                            border-top:1px solid var(--borde-sutil);
+                        "
+                    >
+
+
+
+                    <p
+                        style="
+                            font-weight:bold;
+                            color:var(--accent-color);
+                            margin-bottom:10px;
+                        "
+                    >
+                        👤 Cuenta del Propietario
+                    </p>
+
+
+
+                    <small
+                        style="
+                            display:block;
+                            color:var(--texto-secundario);
+                            margin-bottom:15px;
+                        "
+                    >
+                        Esta cuenta tendrá acceso al sistema como
+                        propietario de la empresa registrada.
+                    </small>
+
+
+
+                    <!-- =============================================
+                         DATOS PERSONALES DEL PROPIETARIO
+                         ============================================= -->
+
+                    <div class="form-row">
+
+
+                        <!-- NOMBRES -->
+                        <div class="form-group">
+
+                            <label class="form-label">
+                                Nombre(s) *
+                            </label>
+
+
+                            <input
+                                type="text"
+                                class="
+                                    form-control
+                                    campo-propietario-empresa
+                                "
+                                name="prop_nombres"
+                                id="prop_nombres"
+                                maxlength="50"
+                                placeholder="Ej. Juan Carlos"
+                                disabled
+                            >
+
+                        </div>
+
+
+
+                        <!-- PRIMER APELLIDO -->
+                        <div class="form-group">
+
+                            <label class="form-label">
+                                Primer Apellido *
+                            </label>
+
+
+                            <input
+                                type="text"
+                                class="
+                                    form-control
+                                    campo-propietario-empresa
+                                "
+                                name="prop_primer_apellido"
+                                id="prop_primer_apellido"
+                                maxlength="50"
+                                placeholder="Ej. Martínez"
+                                disabled
+                            >
+
+                        </div>
+
+
+
+                        <!-- SEGUNDO APELLIDO -->
+                        <div class="form-group">
+
+                            <label class="form-label">
+                                Segundo Apellido *
+                            </label>
+
+
+                            <input
+                                type="text"
+                                class="
+                                    form-control
+                                    campo-propietario-empresa
+                                "
+                                name="prop_segundo_apellido"
+                                id="prop_segundo_apellido"
+                                maxlength="50"
+                                placeholder="Ej. López"
+                                disabled
+                            >
+
+                        </div>
+
+
+                    </div>
+
+
+
+                    <!-- =============================================
+                         DATOS DE ACCESO DEL PROPIETARIO
+                         ============================================= -->
+
+                    <div class="form-row">
+
+
+                        <!-- NOMBRE DE USUARIO / RFC -->
+                        <div class="form-group">
+
+                            <label class="form-label">
+                                Nombre de Usuario (RFC / ID) *
+                            </label>
+
+
+                            <input
+                                type="text"
+                                class="
+                                    form-control
+                                    campo-propietario-empresa
+                                "
+                                name="prop_nombre_usuario"
+                                id="prop_nombre_usuario"
+                                maxlength="13"
+                                placeholder="Ej. ABCD123456XYZ"
+                                disabled
+                            >
+
+                        </div>
+
+
+
+                        <!-- CORREO -->
+                        <div class="form-group">
+
+                            <label class="form-label">
+                                Correo Electrónico *
+                            </label>
+
+
+                            <input
+                                type="email"
+                                class="
+                                    form-control
+                                    campo-propietario-empresa
+                                "
+                                name="prop_correo_electronico"
+                                id="prop_correo_electronico"
+                                maxlength="100"
+                                placeholder="usuario@correo.com"
+                                disabled
+                            >
+
+                        </div>
+
+
+                    </div>
+
+
+
+                    <!-- =============================================
+                         CONTRASEÑA TEMPORAL AUTOMÁTICA
+                         ============================================= -->
+
+                    <div
+                        style="
+                            margin-top:10px;
+                            padding:14px 16px;
+                            border:1px solid var(--borde-sutil);
+                            border-radius:10px;
+                            background:rgba(59,130,246,0.08);
+                        "
+                    >
+
+                        <div
+                            style="
+                                font-weight:700;
+                                color:var(--accent-color);
+                                margin-bottom:5px;
+                            "
+                        >
+                            🔐 Contraseña temporal automática
+                        </div>
+
+
+                        <small
+                            style="
+                                color:var(--texto-secundario);
+                                line-height:1.5;
+                            "
+                        >
+                            El sistema generará automáticamente una
+                            contraseña temporal segura para el propietario
+                            al registrar la empresa.
+                        </small>
+
+                    </div>
+
+
+                </div>
+
+
+
+                <!-- =================================================
+                     CONTENEDOR DE ALERTAS
+                     ================================================= -->
 
                 <div
                     id="contenedor-alertas-empresas"
@@ -204,6 +533,10 @@ if (
                 </div>
 
 
+
+                <!-- =================================================
+                     ACCIONES
+                     ================================================= -->
 
                 <div
                     class="form-actions"
@@ -215,6 +548,7 @@ if (
                     "
                 >
 
+
                     <button
                         type="button"
                         class="btn-action btn-delete"
@@ -224,6 +558,7 @@ if (
                     </button>
 
 
+
                     <button
                         type="submit"
                         class="btn-prof-primary"
@@ -231,10 +566,12 @@ if (
                         Grabar Empresa
                     </button>
 
+
                 </div>
 
 
             </form>
+
 
         </div>
 

@@ -1314,6 +1314,26 @@ function editar(id, tb, pfrm) {
 
 
             /* =================================================
+               EMPRESAS
+               
+               Cuando estamos EDITANDO una empresa,
+               id_empresa ya contiene un valor.
+               
+               Por lo tanto, la sección para crear una cuenta
+               nueva de propietario debe permanecer oculta.
+               ================================================= */
+
+            if (
+                tb === 'empresas' &&
+                typeof configurarPropietarioEmpresa ===
+                'function'
+            ) {
+
+                configurarPropietarioEmpresa();
+            }
+
+
+            /* =================================================
                USUARIOS
                ================================================= */
 
@@ -1415,6 +1435,25 @@ function editar(id, tb, pfrm) {
                 modalPadre.classList.add(
                     'active'
                 );
+
+
+                /* =============================================
+                   EMPRESAS - VERIFICACIÓN FINAL DEL MODAL
+
+                   Volvemos a comprobar después de abrirlo
+                   para garantizar que en modo edición
+                   la sección del propietario quede oculta.
+                   ============================================= */
+
+                if (
+                    tb === 'empresas' &&
+                    typeof configurarPropietarioEmpresa ===
+                    'function'
+                ) {
+
+                    configurarPropietarioEmpresa();
+                }
+
 
             } else {
 
@@ -2648,7 +2687,136 @@ function cerrarModal(tipo) {
 const abrirModalOperador = () => abrirModal('operador');
 const cerrarModalOperador = () => cerrarModal('operador');
 
-const abrirModalEmpresa = () => abrirModal('empresa');
+/* =========================================================
+   EMPRESAS - MOSTRAR / OCULTAR DATOS DEL PROPIETARIO
+   ========================================================= */
+
+function configurarPropietarioEmpresa() {
+
+    const seccion =
+        document.getElementById(
+            'seccion_propietario_empresa'
+        );
+
+
+    const campoId =
+        document.getElementById(
+            'id_empresa'
+        );
+
+
+    const campoRol =
+        document.getElementById(
+            'rol_formulario_empresa'
+        );
+
+
+    if (
+        !seccion ||
+        !campoId ||
+        !campoRol
+    ) {
+
+        return;
+    }
+
+
+    const rol =
+        campoRol.value
+            .trim()
+            .toUpperCase();
+
+
+    const esNuevaEmpresa =
+        campoId.value.trim() === '';
+
+
+    /*
+     * La sección solamente aparece cuando:
+     *
+     * - El usuario es ADMIN.
+     * - Está registrando una empresa nueva.
+     */
+
+    const mostrar =
+        rol === 'ADMIN' &&
+        esNuevaEmpresa;
+
+
+    const campos =
+        seccion.querySelectorAll(
+            '.campo-propietario-empresa'
+        );
+
+
+    /* =====================================================
+       MOSTRAR
+       ===================================================== */
+
+    if (mostrar) {
+
+
+        seccion.style.display =
+            'block';
+
+
+        campos.forEach(campo => {
+
+            campo.disabled = false;
+
+            campo.required = true;
+
+        });
+
+
+    /* =====================================================
+       OCULTAR
+       ===================================================== */
+
+    } else {
+
+
+        seccion.style.display =
+            'none';
+
+
+        campos.forEach(campo => {
+
+            campo.disabled = true;
+
+            campo.required = false;
+
+            /*
+             * Evitamos conservar información escrita
+             * previamente en estos campos.
+             */
+
+            campo.value = '';
+
+        });
+
+    }
+
+}
+
+
+const abrirModalEmpresa = () => {
+
+    abrirModal('empresa');
+
+
+    /*
+     * Esperamos a que el modal termine de preparar
+     * y limpiar el formulario.
+     */
+
+    setTimeout(() => {
+
+        configurarPropietarioEmpresa();
+
+    }, 0);
+
+};
 const cerrarModalEmpresa = () => cerrarModal('empresa');
 
 const abrirModalUsuario = () => abrirModal('usuario');
