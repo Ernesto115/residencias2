@@ -28,7 +28,8 @@ try {
        1. CONEXIÓN
        ===================================================== */
 
-require_once __DIR__ . "/../DB/db.php";
+    require_once __DIR__ . "/../DB/db.php";
+
 
     $dbtransportistas =
         new db();
@@ -99,14 +100,10 @@ require_once __DIR__ . "/../DB/db.php";
 
 
     /* =====================================================
-       4. VALIDAR CREDENCIALES
+       4. VALIDAR QUE EL USUARIO EXISTA
        ===================================================== */
 
-    if (
-        !$usuarioDB ||
-        $clave !==
-        $usuarioDB['contrasena']
-    ) {
+    if (!$usuarioDB) {
 
         echo json_encode([
             "status" => "error",
@@ -119,7 +116,94 @@ require_once __DIR__ . "/../DB/db.php";
 
 
     /* =====================================================
-       5. VALIDAR ESTATUS DE LA CUENTA
+       5. VALIDAR CONTRASEÑA
+       ===================================================== */
+
+    /*
+     * Durante la transición el sistema puede encontrar:
+     *
+     * 1. Contraseñas antiguas almacenadas en texto plano.
+     * 2. Contraseñas nuevas almacenadas con password_hash().
+     *
+     * Esto permite actualizar gradualmente el sistema
+     * sin bloquear a los usuarios que ya existen.
+     */
+
+    $contrasenaGuardada =
+        (string)(
+            $usuarioDB['contrasena']
+            ?? ''
+        );
+
+
+    $credencialesValidas = false;
+
+
+    /*
+     * password_get_info() revisa si el contenido almacenado
+     * corresponde a un hash reconocido por PHP.
+     */
+
+    $informacionHash =
+        password_get_info(
+            $contrasenaGuardada
+        );
+
+
+    $esHash =
+        (
+            $informacionHash['algoName']
+            ?? 'unknown'
+        ) !== 'unknown';
+
+
+    /* =====================================================
+       CONTRASEÑA GUARDADA CON PASSWORD_HASH
+       ===================================================== */
+
+    if ($esHash) {
+
+        $credencialesValidas =
+            password_verify(
+                $clave,
+                $contrasenaGuardada
+            );
+
+    }
+
+
+    /* =====================================================
+       CONTRASEÑA ANTIGUA EN TEXTO PLANO
+       ===================================================== */
+
+    else {
+
+        $credencialesValidas =
+            hash_equals(
+                $contrasenaGuardada,
+                $clave
+            );
+    }
+
+
+    /* =====================================================
+       CREDENCIALES INCORRECTAS
+       ===================================================== */
+
+    if (!$credencialesValidas) {
+
+        echo json_encode([
+            "status" => "error",
+            "message" =>
+                "Usuario o contraseña incorrectos."
+        ]);
+
+        exit;
+    }
+
+
+    /* =====================================================
+       6. VALIDAR ESTATUS DE LA CUENTA
        ===================================================== */
 
     /*
@@ -147,7 +231,7 @@ require_once __DIR__ . "/../DB/db.php";
 
 
     /* =====================================================
-       6. ROL
+       7. ROL
        ===================================================== */
 
     $rolNormalizado =
@@ -191,7 +275,7 @@ require_once __DIR__ . "/../DB/db.php";
 
 
     /* =====================================================
-       7. NOMBRE COMPLETO
+       8. NOMBRE COMPLETO
        ===================================================== */
 
     $nombreCompleto =
@@ -214,7 +298,7 @@ require_once __DIR__ . "/../DB/db.php";
 
 
     /* =====================================================
-       8. CREAR SESIÓN
+       9. CREAR SESIÓN
        ===================================================== */
 
     session_regenerate_id(true);
@@ -263,7 +347,7 @@ require_once __DIR__ . "/../DB/db.php";
 
 
     /* =====================================================
-       9. RESPUESTA
+       10. RESPUESTA
        ===================================================== */
 
     echo json_encode([
