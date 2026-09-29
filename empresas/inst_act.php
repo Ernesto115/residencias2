@@ -1,51 +1,29 @@
 <?php
-
-if (session_status() === PHP_SESSION_NONE) {
-
-    session_start();
-}
-
-
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 include_once "../db/db.php";
 
-
 $db = new db();
-
 $db->conectar();
 
 
-
-/* =========================================================
-   ERROR CONTROLADO
-   ========================================================= */
-
-function errorEmpresa(
-    $mensaje,
-    $db,
-    $cerrar = false
-) {
-
+function errorEmpresa($mensaje, $db, $cerrar = false)
+{
     $msg = json_encode(
         $mensaje,
         JSON_UNESCAPED_UNICODE |
         JSON_UNESCAPED_SLASHES
     );
 
-
     $cerrarJS = $cerrar
         ? "if(typeof cerrarModalEmpresa==='function') cerrarModalEmpresa();"
         : "";
 
-
     echo "<!-- Error MySQL -->
-
     <script>
-
         $cerrarJS
 
         if(typeof Swal !== 'undefined'){
-
             Swal.fire({
                 icon:'error',
                 title:'No se pudo guardar la empresa',
@@ -53,74 +31,99 @@ function errorEmpresa(
                 confirmButtonText:'Entendido',
                 confirmButtonColor:'#1e40af'
             });
-
         }else{
-
             alert('❌ ' + $msg);
         }
-
     </script>";
 
-
     $db->desconectar();
-
-
     exit;
 }
 
 
+function generarContrasenaTemporal($longitud = 12)
+{
+    $mayus = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    $minus = 'abcdefghijkmnopqrstuvwxyz';
+    $nums  = '23456789';
+    $simb  = '!@#$%&*?';
 
-/* =========================================================
-   MENSAJE DE DETECCIÓN DEL PROPIETARIO
+    $todos =
+        $mayus .
+        $minus .
+        $nums .
+        $simb;
 
-   TEMPORAL:
-   Se utiliza solamente mientras probamos la detección
-   de propietario nuevo / existente.
+    $chars = [
+        $mayus[
+            random_int(
+                0,
+                strlen($mayus) - 1
+            )
+        ],
 
-   En la siguiente fase este bloque se retirará para
-   permitir que la empresa y el propietario se guarden.
-   ========================================================= */
+        $minus[
+            random_int(
+                0,
+                strlen($minus) - 1
+            )
+        ],
 
-function mensajeDeteccionPropietario(
-    $mensaje,
-    $db
-) {
+        $nums[
+            random_int(
+                0,
+                strlen($nums) - 1
+            )
+        ],
 
-    $msg = json_encode(
-        $mensaje,
-        JSON_UNESCAPED_UNICODE |
-        JSON_UNESCAPED_SLASHES
+        $simb[
+            random_int(
+                0,
+                strlen($simb) - 1
+            )
+        ]
+    ];
+
+    while (
+        count($chars) <
+        $longitud
+    ) {
+
+        $chars[] =
+            $todos[
+                random_int(
+                    0,
+                    strlen($todos) - 1
+                )
+            ];
+    }
+
+    for (
+        $i = count($chars) - 1;
+        $i > 0;
+        $i--
+    ) {
+
+        $j =
+            random_int(
+                0,
+                $i
+            );
+
+        [
+            $chars[$i],
+            $chars[$j]
+        ] = [
+            $chars[$j],
+            $chars[$i]
+        ];
+    }
+
+    return implode(
+        '',
+        $chars
     );
-
-
-    echo "<!-- Validación Propietario -->
-
-    <script>
-
-        if(typeof Swal !== 'undefined'){
-
-            Swal.fire({
-                icon:'info',
-                title:'Validación del propietario',
-                text:$msg,
-                confirmButtonText:'Entendido',
-                confirmButtonColor:'#1e40af'
-            });
-
-        }else{
-
-            alert('ℹ️ ' + $msg);
-        }
-
-    </script>";
-
-
-    $db->desconectar();
-
-
-    exit;
 }
-
 
 
 /* =========================================================
@@ -129,34 +132,35 @@ function mensajeDeteccionPropietario(
 
 $rol =
     strtoupper(
-        trim($_SESSION['rol'] ?? '')
+        trim(
+            $_SESSION['rol'] ?? ''
+        )
     );
 
-
 if ($rol === 'ADMINISTRADOR') {
-
     $rol = 'ADMIN';
 }
 
-
 $id_usuario =
-    (int)($_SESSION['id_usuario'] ?? 0);
-
+    (int)(
+        $_SESSION['id_usuario'] ?? 0
+    );
 
 $id_empresa_sesion =
-    (int)($_SESSION['id_empresa'] ?? 0);
-
+    (int)(
+        $_SESSION['id_empresa'] ?? 0
+    );
 
 $multiempresa =
-    (int)($_SESSION['multiempresa'] ?? 0);
+    (int)(
+        $_SESSION['multiempresa'] ?? 0
+    );
 
 
-
-/* =========================================================
-   SOLO POST
-   ========================================================= */
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if (
+    $_SERVER['REQUEST_METHOD'] !==
+    'POST'
+) {
 
     errorEmpresa(
         'Método de solicitud no permitido.',
@@ -165,15 +169,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 
-
-/* =========================================================
-   ROLES
-   ========================================================= */
-
 if (
     !in_array(
         $rol,
-        ['ADMIN','PROPIETARIO'],
+        [
+            'ADMIN',
+            'PROPIETARIO'
+        ],
         true
     )
 ) {
@@ -186,67 +188,59 @@ if (
 }
 
 
-
 /* =========================================================
-   DATOS DE LA EMPRESA
+   DATOS EMPRESA
    ========================================================= */
 
 $id_empresa =
-    (int)($_POST['id_empresa'] ?? 0);
-
+    (int)(
+        $_POST['id_empresa'] ?? 0
+    );
 
 $nombre_empresa =
-    trim($_POST['nombre_empresa'] ?? '');
-
+    trim(
+        $_POST['nombre_empresa'] ?? ''
+    );
 
 $razon_social =
-    trim($_POST['razon_social'] ?? '');
-
+    trim(
+        $_POST['razon_social'] ?? ''
+    );
 
 $direccion_fiscal =
-    trim($_POST['direccion_fiscal'] ?? '');
-
+    trim(
+        $_POST['direccion_fiscal'] ?? ''
+    );
 
 $responsable =
-    trim($_POST['responsable'] ?? '');
-
+    trim(
+        $_POST['responsable'] ?? ''
+    );
 
 
 /* =========================================================
-   DATOS DEL PROPIETARIO
+   DATOS PROPIETARIO
    ========================================================= */
-
-/*
- * Estos campos solamente son utilizados cuando un ADMIN
- * registra una empresa nueva.
- *
- * Cuando se edita una empresa o cuando un PROPIETARIO
- * registra otra empresa, pueden llegar vacíos sin problema.
- */
 
 $prop_nombres =
     trim(
         $_POST['prop_nombres'] ?? ''
     );
 
-
 $prop_primer_apellido =
     trim(
         $_POST['prop_primer_apellido'] ?? ''
     );
-
 
 $prop_segundo_apellido =
     trim(
         $_POST['prop_segundo_apellido'] ?? ''
     );
 
-
 $prop_nombre_usuario =
     trim(
         $_POST['prop_nombre_usuario'] ?? ''
     );
-
 
 $prop_correo_electronico =
     trim(
@@ -254,29 +248,13 @@ $prop_correo_electronico =
     );
 
 
-
-/* =========================================================
-   ¿ESTA OPERACIÓN REQUIERE DATOS DEL PROPIETARIO?
-   ========================================================= */
-
-/*
- * Solamente los necesitamos cuando:
- *
- * - El usuario que realiza la operación es ADMIN.
- * - Se está creando una empresa NUEVA.
- *
- * id_empresa <= 0 significa que todavía no existe
- * una empresa que estemos editando.
- */
-
 $requiereDatosPropietario =
     $rol === 'ADMIN' &&
     $id_empresa <= 0;
 
 
-
 /* =========================================================
-   CAMPOS OBLIGATORIOS DE LA EMPRESA
+   VALIDACIONES EMPRESA
    ========================================================= */
 
 if (
@@ -293,9 +271,22 @@ if (
 }
 
 
+if (
+    strlen($nombre_empresa) > 100 ||
+    strlen($razon_social) > 150 ||
+    strlen($direccion_fiscal) > 200 ||
+    strlen($responsable) > 100
+) {
+
+    errorEmpresa(
+        'Uno de los campos supera la longitud permitida.',
+        $db
+    );
+}
+
 
 /* =========================================================
-   CAMPOS OBLIGATORIOS DEL PROPIETARIO
+   VALIDACIONES PROPIETARIO
    ========================================================= */
 
 if ($requiereDatosPropietario) {
@@ -313,39 +304,7 @@ if ($requiereDatosPropietario) {
             $db
         );
     }
-}
 
-
-
-/* =========================================================
-   LONGITUDES DE LA EMPRESA
-   ========================================================= */
-
-if (
-    strlen($nombre_empresa) > 100 ||
-    strlen($razon_social) > 150 ||
-    strlen($direccion_fiscal) > 200 ||
-    strlen($responsable) > 100
-) {
-
-    errorEmpresa(
-        'Uno de los campos supera la longitud permitida.',
-        $db
-    );
-}
-
-
-
-/* =========================================================
-   VALIDACIONES DEL PROPIETARIO
-   ========================================================= */
-
-if ($requiereDatosPropietario) {
-
-
-    /* =====================================================
-       LONGITUDES
-       ===================================================== */
 
     if (
         strlen($prop_nombres) > 50 ||
@@ -362,10 +321,6 @@ if ($requiereDatosPropietario) {
     }
 
 
-    /* =====================================================
-       CORREO ELECTRÓNICO
-       ===================================================== */
-
     if (
         !filter_var(
             $prop_correo_electronico,
@@ -378,9 +333,7 @@ if ($requiereDatosPropietario) {
             $db
         );
     }
-
 }
-
 
 
 /* =========================================================
@@ -408,21 +361,32 @@ $stmt =
 
 
 $stmt->execute([
-    ':nombre' => $nombre_empresa,
-    ':razon' => $razon_social,
-    ':id' => $id_empresa
+    ':nombre' =>
+        $nombre_empresa,
+
+    ':razon' =>
+        $razon_social,
+
+    ':id' =>
+        $id_empresa
 ]);
 
 
 $duplicada =
-    $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->fetch(
+        PDO::FETCH_ASSOC
+    );
 
 
 if ($duplicada) {
 
     if (
         strcasecmp(
-            trim($duplicada['nombre_empresa']),
+            trim(
+                $duplicada[
+                    'nombre_empresa'
+                ]
+            ),
             $nombre_empresa
         ) === 0
     ) {
@@ -441,37 +405,18 @@ if ($duplicada) {
 }
 
 
-
 /* =========================================================
-   DETECTAR PROPIETARIO EXISTENTE
-
-   SOLO:
-   ADMIN + EMPRESA NUEVA
+   DETECTAR PROPIETARIO
    ========================================================= */
 
-$propietarioExistente = null;
+$propietarioExistente =
+    null;
 
-$tipoPropietario = null;
+$tipoPropietario =
+    null;
 
 
 if ($requiereDatosPropietario) {
-
-
-    /*
-     * Buscamos coincidencias tanto por:
-     *
-     * - RFC / nombre de usuario
-     * - correo electrónico
-     *
-     * Puede regresar:
-     *
-     * 0 registros
-     * 1 registro
-     * 2 registros
-     *
-     * Dos registros sería posible si el RFC pertenece
-     * a una persona y el correo a otra.
-     */
 
     $stmt =
         $db->conn->prepare(
@@ -510,23 +455,17 @@ if ($requiereDatosPropietario) {
         );
 
 
-    /*
-     * Guardaremos por separado:
-     *
-     * - usuario encontrado por RFC
-     * - usuario encontrado por correo
-     */
+    $usuarioPorRFC =
+        null;
 
-    $usuarioPorRFC = null;
-
-    $usuarioPorCorreo = null;
+    $usuarioPorCorreo =
+        null;
 
 
     foreach (
         $usuariosEncontrados
         as $usuarioEncontrado
     ) {
-
 
         if (
             strcasecmp(
@@ -561,26 +500,18 @@ if ($requiereDatosPropietario) {
     }
 
 
-
-    /* =====================================================
-       CASO 1
-       RFC Y CORREO EXISTEN
-       ===================================================== */
-
     if (
         $usuarioPorRFC &&
         $usuarioPorCorreo
     ) {
 
-
-        /*
-         * Los dos datos existen, pero debemos comprobar
-         * que pertenezcan al MISMO usuario.
-         */
-
         if (
-            (int)$usuarioPorRFC['id_usuario'] !==
-            (int)$usuarioPorCorreo['id_usuario']
+            (int)$usuarioPorRFC[
+                'id_usuario'
+            ] !==
+            (int)$usuarioPorCorreo[
+                'id_usuario'
+            ]
         ) {
 
             errorEmpresa(
@@ -590,23 +521,14 @@ if ($requiereDatosPropietario) {
         }
 
 
-        /*
-         * RFC y correo pertenecen al mismo usuario.
-         *
-         * Ahora verificamos que realmente sea
-         * un PROPIETARIO.
-         */
-
-        $rolPropietarioExistente =
+        if (
             strtoupper(
                 trim(
-                    $usuarioPorRFC['rol'] ?? ''
+                    $usuarioPorRFC[
+                        'rol'
+                    ] ?? ''
                 )
-            );
-
-
-        if (
-            $rolPropietarioExistente !==
+            ) !==
             'PROPIETARIO'
         ) {
 
@@ -617,23 +539,12 @@ if ($requiereDatosPropietario) {
         }
 
 
-        /*
-         * El usuario existe y sí es propietario.
-         */
-
         $propietarioExistente =
             $usuarioPorRFC;
-
 
         $tipoPropietario =
             'EXISTENTE';
 
-
-
-    /* =====================================================
-       CASO 2
-       SOLO EXISTE EL RFC
-       ===================================================== */
 
     } elseif ($usuarioPorRFC) {
 
@@ -643,12 +554,6 @@ if ($requiereDatosPropietario) {
         );
 
 
-
-    /* =====================================================
-       CASO 3
-       SOLO EXISTE EL CORREO
-       ===================================================== */
-
     } elseif ($usuarioPorCorreo) {
 
         errorEmpresa(
@@ -657,58 +562,16 @@ if ($requiereDatosPropietario) {
         );
 
 
-
-    /* =====================================================
-       CASO 4
-       NO EXISTE RFC NI CORREO
-       ===================================================== */
-
     } else {
 
         $tipoPropietario =
             'NUEVO';
     }
-
-
-
-    /* =====================================================
-       DETENCIÓN TEMPORAL PARA PRUEBAS
-
-       IMPORTANTE:
-
-       En esta fase todavía NO queremos crear la empresa.
-
-       Primero verificaremos que la detección de propietarios
-       nuevos / existentes funcione correctamente.
-
-       Este bloque se quitará en la siguiente fase.
-       ===================================================== */
-
-    if (
-        $tipoPropietario ===
-        'NUEVO'
-    ) {
-
-        mensajeDeteccionPropietario(
-            'Validación correcta. El RFC y correo no existen en usuarios. Este propietario deberá crearse como una cuenta nueva.',
-            $db
-        );
-    }
-
-
-    if (
-        $tipoPropietario ===
-        'EXISTENTE'
-    ) {
-
-        mensajeDeteccionPropietario(
-            'Validación correcta. El propietario ya existe y podrá vincularse con la nueva empresa sin crear otra cuenta.',
-            $db
-        );
-    }
-
 }
 
+
+$contrasenaTemporalGenerada =
+    null;
 
 
 /* =========================================================
@@ -717,15 +580,13 @@ if ($requiereDatosPropietario) {
 
 try {
 
-
     /* =====================================================
-       ACTUALIZAR EMPRESA
+       EDITAR EMPRESA
        ===================================================== */
 
     if ($id_empresa > 0) {
 
 
-        /* ADMIN */
         if ($rol === 'ADMIN') {
 
             $stmt =
@@ -741,12 +602,14 @@ try {
 
 
             $stmt->execute([
-                ':empresa' => $id_empresa
+                ':empresa' =>
+                    $id_empresa
             ]);
 
 
-        /* PROPIETARIO MULTIEMPRESA */
-        } elseif ($multiempresa === 1) {
+        } elseif (
+            $multiempresa === 1
+        ) {
 
             $stmt =
                 $db->conn->prepare(
@@ -755,22 +618,28 @@ try {
                      FROM empresas e
 
                      INNER JOIN usuario_empresas ue
-                        ON ue.id_empresa = e.id_empresa
+                        ON ue.id_empresa =
+                           e.id_empresa
 
-                     WHERE e.id_empresa = :empresa
-                     AND ue.id_usuario = :usuario
+                     WHERE e.id_empresa =
+                           :empresa
+
+                     AND ue.id_usuario =
+                         :usuario
 
                      LIMIT 1"
                 );
 
 
             $stmt->execute([
-                ':empresa' => $id_empresa,
-                ':usuario' => $id_usuario
+                ':empresa' =>
+                    $id_empresa,
+
+                ':usuario' =>
+                    $id_usuario
             ]);
 
 
-        /* PROPIETARIO INDIVIDUAL */
         } else {
 
             $stmt =
@@ -779,15 +648,20 @@ try {
 
                      FROM empresas
 
-                     WHERE id_empresa = :empresa
-                     AND id_empresa = :empresa_sesion
+                     WHERE id_empresa =
+                           :empresa
+
+                     AND id_empresa =
+                         :empresa_sesion
 
                      LIMIT 1"
                 );
 
 
             $stmt->execute([
-                ':empresa' => $id_empresa,
+                ':empresa' =>
+                    $id_empresa,
+
                 ':empresa_sesion' =>
                     $id_empresa_sesion
             ]);
@@ -804,29 +678,43 @@ try {
         }
 
 
-        /* ACTUALIZAR */
-
         $stmt =
             $db->conn->prepare(
                 "UPDATE empresas SET
 
-                    nombre_empresa = :nombre,
-                    razon_social = :razon,
-                    direccion_fiscal = :direccion,
-                    responsable = :responsable
+                    nombre_empresa =
+                        :nombre,
 
-                 WHERE id_empresa = :empresa"
+                    razon_social =
+                        :razon,
+
+                    direccion_fiscal =
+                        :direccion,
+
+                    responsable =
+                        :responsable
+
+                 WHERE id_empresa =
+                       :empresa"
             );
 
 
         $stmt->execute([
-            ':nombre' => $nombre_empresa,
-            ':razon' => $razon_social,
-            ':direccion' => $direccion_fiscal,
-            ':responsable' => $responsable,
-            ':empresa' => $id_empresa
-        ]);
+            ':nombre' =>
+                $nombre_empresa,
 
+            ':razon' =>
+                $razon_social,
+
+            ':direccion' =>
+                $direccion_fiscal,
+
+            ':responsable' =>
+                $responsable,
+
+            ':empresa' =>
+                $id_empresa
+        ]);
 
 
     /* =====================================================
@@ -835,41 +723,47 @@ try {
 
     } else {
 
+        $db->conn
+            ->beginTransaction();
 
-        $db->conn->beginTransaction();
-
-
-        /* CREAR EMPRESA */
 
         $stmt =
             $db->conn->prepare(
-                "INSERT INTO empresas (
-
+                "INSERT INTO empresas
+                (
                     nombre_empresa,
                     razon_social,
                     direccion_fiscal,
                     responsable
-
-                 ) VALUES (
-
+                )
+                VALUES
+                (
                     :nombre,
                     :razon,
                     :direccion,
                     :responsable
-
-                 )"
+                )"
             );
 
 
         $stmt->execute([
-            ':nombre' => $nombre_empresa,
-            ':razon' => $razon_social,
-            ':direccion' => $direccion_fiscal,
-            ':responsable' => $responsable
+            ':nombre' =>
+                $nombre_empresa,
+
+            ':razon' =>
+                $razon_social,
+
+            ':direccion' =>
+                $direccion_fiscal,
+
+            ':responsable' =>
+                $responsable
         ]);
 
 
-        if ($stmt->rowCount() !== 1) {
+        if (
+            $stmt->rowCount() !== 1
+        ) {
 
             throw new Exception(
                 'No fue posible insertar la empresa.'
@@ -878,22 +772,293 @@ try {
 
 
         $nueva_empresa =
-            (int)$db->conn->lastInsertId();
-
+            (int)$db->conn
+                ->lastInsertId();
 
 
         /* =================================================
-           SI LA CREA UN PROPIETARIO
+           ADMIN: CREAR O VINCULAR PROPIETARIO
            ================================================= */
 
-        if ($rol === 'PROPIETARIO') {
+        if ($rol === 'ADMIN') {
 
 
-            /*
-             * Debe tener una empresa original.
-             */
+            /* PROPIETARIO NUEVO */
 
-            if ($id_empresa_sesion <= 0) {
+            if (
+                $tipoPropietario ===
+                'NUEVO'
+            ) {
+
+                $contrasenaTemporalGenerada =
+                    generarContrasenaTemporal(
+                        12
+                    );
+
+
+                $hashContrasena =
+                    password_hash(
+                        $contrasenaTemporalGenerada,
+                        PASSWORD_DEFAULT
+                    );
+
+
+                if (
+                    $hashContrasena ===
+                    false
+                ) {
+
+                    throw new Exception(
+                        'No fue posible proteger la contraseña temporal del propietario.'
+                    );
+                }
+
+
+                $stmt =
+                    $db->conn->prepare(
+                        "INSERT INTO usuarios
+                        (
+                            nombre_usuario,
+                            nombres,
+                            primer_apellido,
+                            segundo_apellido,
+                            contrasena,
+                            rol,
+                            correo_electronico,
+                            id_empresa,
+                            multiempresa
+                        )
+                        VALUES
+                        (
+                            :usuario,
+                            :nombres,
+                            :apellido1,
+                            :apellido2,
+                            :contrasena,
+                            'PROPIETARIO',
+                            :correo,
+                            :empresa,
+                            0
+                        )"
+                    );
+
+
+                $stmt->execute([
+                    ':usuario' =>
+                        $prop_nombre_usuario,
+
+                    ':nombres' =>
+                        $prop_nombres,
+
+                    ':apellido1' =>
+                        $prop_primer_apellido,
+
+                    ':apellido2' =>
+                        $prop_segundo_apellido,
+
+                    ':contrasena' =>
+                        $hashContrasena,
+
+                    ':correo' =>
+                        $prop_correo_electronico,
+
+                    ':empresa' =>
+                        $nueva_empresa
+                ]);
+
+
+                if (
+                    $stmt->rowCount() !== 1
+                ) {
+
+                    throw new Exception(
+                        'No fue posible crear la cuenta del propietario.'
+                    );
+                }
+
+
+            /* PROPIETARIO EXISTENTE */
+
+            } elseif (
+                $tipoPropietario ===
+                'EXISTENTE'
+            ) {
+
+                $idPropietario =
+                    (int)(
+                        $propietarioExistente[
+                            'id_usuario'
+                        ] ?? 0
+                    );
+
+
+                $esMultiempresa =
+                    (int)(
+                        $propietarioExistente[
+                            'multiempresa'
+                        ] ?? 0
+                    );
+
+
+                $empresaOriginal =
+                    (int)(
+                        $propietarioExistente[
+                            'id_empresa'
+                        ] ?? 0
+                    );
+
+
+                if (
+                    $idPropietario <= 0
+                ) {
+
+                    throw new Exception(
+                        'No fue posible identificar al propietario existente.'
+                    );
+                }
+
+
+                if (
+                    $esMultiempresa !== 1
+                ) {
+
+                    if (
+                        $empresaOriginal <= 0
+                    ) {
+
+                        throw new Exception(
+                            'El propietario existente no tiene una empresa original asignada.'
+                        );
+                    }
+
+
+                    $stmt =
+                        $db->conn->prepare(
+                            "SELECT id_empresa
+
+                             FROM empresas
+
+                             WHERE id_empresa =
+                                   :empresa
+
+                             LIMIT 1"
+                        );
+
+
+                    $stmt->execute([
+                        ':empresa' =>
+                            $empresaOriginal
+                    ]);
+
+
+                    if (
+                        !$stmt->fetchColumn()
+                    ) {
+
+                        throw new Exception(
+                            'La empresa original del propietario existente ya no existe.'
+                        );
+                    }
+
+
+                    $stmt =
+                        $db->conn->prepare(
+                            "INSERT IGNORE INTO
+                             usuario_empresas
+                             (
+                                id_usuario,
+                                id_empresa
+                             )
+                             VALUES
+                             (
+                                :usuario,
+                                :empresa_original
+                             ),
+                             (
+                                :usuario,
+                                :empresa_nueva
+                             )"
+                        );
+
+
+                    $stmt->execute([
+                        ':usuario' =>
+                            $idPropietario,
+
+                        ':empresa_original' =>
+                            $empresaOriginal,
+
+                        ':empresa_nueva' =>
+                            $nueva_empresa
+                    ]);
+
+
+                } else {
+
+                    $stmt =
+                        $db->conn->prepare(
+                            "INSERT IGNORE INTO
+                             usuario_empresas
+                             (
+                                id_usuario,
+                                id_empresa
+                             )
+                             VALUES
+                             (
+                                :usuario,
+                                :empresa
+                             )"
+                        );
+
+
+                    $stmt->execute([
+                        ':usuario' =>
+                            $idPropietario,
+
+                        ':empresa' =>
+                            $nueva_empresa
+                    ]);
+                }
+
+
+                $stmt =
+                    $db->conn->prepare(
+                        "UPDATE usuarios
+
+                         SET multiempresa = 1
+
+                         WHERE id_usuario =
+                               :usuario"
+                    );
+
+
+                $stmt->execute([
+                    ':usuario' =>
+                        $idPropietario
+                ]);
+
+
+            } else {
+
+                throw new Exception(
+                    'No fue posible determinar el tipo de propietario.'
+                );
+            }
+        }
+
+
+        /* =================================================
+           PROPIETARIO CREA OTRA EMPRESA
+           ================================================= */
+
+        if (
+            $rol ===
+            'PROPIETARIO'
+        ) {
+
+            if (
+                $id_empresa_sesion <= 0
+            ) {
 
                 throw new Exception(
                     'El propietario no tiene una empresa original asignada.'
@@ -907,7 +1072,8 @@ try {
 
                      FROM empresas
 
-                     WHERE id_empresa = :empresa
+                     WHERE id_empresa =
+                           :empresa
 
                      LIMIT 1"
                 );
@@ -927,44 +1093,37 @@ try {
             }
 
 
-            /*
-             * Registrar:
-             *
-             * - empresa original
-             * - empresa nueva
-             */
-
             $stmt =
                 $db->conn->prepare(
-                    "INSERT IGNORE INTO usuario_empresas
-                    (
+                    "INSERT IGNORE INTO
+                     usuario_empresas
+                     (
                         id_usuario,
                         id_empresa
-                    )
-                    VALUES
-                    (
+                     )
+                     VALUES
+                     (
                         :usuario,
                         :empresa_original
-                    ),
-                    (
+                     ),
+                     (
                         :usuario,
                         :empresa_nueva
-                    )"
+                     )"
                 );
 
 
             $stmt->execute([
-                ':usuario' => $id_usuario,
+                ':usuario' =>
+                    $id_usuario,
+
                 ':empresa_original' =>
                     $id_empresa_sesion,
+
                 ':empresa_nueva' =>
                     $nueva_empresa
             ]);
 
-
-            /*
-             * Convertir usuario a multiempresa.
-             */
 
             $stmt =
                 $db->conn->prepare(
@@ -972,39 +1131,87 @@ try {
 
                      SET multiempresa = 1
 
-                     WHERE id_usuario = :usuario"
+                     WHERE id_usuario =
+                           :usuario"
                 );
 
 
             $stmt->execute([
-                ':usuario' => $id_usuario
+                ':usuario' =>
+                    $id_usuario
             ]);
         }
 
 
-        /*
-         * Solo si TODO salió bien.
-         */
+        /* TODO SALIÓ BIEN */
 
         $db->conn->commit();
 
 
-        if ($rol === 'PROPIETARIO') {
+        if (
+            $rol ===
+            'PROPIETARIO'
+        ) {
 
-            $_SESSION['multiempresa'] = 1;
+            $_SESSION[
+                'multiempresa'
+            ] = 1;
 
             $multiempresa = 1;
+        }
+
+
+        /* MOSTRAR CONTRASEÑA TEMPORAL */
+
+        if (
+            $rol === 'ADMIN' &&
+            $tipoPropietario ===
+                'NUEVO' &&
+            $contrasenaTemporalGenerada !==
+                null
+        ) {
+
+            $mensaje =
+                json_encode(
+                    "Empresa y propietario creados correctamente.\n\n" .
+                    "Usuario: {$prop_nombre_usuario}\n" .
+                    "Contraseña temporal: {$contrasenaTemporalGenerada}\n\n" .
+                    "Guarda esta contraseña para probar el inicio de sesión.",
+                    JSON_UNESCAPED_UNICODE |
+                    JSON_UNESCAPED_SLASHES
+                );
+
+
+            echo "<script>
+
+                if(
+                    typeof Swal !==
+                    'undefined'
+                ){
+
+                    Swal.fire({
+                        icon:'success',
+                        title:'Propietario creado',
+                        text:$mensaje,
+                        confirmButtonText:'Entendido',
+                        confirmButtonColor:'#1e40af'
+                    });
+                }
+
+            </script>";
         }
     }
 
 
-
 } catch (Throwable $e) {
 
+    if (
+        $db->conn
+            ->inTransaction()
+    ) {
 
-    if ($db->conn->inTransaction()) {
-
-        $db->conn->rollBack();
+        $db->conn
+            ->rollBack();
     }
 
 
@@ -1013,8 +1220,10 @@ try {
 
 
     if (
-        $e instanceof PDOException &&
-        (string)$e->getCode() === '23000'
+        $e instanceof
+            PDOException &&
+        (string)$e->getCode() ===
+            '23000'
     ) {
 
         $mensaje =
@@ -1029,7 +1238,6 @@ try {
 }
 
 
-
 /* =========================================================
    RECARGAR TABLA
    ========================================================= */
@@ -1042,7 +1250,9 @@ if ($rol === 'ADMIN') {
          ORDER BY id_empresa DESC";
 
 
-} elseif ($multiempresa === 1) {
+} elseif (
+    $multiempresa === 1
+) {
 
     $sql =
         "SELECT e.*
@@ -1050,21 +1260,26 @@ if ($rol === 'ADMIN') {
          FROM empresas e
 
          INNER JOIN usuario_empresas ue
-            ON ue.id_empresa = e.id_empresa
+            ON ue.id_empresa =
+               e.id_empresa
 
-         WHERE ue.id_usuario = $id_usuario
+         WHERE ue.id_usuario =
+               $id_usuario
 
          ORDER BY e.id_empresa DESC";
 
 
-} elseif ($id_empresa_sesion > 0) {
+} elseif (
+    $id_empresa_sesion > 0
+) {
 
     $sql =
         "SELECT *
 
          FROM empresas
 
-         WHERE id_empresa = $id_empresa_sesion";
+         WHERE id_empresa =
+               $id_empresa_sesion";
 
 
 } else {
@@ -1079,7 +1294,9 @@ if ($rol === 'ADMIN') {
 
 
 $datos2 =
-    $db->obtenerRegistros($sql);
+    $db->obtenerRegistros(
+        $sql
+    );
 
 
 include "../empresas/tabla.php";
