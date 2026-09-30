@@ -1,12 +1,5 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-
-/* =========================================================
-   SEGURIDAD
-   ========================================================= */
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 $rolTabla = strtoupper(trim($_SESSION['rol'] ?? ''));
 
@@ -25,13 +18,15 @@ if (!in_array($rolTabla, ['ADMIN', 'PROPIETARIO'], true)) {
     );
 }
 
-
 $datos2 = $datos2 ?? [];
 
+$esAdminTabla = $rolTabla === 'ADMIN';
 
-/* =========================================================
-   ESCAPAR TEXTO
-   ========================================================= */
+$colspanTabla =
+    $esAdminTabla
+        ? 4
+        : 3;
+
 
 function eEmpresa($valor)
 {
@@ -43,12 +38,7 @@ function eEmpresa($valor)
 }
 ?>
 
-
 <style>
-
-/* =========================================================
-   TABLA COMPACTA DE EMPRESAS
-   ========================================================= */
 
 #tablaEmpresas th {
     white-space: nowrap;
@@ -118,6 +108,20 @@ function eEmpresa($valor)
     display: none;
 }
 
+.modo-consulta-empresa {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: .76rem;
+    font-weight: 700;
+    background: rgba(59,130,246,.10);
+    color: var(--accent-color);
+    border: 1px solid rgba(59,130,246,.25);
+}
+
 @media (max-width: 768px) {
 
     .empresa-buscador {
@@ -128,13 +132,7 @@ function eEmpresa($valor)
 </style>
 
 
-
 <div class="table-container">
-
-
-    <!-- =====================================================
-         CABECERA
-         ===================================================== -->
 
     <div
         class="table-header-title"
@@ -148,12 +146,42 @@ function eEmpresa($valor)
         "
     >
 
-        <h3 style="margin:0;">
-            Empresas registradas
-        </h3>
+        <div
+            style="
+                display:flex;
+                align-items:center;
+                flex-wrap:wrap;
+            "
+        >
+
+            <h3 style="margin:0;">
+
+                <?php if ($esAdminTabla): ?>
+
+                    Empresas registradas
+
+                <?php else: ?>
+
+                    Empresas asignadas
+
+                <?php endif; ?>
+
+            </h3>
 
 
-        <!-- BUSCADOR -->
+            <?php if (!$esAdminTabla): ?>
+
+                <span class="modo-consulta-empresa">
+
+                    👁 Solo consulta
+
+                </span>
+
+            <?php endif; ?>
+
+        </div>
+
+
         <div class="empresa-buscador">
 
             <input
@@ -164,6 +192,7 @@ function eEmpresa($valor)
                 autocomplete="off"
                 oninput="filtrarEmpresasTabla()"
             >
+
 
             <button
                 type="button"
@@ -179,11 +208,6 @@ function eEmpresa($valor)
 
     </div>
 
-
-
-    <!-- =====================================================
-         TABLA
-         ===================================================== -->
 
     <div class="table-responsive">
 
@@ -208,9 +232,14 @@ function eEmpresa($valor)
                         Responsable
                     </th>
 
-                    <th class="text-center">
-                        Acciones
-                    </th>
+
+                    <?php if ($esAdminTabla): ?>
+
+                        <th class="text-center">
+                            Acciones
+                        </th>
+
+                    <?php endif; ?>
 
                 </tr>
 
@@ -225,26 +254,38 @@ function eEmpresa($valor)
 
                 <?php foreach ($datos2 as $dato):
 
-                    $id = (int)($dato['id_empresa'] ?? 0);
+                    $id =
+                        (int)(
+                            $dato['id_empresa'] ?? 0
+                        );
 
                     $nombre =
-                        trim($dato['nombre_empresa'] ?? '');
+                        trim(
+                            $dato['nombre_empresa'] ?? ''
+                        );
 
                     $razon =
-                        trim($dato['razon_social'] ?? '');
+                        trim(
+                            $dato['razon_social'] ?? ''
+                        );
 
                     $direccion =
-                        trim($dato['direccion_fiscal'] ?? '');
+                        trim(
+                            $dato['direccion_fiscal'] ?? ''
+                        );
 
                     $responsable =
-                        trim($dato['responsable'] ?? '');
+                        trim(
+                            $dato['responsable'] ?? ''
+                        );
 
-                    $busqueda = strtolower(
-                        $nombre . ' ' .
-                        $razon . ' ' .
-                        $direccion . ' ' .
-                        $responsable
-                    );
+                    $busqueda =
+                        strtolower(
+                            $nombre . ' ' .
+                            $razon . ' ' .
+                            $direccion . ' ' .
+                            $responsable
+                        );
 
                 ?>
 
@@ -255,79 +296,85 @@ function eEmpresa($valor)
                     >
 
 
-                        <!-- EMPRESA -->
                         <td>
 
                             <div class="empresa-nombre">
+
                                 <?= eEmpresa($nombre) ?>
+
                             </div>
 
+
                             <div class="empresa-razon">
+
                                 <?= eEmpresa($razon) ?>
+
                             </div>
 
                         </td>
 
 
-
-                        <!-- DIRECCIÓN -->
                         <td>
 
                             <span class="empresa-direccion">
+
                                 <?= eEmpresa($direccion) ?>
+
                             </span>
 
                         </td>
 
 
-
-                        <!-- RESPONSABLE -->
                         <td>
 
                             <span class="empresa-responsable">
+
                                 <?= eEmpresa($responsable) ?>
+
                             </span>
 
                         </td>
 
 
+                        <?php if ($esAdminTabla): ?>
 
-                        <!-- ACCIONES -->
-                        <td class="text-center">
+                            <td class="text-center">
 
-                            <div class="empresa-acciones">
-
-
-                                <button
-                                    type="button"
-                                    class="btn-action btn-edit"
-                                    onclick="editar(
-                                        '<?= $id ?>',
-                                        'empresas',
-                                        'frm'
-                                    )"
-                                    title="Editar empresa"
-                                >
-                                    ✏️
-                                </button>
+                                <div class="empresa-acciones">
 
 
-                                <button
-                                    type="button"
-                                    class="btn-action btn-delete"
-                                    onclick="eliminar(
-                                        '<?= $id ?>',
-                                        'empresas'
-                                    )"
-                                    title="Eliminar empresa"
-                                >
-                                    🗑️
-                                </button>
+                                    <button
+                                        type="button"
+                                        class="btn-action btn-edit"
+                                        onclick="editar(
+                                            '<?= $id ?>',
+                                            'empresas',
+                                            'frm'
+                                        )"
+                                        title="Editar empresa"
+                                    >
+                                        ✏️
+                                    </button>
 
 
-                            </div>
+                                    <button
+                                        type="button"
+                                        class="btn-action btn-delete"
+                                        onclick="eliminar(
+                                            '<?= $id ?>',
+                                            'empresas'
+                                        )"
+                                        title="Eliminar empresa"
+                                    >
+                                        🗑️
+                                    </button>
 
-                        </td>
+
+                                </div>
+
+                            </td>
+
+                        <?php endif; ?>
 
 
                     </tr>
@@ -336,15 +383,13 @@ function eEmpresa($valor)
                 <?php endforeach; ?>
 
 
-
-                <!-- SIN RESULTADOS -->
                 <tr
                     id="filaSinEmpresas"
                     style="display:none;"
                 >
 
                     <td
-                        colspan="4"
+                        colspan="<?= $colspanTabla ?>"
                         class="text-center"
                         style="padding:20px;"
                     >
@@ -360,11 +405,21 @@ function eEmpresa($valor)
                 <tr>
 
                     <td
-                        colspan="4"
+                        colspan="<?= $colspanTabla ?>"
                         class="text-center"
                         style="padding:20px;"
                     >
-                        No hay empresas registradas.
+
+                        <?php if ($esAdminTabla): ?>
+
+                            No hay empresas registradas.
+
+                        <?php else: ?>
+
+                            No tienes empresas asignadas.
+
+                        <?php endif; ?>
+
                     </td>
 
                 </tr>
@@ -382,23 +437,24 @@ function eEmpresa($valor)
 </div>
 
 
-
 <script>
-
-/* =========================================================
-   BUSCADOR DE EMPRESAS
-   ========================================================= */
 
 function filtrarEmpresasTabla()
 {
     const input =
-        document.getElementById('inputBuscadorEmpresa');
+        document.getElementById(
+            'inputBuscadorEmpresa'
+        );
 
-    if (!input) return;
+    if (!input) {
+        return;
+    }
 
 
     const termino =
-        input.value.toLowerCase().trim();
+        input.value
+            .toLowerCase()
+            .trim();
 
 
     const filas =
@@ -408,11 +464,15 @@ function filtrarEmpresasTabla()
 
 
     const btnLimpiar =
-        document.getElementById('btnLimpiarEmpresa');
+        document.getElementById(
+            'btnLimpiarEmpresa'
+        );
 
 
     const sinResultados =
-        document.getElementById('filaSinEmpresas');
+        document.getElementById(
+            'filaSinEmpresas'
+        );
 
 
     let visibles = 0;
@@ -421,20 +481,27 @@ function filtrarEmpresasTabla()
     filas.forEach(fila => {
 
         const texto =
-            (fila.dataset.busqueda || '').toLowerCase();
+            (
+                fila.dataset.busqueda || ''
+            ).toLowerCase();
 
 
         const coincide =
-            texto.includes(termino);
+            texto.includes(
+                termino
+            );
 
 
         fila.style.display =
-            coincide ? '' : 'none';
+            coincide
+                ? ''
+                : 'none';
 
 
         if (coincide) {
             visibles++;
         }
+
     });
 
 
@@ -450,25 +517,25 @@ function filtrarEmpresasTabla()
     if (sinResultados) {
 
         sinResultados.style.display =
-            termino !== '' && visibles === 0
+            termino !== '' &&
+            visibles === 0
                 ? ''
                 : 'none';
     }
 }
 
 
-
-/* =========================================================
-   LIMPIAR BUSCADOR
-   ========================================================= */
-
 function limpiarBuscadorEmpresa()
 {
     const input =
-        document.getElementById('inputBuscadorEmpresa');
+        document.getElementById(
+            'inputBuscadorEmpresa'
+        );
 
 
-    if (!input) return;
+    if (!input) {
+        return;
+    }
 
 
     input.value = '';

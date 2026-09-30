@@ -523,14 +523,540 @@ function habilitarBotonesMenu() {
     }
 }
 
+/* =========================================================
+   EMPRESAS - RESPUESTAS DEL BACKEND
+   ========================================================= */
 
+function extraerRespuestaEmpresa(html) {
+
+    const patron =
+        /<!--\s*EMPRESA_RESPUESTA:(\{[\s\S]*?\})\s*-->/;
+
+    const match =
+        html.match(
+            patron
+        );
+
+
+    if (!match) {
+        return null;
+    }
+
+
+    try {
+
+        return {
+
+            datos:
+                JSON.parse(
+                    match[1]
+                ),
+
+            htmlTabla:
+                html
+                    .replace(
+                        patron,
+                        ''
+                    )
+                    .trim()
+        };
+
+
+    } catch (error) {
+
+        console.error(
+            'Respuesta de Empresas no válida:',
+            error
+        );
+
+        return null;
+    }
+}
+
+
+function escaparHtmlEmpresa(valor) {
+
+    return String(
+        valor ?? ''
+    )
+    .replaceAll(
+        '&',
+        '&amp;'
+    )
+    .replaceAll(
+        '<',
+        '&lt;'
+    )
+    .replaceAll(
+        '>',
+        '&gt;'
+    )
+    .replaceAll(
+        '"',
+        '&quot;'
+    )
+    .replaceAll(
+        "'",
+        '&#039;'
+    );
+}
+
+
+function mostrarRespuestaEmpresa(datos) {
+
+    if (!datos) {
+        return;
+    }
+
+
+    /* ERROR */
+
+    if (!datos.ok) {
+
+        const mensaje =
+            datos.mensaje ||
+            'No fue posible realizar la operación.';
+
+
+        if (
+            typeof Swal !==
+            'undefined'
+        ) {
+
+            Swal.fire({
+
+                icon:
+                    'error',
+
+                title:
+                    'No se pudo guardar la empresa',
+
+                text:
+                    mensaje,
+
+                confirmButtonText:
+                    'Entendido',
+
+                confirmButtonColor:
+                    '#1e40af'
+            });
+
+
+        } else {
+
+            alert(
+                mensaje
+            );
+        }
+
+
+        return;
+    }
+
+
+    /* PROPIETARIO NUEVO */
+
+    if (
+        datos.accion ===
+        'PROPIETARIO_NUEVO'
+    ) {
+
+        const usuario =
+            escaparHtmlEmpresa(
+                datos.usuario
+            );
+
+
+        const contrasena =
+            escaparHtmlEmpresa(
+                datos.contrasena_temporal
+            );
+
+
+        const html = `
+
+            <div style="
+                text-align:left;
+                font-size:16px;
+                line-height:1.6;
+            ">
+
+                <p style="
+                    margin:0 0 18px;
+                    text-align:center;
+                ">
+                    La empresa y el propietario
+                    fueron creados correctamente.
+                </p>
+
+
+                <div style="
+                    margin-bottom:14px;
+                    padding:12px 15px;
+                    border-radius:10px;
+                    background:#f3f4f6;
+                ">
+
+                    <div style="
+                        font-size:13px;
+                        color:#6b7280;
+                        margin-bottom:4px;
+                        font-weight:600;
+                    ">
+                        USUARIO
+                    </div>
+
+
+                    <div style="
+                        font-size:18px;
+                        font-weight:800;
+                        color:#111827;
+                        word-break:break-all;
+                    ">
+                        ${usuario}
+                    </div>
+
+                </div>
+
+
+                <div style="
+                    margin-bottom:16px;
+                    padding:12px 15px;
+                    border-radius:10px;
+                    background:#eff6ff;
+                    border:1px solid #bfdbfe;
+                ">
+
+                    <div style="
+                        font-size:13px;
+                        color:#1d4ed8;
+                        margin-bottom:4px;
+                        font-weight:600;
+                    ">
+                        CONTRASEÑA TEMPORAL
+                    </div>
+
+
+                    <div style="
+                        font-size:20px;
+                        font-weight:800;
+                        color:#1e40af;
+                        font-family:monospace;
+                        letter-spacing:1px;
+                        word-break:break-all;
+                    ">
+                        ${contrasena}
+                    </div>
+
+                </div>
+
+
+                <p style="
+                    margin:0;
+                    font-size:14px;
+                    text-align:center;
+                    color:#6b7280;
+                ">
+                    Guarda esta contraseña para
+                    realizar el primer inicio de sesión.
+                </p>
+
+            </div>
+        `;
+
+
+        if (
+            typeof Swal !==
+            'undefined'
+        ) {
+
+            Swal.fire({
+
+                icon:
+                    'success',
+
+                title:
+                    'Propietario creado',
+
+                html:
+                    html,
+
+                confirmButtonText:
+                    'Entendido',
+
+                confirmButtonColor:
+                    '#1e40af',
+
+                width:
+                    600
+            });
+        }
+
+
+        return;
+    }
+
+
+    /* PROPIETARIO EXISTENTE */
+
+    if (
+        datos.accion ===
+        'PROPIETARIO_EXISTENTE'
+    ) {
+
+        const usuario =
+            escaparHtmlEmpresa(
+                datos.usuario
+            );
+
+
+        const empresa =
+            escaparHtmlEmpresa(
+                datos.empresa
+            );
+
+
+        const html = `
+
+            <div style="
+                text-align:left;
+                font-size:16px;
+                line-height:1.6;
+            ">
+
+                <p style="
+                    margin:0 0 18px;
+                    text-align:center;
+                ">
+                    La empresa fue registrada correctamente
+                    y se vinculó al propietario existente.
+                </p>
+
+
+                <div style="
+                    margin-bottom:14px;
+                    padding:12px 15px;
+                    border-radius:10px;
+                    background:#f3f4f6;
+                ">
+
+                    <div style="
+                        font-size:13px;
+                        color:#6b7280;
+                        margin-bottom:4px;
+                        font-weight:600;
+                    ">
+                        PROPIETARIO
+                    </div>
+
+
+                    <div style="
+                        font-size:18px;
+                        font-weight:800;
+                        color:#111827;
+                        word-break:break-all;
+                    ">
+                        ${usuario}
+                    </div>
+
+                </div>
+
+
+                <div style="
+                    margin-bottom:16px;
+                    padding:12px 15px;
+                    border-radius:10px;
+                    background:#eff6ff;
+                    border:1px solid #bfdbfe;
+                ">
+
+                    <div style="
+                        font-size:13px;
+                        color:#1d4ed8;
+                        margin-bottom:4px;
+                        font-weight:600;
+                    ">
+                        EMPRESA ASIGNADA
+                    </div>
+
+
+                    <div style="
+                        font-size:18px;
+                        font-weight:800;
+                        color:#1e40af;
+                        word-break:break-word;
+                    ">
+                        ${empresa}
+                    </div>
+
+                </div>
+
+
+                <p style="
+                    margin:0;
+                    font-size:14px;
+                    text-align:center;
+                    color:#6b7280;
+                ">
+                    El propietario ya tenía una cuenta,
+                    por lo que conserva su contraseña actual.
+                </p>
+
+            </div>
+        `;
+
+
+        if (
+            typeof Swal !==
+            'undefined'
+        ) {
+
+            Swal.fire({
+
+                icon:
+                    'success',
+
+                title:
+                    'Propietario vinculado',
+
+                html:
+                    html,
+
+                confirmButtonText:
+                    'Entendido',
+
+                confirmButtonColor:
+                    '#1e40af',
+
+                width:
+                    600
+            });
+        }
+
+
+        return;
+    }
+
+
+    /* EDICIÓN NORMAL */
+
+    if (
+        typeof mostrarToast ===
+        'function'
+    ) {
+
+        mostrarToast(
+
+            datos.mensaje ||
+            'Registro guardado correctamente'
+        );
+    }
+}
+
+
+function procesarRespuestaEmpresa(
+    response,
+    html,
+    cont,
+    frm,
+    campoId
+) {
+
+    const respuesta =
+        extraerRespuestaEmpresa(
+            html
+        );
+
+
+    if (!respuesta) {
+        return false;
+    }
+
+
+    const datos =
+        respuesta.datos;
+
+
+    /* ERROR */
+
+    if (
+        !response.ok ||
+        !datos.ok
+    ) {
+
+        mostrarRespuestaEmpresa(
+            datos
+        );
+
+
+        if (
+            datos.cerrar &&
+            typeof cerrarModalEmpresa ===
+            'function'
+        ) {
+
+            cerrarModalEmpresa();
+        }
+
+
+        return true;
+    }
+
+
+    /* ACTUALIZAR TABLA */
+
+    if (
+        cont &&
+        respuesta.htmlTabla
+    ) {
+
+        cont.innerHTML =
+            respuesta.htmlTabla;
+    }
+
+
+    /* LIMPIAR */
+
+    frm.reset();
+
+
+    if (campoId) {
+
+        campoId.value =
+            '';
+    }
+
+
+    /* CERRAR MODAL */
+
+    if (
+        typeof cerrarModalEmpresa ===
+        'function'
+    ) {
+
+        cerrarModalEmpresa();
+    }
+
+
+    /* MOSTRAR RESULTADO */
+
+    mostrarRespuestaEmpresa(
+        datos
+    );
+
+
+    return true;
+}
 
 /* =========================================================
    7. CRUD GENERAL
    ========================================================= */
 
-// Guarda o actualiza registros de cualquier módulo.
 function guardar(tb, pfrm, event) {
+
+    /* =====================================================
+       EVITAR ENVÍO NORMAL DEL FORMULARIO
+       ===================================================== */
 
     if (
         event &&
@@ -544,7 +1070,7 @@ function guardar(tb, pfrm, event) {
        BUSCAR FORMULARIO
        ===================================================== */
 
-    let frm =
+    const frm =
         document.getElementById(pfrm) ||
         document.getElementById(
             'frm' +
@@ -558,23 +1084,23 @@ function guardar(tb, pfrm, event) {
        BUSCAR CONTENEDOR DE TABLA
        ===================================================== */
 
-    let cont =
-        document.querySelector("#contenedor3") ||
-        document.querySelector(".table-container") ||
-        document.querySelector(".table-responsive");
+    const cont =
+        document.querySelector('#contenedor3') ||
+        document.querySelector('.table-container') ||
+        document.querySelector('.table-responsive');
 
 
     if (!frm) {
 
         console.error(
-            "⚠️ No se encontró el formulario:",
+            '⚠️ No se encontró el formulario:',
             pfrm,
-            "para la tabla:",
+            'para la tabla:',
             tb
         );
 
         alert(
-            "Error: No se encontró el formulario " +
+            'Error: No se encontró el formulario ' +
             pfrm
         );
 
@@ -595,14 +1121,14 @@ function guardar(tb, pfrm, event) {
 
 
     /* =====================================================
-       DETECTAR EDICIÓN
+       DETECTAR SI ES EDICIÓN
        ===================================================== */
 
-    let singularTb =
+    const singularTb =
         tb.replace(/s$/, '');
 
 
-    let campoId =
+    const campoId =
         frm.querySelector(
             `#id_${singularTb}`
         ) ||
@@ -614,10 +1140,10 @@ function guardar(tb, pfrm, event) {
         );
 
 
-    let esEditar =
+    const esEditar =
         campoId &&
-        campoId.value !== "" &&
-        campoId.value !== "0";
+        campoId.value !== '' &&
+        campoId.value !== '0';
 
 
     /* =====================================================
@@ -625,13 +1151,18 @@ function guardar(tb, pfrm, event) {
        ===================================================== */
 
     if (
-        (tb === 'reporte_baja' ||
-         tb === 'reportes_baja') &&
+        (
+            tb === 'reporte_baja' ||
+            tb === 'reportes_baja'
+        ) &&
         !esEditar &&
         !window.confirmadoBaja
     ) {
 
-        if (typeof Swal !== 'undefined') {
+        if (
+            typeof Swal !==
+            'undefined'
+        ) {
 
             Swal.fire({
 
@@ -641,10 +1172,14 @@ function guardar(tb, pfrm, event) {
                 text:
                     'Esta acción es irreversible y afectará el historial del operador.',
 
-                icon: 'warning',
-                iconColor: '#dc2626',
+                icon:
+                    'warning',
 
-                showCancelButton: true,
+                iconColor:
+                    '#dc2626',
+
+                showCancelButton:
+                    true,
 
                 confirmButtonText:
                     'Sí, Grabar Reporte',
@@ -664,7 +1199,8 @@ function guardar(tb, pfrm, event) {
                 color:
                     '#f8fafc',
 
-                heightAuto: false,
+                heightAuto:
+                    false,
 
                 didOpen: () => {
 
@@ -672,6 +1208,7 @@ function guardar(tb, pfrm, event) {
                         document.querySelector(
                             '.swal2-container'
                         );
+
 
                     if (swalContainer) {
 
@@ -682,9 +1219,13 @@ function guardar(tb, pfrm, event) {
 
             }).then(result => {
 
-                if (result.isConfirmed) {
+                if (
+                    result.isConfirmed
+                ) {
 
-                    window.confirmadoBaja = true;
+                    window.confirmadoBaja =
+                        true;
+
 
                     guardar(
                         tb,
@@ -692,16 +1233,21 @@ function guardar(tb, pfrm, event) {
                         null
                     );
 
-                    window.confirmadoBaja = false;
+
+                    window.confirmadoBaja =
+                        false;
                 }
             });
 
-            return;
 
-        } else if (
+            return;
+        }
+
+
+        if (
             !confirm(
-                "¿Seguro que deseas grabar este reporte? " +
-                "Esta acción afectará el historial del operador."
+                '¿Seguro que deseas grabar este reporte? ' +
+                'Esta acción afectará el historial del operador.'
             )
         ) {
 
@@ -714,11 +1260,13 @@ function guardar(tb, pfrm, event) {
        PREPARAR DATOS
        ===================================================== */
 
-    let datos =
+    const datos =
         new FormData(frm);
 
 
-    if (!datos.has('tabla')) {
+    if (
+        !datos.has('tabla')
+    ) {
 
         datos.append(
             'tabla',
@@ -731,24 +1279,24 @@ function guardar(tb, pfrm, event) {
        RUTAS
        ===================================================== */
 
-    let enSubcarpeta =
+    const enSubcarpeta =
         window.location.pathname.includes(
             '/' + tb + '/'
         );
 
 
-    let rutaDirecta =
+    const rutaDirecta =
         enSubcarpeta
             ? 'inst_act.php'
             : `${tb}/inst_act.php`;
 
 
-    let rutaAlternativa =
+    const rutaAlternativa =
         `../${tb}/inst_act.php`;
 
 
     /* =====================================================
-       FUNCIÓN PARA ENVIAR
+       ENVIAR PETICIÓN
        ===================================================== */
 
     function enviarPeticion(ruta) {
@@ -756,27 +1304,36 @@ function guardar(tb, pfrm, event) {
         return fetch(
             ruta,
             {
-                method: "POST",
-                body: datos
+                method:
+                    'POST',
+
+                body:
+                    datos
             }
         );
     }
 
 
     /* =====================================================
-       EJECUTAR SCRIPTS DEVUELTOS POR PHP
+       COMPATIBILIDAD CON MÓDULOS ANTIGUOS
+
+       Algunos módulos todavía devuelven <script> desde PHP.
+       EMPRESAS ya no utilizará este sistema.
        ===================================================== */
 
     function ejecutarScriptsRespuesta(html) {
 
-        let tempDiv =
-            document.createElement('div');
+        const tempDiv =
+            document.createElement(
+                'div'
+            );
+
 
         tempDiv.innerHTML =
             html;
 
 
-        let scripts =
+        const scripts =
             tempDiv.getElementsByTagName(
                 'script'
             );
@@ -794,11 +1351,12 @@ function guardar(tb, pfrm, event) {
                     scripts[i].innerText
                 );
 
-            } catch (e) {
+
+            } catch (error) {
 
                 console.error(
-                    "Error al ejecutar script de respuesta:",
-                    e
+                    'Error al ejecutar script de respuesta:',
+                    error
                 );
             }
         }
@@ -806,7 +1364,7 @@ function guardar(tb, pfrm, event) {
 
 
     /* =====================================================
-       ENVIAR PETICIÓN
+       REALIZAR PETICIÓN
        ===================================================== */
 
     enviarPeticion(
@@ -815,14 +1373,17 @@ function guardar(tb, pfrm, event) {
 
     .then(async response => {
 
+
         /*
-         * Solo intentamos la ruta alternativa
-         * cuando la ruta realmente NO EXISTE.
+         * Solo usamos la ruta alternativa si
+         * realmente no existe la primera ruta.
          *
-         * 400 y 403 NO vuelven a enviar el POST.
+         * Un 400 o 403 NO vuelve a enviar el POST.
          */
 
-        if (response.status === 404) {
+        if (
+            response.status === 404
+        ) {
 
             response =
                 await enviarPeticion(
@@ -836,31 +1397,117 @@ function guardar(tb, pfrm, event) {
 
 
         return {
+
             response,
             data
         };
     })
 
 
-    .then(resultado => {
+    /* =====================================================
+       PROCESAR RESPUESTA
+       ===================================================== */
 
-        const response =
-            resultado.response;
-
-        const data =
-            resultado.data;
+    .then(({
+        response,
+        data
+    }) => {
 
 
         console.log(
-            "📩 Respuesta Servidor (" +
+
+            '📩 Respuesta Servidor (' +
             tb +
-            "):",
+            '):',
+
             data
         );
 
 
         /* =================================================
-           EJECUTAR SWEETALERT / SCRIPTS DEL PHP
+           EMPRESAS
+
+           Empresas ya no ejecuta JavaScript enviado
+           desde PHP.
+
+           inst_act.php devuelve información y
+           funciones.js controla la interfaz.
+           ================================================= */
+
+        if (
+            tb === 'empresas'
+        ) {
+
+            const procesada =
+                procesarRespuestaEmpresa(
+                    response,
+                    data,
+                    cont,
+                    frm,
+                    campoId
+                );
+
+
+            if (procesada) {
+
+                return;
+            }
+
+
+            /*
+             * Si llegamos aquí significa que el backend
+             * no devolvió el formato esperado.
+             */
+
+            console.error(
+
+                'El backend de Empresas devolvió una respuesta no válida.',
+
+                data
+            );
+
+
+            if (
+                typeof Swal !==
+                'undefined'
+            ) {
+
+                Swal.fire({
+
+                    icon:
+                        'error',
+
+                    title:
+                        'Respuesta no válida',
+
+                    text:
+                        'El módulo de Empresas recibió una respuesta inesperada del servidor.',
+
+                    confirmButtonText:
+                        'Entendido',
+
+                    confirmButtonColor:
+                        '#dc2626'
+                });
+
+
+            } else {
+
+                alert(
+                    'Respuesta inesperada del módulo Empresas.'
+                );
+            }
+
+
+            return;
+        }
+
+
+        /* =================================================
+           OTROS MÓDULOS
+
+           Conservamos temporalmente el sistema anterior
+           para no afectar Operadores, Usuarios, Reportes, etc.
            ================================================= */
 
         ejecutarScriptsRespuesta(
@@ -869,22 +1516,20 @@ function guardar(tb, pfrm, event) {
 
 
         /* =================================================
-           ERROR HTTP 400 / 403 / ETC.
-           NO CONTINUAR COMO ÉXITO
+           ERROR HTTP
            ================================================= */
 
-        if (!response.ok) {
+        if (
+            !response.ok
+        ) {
 
             console.warn(
-                "Petición rechazada:",
+
+                'Petición rechazada:',
+
                 response.status
             );
 
-
-            /*
-             * Si PHP no devolvió un script
-             * mostramos un mensaje genérico.
-             */
 
             if (
                 !data.includes(
@@ -893,8 +1538,9 @@ function guardar(tb, pfrm, event) {
             ) {
 
                 alert(
-                    "El servidor rechazó la operación. " +
-                    "Código HTTP: " +
+
+                    'El servidor rechazó la operación. ' +
+                    'Código HTTP: ' +
                     response.status
                 );
             }
@@ -905,13 +1551,15 @@ function guardar(tb, pfrm, event) {
 
 
         /* =================================================
-           DETECTAR ERRORES ANTIGUOS
+           DETECTAR ERRORES DE MÓDULOS ANTIGUOS
            ================================================= */
 
-        let tieneErrorDuplicado =
+        const tieneErrorDuplicado =
+
             data.includes(
                 'Error MySQL'
             ) ||
+
             data.includes(
                 'ya se encuentra registrado'
             );
@@ -936,7 +1584,9 @@ function guardar(tb, pfrm, event) {
         }
 
 
-        if (tieneErrorDuplicado) {
+        if (
+            tieneErrorDuplicado
+        ) {
 
             return;
         }
@@ -952,7 +1602,7 @@ function guardar(tb, pfrm, event) {
         if (campoId) {
 
             campoId.value =
-                "";
+                '';
         }
 
 
@@ -978,10 +1628,12 @@ function guardar(tb, pfrm, event) {
         }
 
 
-        let modalEl =
+        const modalEl =
+
             document.getElementById(
                 'modalOperador'
             ) ||
+
             document.querySelector(
                 '.modal-overlay'
             );
@@ -995,13 +1647,14 @@ function guardar(tb, pfrm, event) {
                 'open'
             );
 
+
             modalEl.style.display =
                 'none';
         }
 
 
         /* =================================================
-           MENSAJE DE ÉXITO
+           MENSAJE DE ÉXITO GENÉRICO
            ================================================= */
 
         if (
@@ -1009,10 +1662,13 @@ function guardar(tb, pfrm, event) {
             'function'
         ) {
 
-            let mensaje =
+            const mensaje =
+
                 esEditar
-                    ? "Registro actualizado correctamente"
-                    : "Registro guardado correctamente";
+
+                    ? 'Registro actualizado correctamente'
+
+                    : 'Registro guardado correctamente';
 
 
             mostrarToast(
@@ -1022,20 +1678,28 @@ function guardar(tb, pfrm, event) {
     })
 
 
+    /* =====================================================
+       ERROR DE RED / JAVASCRIPT
+       ===================================================== */
+
     .catch(error => {
 
+
         console.error(
-            "❌ Error AJAX al guardar en " +
+
+            '❌ Error AJAX al guardar en ' +
             tb +
-            ":",
+            ':',
+
             error
         );
 
 
         alert(
-            "Ocurrió un error al guardar en " +
+
+            'Ocurrió un error al guardar en ' +
             tb +
-            ". Revisa la consola (F12)."
+            '. Revisa la consola (F12).'
         );
     });
 }

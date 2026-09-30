@@ -1,9 +1,4 @@
 <?php
-
-/* =========================================================
-   1. SESIÓN Y SEGURIDAD
-   ========================================================= */
-
 require_once "configuracion/sesion.php";
 verificarSesion();
 
@@ -11,42 +6,25 @@ function e($string) {
     return htmlspecialchars($string ?? '', ENT_QUOTES, 'UTF-8');
 }
 
-
-/* =========================================================
-   2. DATOS DEL USUARIO
-   ========================================================= */
-
 $rol = strtoupper(trim($_SESSION['rol'] ?? ''));
 $idUsuario = (int)($_SESSION['id_usuario'] ?? 0);
 $idEmpresa = (int)($_SESSION['id_empresa'] ?? 0);
-
 $nombreUsuario = $_SESSION['nombre_usuario'] ?? 'Usuario';
 $nombreCompleto = trim($_SESSION['nombre_completo'] ?? '');
 $multiempresa = (int)($_SESSION['multiempresa'] ?? 0);
 
-$nombreMostrar = $nombreCompleto !== ''
-    ? $nombreCompleto
-    : $nombreUsuario;
-
+$nombreMostrar = $nombreCompleto !== '' ? $nombreCompleto : $nombreUsuario;
 $inicialUsuario = mb_strtoupper(
     mb_substr($nombreMostrar, 0, 1, 'UTF-8'),
     'UTF-8'
 );
 
-
-/* =========================================================
-   3. ROLES PERMITIDOS
-   ========================================================= */
-
+/* PERMISOS */
 $rolesEmpresas = ['ADMIN', 'ADMINISTRADOR'];
 
 $puedeVerEmpresas =
-    in_array($rol, $rolesEmpresas) ||
-    ($rol === 'PROPIETARIO' && $multiempresa === 1);
-
-$puedeAgregarOtraEmpresa =
-    ($rol === 'PROPIETARIO' && $multiempresa === 0);
-
+    in_array($rol, $rolesEmpresas, true) ||
+    $rol === 'PROPIETARIO';
 
 $rolesOperadores = [
     'ADMIN',
@@ -71,11 +49,7 @@ $rolesReportes = [
     'RECURSOS HUMANOS'
 ];
 
-
-/* =========================================================
-   4. MÉTRICAS DEL DASHBOARD
-   ========================================================= */
-
+/* MÉTRICAS DEL DASHBOARD */
 require_once "db/db.php";
 
 $dbDashboard = new db();
@@ -90,7 +64,6 @@ $esAdmin = in_array($rol, ['ADMIN', 'ADMINISTRADOR'], true);
 $esPropietario = $rol === 'PROPIETARIO';
 $esRRHH = in_array($rol, ['RRHH', 'RH', 'RECURSOS HUMANOS'], true);
 
-/* Limita cada conteo al alcance real del usuario */
 $filtroEmpresa = function($alias) use (
     $esAdmin,
     $esPropietario,
@@ -101,7 +74,9 @@ $filtroEmpresa = function($alias) use (
 ) {
     $campo = $alias . '.id_empresa';
 
-    if ($esAdmin) return '';
+    if ($esAdmin) {
+        return '';
+    }
 
     if ($esPropietario && $multiempresa === 1) {
         return " AND $campo IN (
@@ -135,19 +110,19 @@ $empresasRegistradas = conteoDashboard(
 
 $bajasPendientes = conteoDashboard(
     $dbDashboard,
-    "SELECT COUNT(*) AS total FROM reportes_baja rb WHERE rb.estatus_evaluacion='PENDIENTE'" . $filtroEmpresa('rb')
+    "SELECT COUNT(*) AS total
+     FROM reportes_baja rb
+     WHERE rb.estatus_evaluacion='PENDIENTE'" . $filtroEmpresa('rb')
 );
 
 $bajasCompletadas = conteoDashboard(
     $dbDashboard,
-    "SELECT COUNT(*) AS total FROM reportes_baja rb WHERE rb.estatus_evaluacion='COMPLETADA'" . $filtroEmpresa('rb')
+    "SELECT COUNT(*) AS total
+     FROM reportes_baja rb
+     WHERE rb.estatus_evaluacion='COMPLETADA'" . $filtroEmpresa('rb')
 );
 
-
-/* =========================================================
-   5. MÓDULOS PERMITIDOS
-   ========================================================= */
-
+/* MÓDULOS PERMITIDOS */
 $modulosPermitidos = [];
 
 if ($puedeVerEmpresas) {
@@ -157,37 +132,35 @@ if ($puedeVerEmpresas) {
     ];
 }
 
-if (in_array($rol, $rolesOperadores)) {
+if (in_array($rol, $rolesOperadores, true)) {
     $modulosPermitidos[] = [
         'icono' => '📋',
         'nombre' => 'Operadores'
     ];
 }
 
-if (in_array($rol, $rolesUsuarios)) {
+if (in_array($rol, $rolesUsuarios, true)) {
     $modulosPermitidos[] = [
         'icono' => '👤',
         'nombre' => 'Usuarios'
     ];
 }
 
-if (in_array($rol, $rolesReportes)) {
+if (in_array($rol, $rolesReportes, true)) {
     $modulosPermitidos[] = [
         'icono' => '📄',
         'nombre' => 'Reporte de Bajas'
     ];
 }
 
+$dbDashboard->desconectar();
 ?>
 
 <!DOCTYPE html>
 <html lang="es" data-theme="light">
-
 <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Plataforma de Transportistas</title>
 
     <link
@@ -196,15 +169,9 @@ if (in_array($rol, $rolesReportes)) {
     >
 
     <link href="/css/styles.css" rel="stylesheet">
-
 </head>
 
 <body>
-
-
-<!-- =========================================================
-     6. MENÚ SUPERIOR
-     ========================================================= -->
 
 <nav class="top-nav-controls">
 
@@ -216,7 +183,6 @@ if (in_array($rol, $rolesReportes)) {
         <span id="icono-tema" class="theme-icon">🌙</span>
         <span id="texto-tema" class="btn-text">Modo Oscuro</span>
     </button>
-
 
     <a
         href="/autentificacion/logout.php"
@@ -244,11 +210,6 @@ if (in_array($rol, $rolesReportes)) {
 
 </nav>
 
-
-<!-- =========================================================
-     7. CONTENIDO PRINCIPAL
-     ========================================================= -->
-
 <div class="container my-4" id="seccion-principal-dashboard">
 
     <div
@@ -257,8 +218,6 @@ if (in_array($rol, $rolesReportes)) {
         style="max-width:1200px; margin:0 auto;"
     >
 
-
-        <!-- BIENVENIDA -->
         <div class="welcome-banner text-start mb-5">
 
             <div class="welcome-header">
@@ -269,11 +228,9 @@ if (in_array($rol, $rolesReportes)) {
                         <?php echo e($inicialUsuario); ?>
                     </div>
 
-
                     <div class="user-greeting">
 
                         <h2>
-
                             ¡Hola, <?php echo e($nombreMostrar); ?>! 👋
 
                             <span class="badge-role-user">
@@ -281,19 +238,14 @@ if (in_array($rol, $rolesReportes)) {
                             </span>
 
                             <?php if ($rol === 'PROPIETARIO'): ?>
-
                                 <span class="badge-role-user">
-
                                     <?php if ($multiempresa === 1): ?>
                                         🏢 Multiempresa
                                     <?php else: ?>
                                         🏢 Una empresa
                                     <?php endif; ?>
-
                                 </span>
-
                             <?php endif; ?>
-
                         </h2>
 
                         <p>
@@ -305,7 +257,6 @@ if (in_array($rol, $rolesReportes)) {
 
                 </div>
 
-
                 <div class="text-md-end">
                     <span class="badge-session-active">
                         Sesión Activa
@@ -314,48 +265,60 @@ if (in_array($rol, $rolesReportes)) {
 
             </div>
 
-
-            <!-- PERMISOS + RESUMEN COMPACTO -->
             <div class="permissions-row dashboard-info-row">
 
                 <div class="dashboard-permissions-block">
-                    <span class="permissions-label">Permisos del Sistema:</span>
+
+                    <span class="permissions-label">
+                        Permisos del Sistema:
+                    </span>
 
                     <div class="permissions-badges-group">
+
                         <?php foreach ($modulosPermitidos as $modulo): ?>
                             <span class="badge-permiso">
                                 <span><?php echo $modulo['icono']; ?></span>
                                 <span><?php echo e($modulo['nombre']); ?></span>
                             </span>
                         <?php endforeach; ?>
+
                     </div>
+
                 </div>
 
                 <div class="dashboard-mini-stats">
-                    <span class="dashboard-mini-label">Resumen:</span>
-                    <span class="mini-stat">👷 <strong><?= $operadoresActivos ?></strong> Activos</span>
-                    <span class="mini-stat">⛔ <strong><?= $operadoresInactivos ?></strong> Inactivos</span>
-                    <span class="mini-stat">🏢 <strong><?= $empresasRegistradas ?></strong> Empresas</span>
-                    <span class="mini-stat">⏳ <strong><?= $bajasPendientes ?></strong> Pendientes</span>
-                    <span class="mini-stat">✅ <strong><?= $bajasCompletadas ?></strong> Completadas</span>
+
+                    <span class="dashboard-mini-label">
+                        Resumen:
+                    </span>
+
+                    <span class="mini-stat">
+                        👷 <strong><?= $operadoresActivos ?></strong> Activos
+                    </span>
+
+                    <span class="mini-stat">
+                        ⛔ <strong><?= $operadoresInactivos ?></strong> Inactivos
+                    </span>
+
+                    <span class="mini-stat">
+                        🏢 <strong><?= $empresasRegistradas ?></strong> Empresas
+                    </span>
+
+                    <span class="mini-stat">
+                        ⏳ <strong><?= $bajasPendientes ?></strong> Pendientes
+                    </span>
+
+                    <span class="mini-stat">
+                        ✅ <strong><?= $bajasCompletadas ?></strong> Completadas
+                    </span>
+
                 </div>
 
             </div>
 
         </div>
 
-
-        <!-- =================================================
-             8. MÓDULOS
-             ================================================= -->
-
         <div class="row g-4 justify-content-center">
-
-
-            <!-- =================================================
-                 EMPRESAS
-                 ADMIN / PROPIETARIO MULTIEMPRESA
-                 ================================================= -->
 
             <?php if ($puedeVerEmpresas): ?>
 
@@ -372,13 +335,11 @@ if (in_array($rol, $rolesReportes)) {
                             </h4>
 
                             <p class="card-module-desc">
-                                Administre el catálogo de razones sociales,
-                                datos fiscales y vinculación de transportistas
-                                del sector.
+                                Consulte las empresas asignadas a su cuenta
+                                y su información administrativa.
                             </p>
 
                         </div>
-
 
                         <div class="mt-4 card-footer-action">
 
@@ -398,56 +359,7 @@ if (in_array($rol, $rolesReportes)) {
             <?php endif; ?>
 
 
-            <!-- =================================================
-                 AGREGAR OTRA EMPRESA
-                 SOLO PROPIETARIO CON UNA EMPRESA
-                 ================================================= -->
-
-            <?php if ($puedeAgregarOtraEmpresa): ?>
-
-                <div class="col-12 col-md-6 col-xl-3">
-
-                    <div class="card-professional dashboard-card modulo-empresas h-100 d-flex flex-column justify-content-between text-start">
-
-                        <div>
-
-                            <div class="card-icon-wrapper">🏢</div>
-
-                            <h4 class="card-module-title">
-                                Agregar otra empresa
-                            </h4>
-
-                            <p class="card-module-desc">
-                                Registre una empresa adicional para administrar
-                                varias empresas desde la misma cuenta.
-                            </p>
-
-                        </div>
-
-
-                        <div class="mt-4 card-footer-action">
-
-                            <button
-                                onclick="ver('empresas/index.php')"
-                                class="btn-dashboard"
-                            >
-                                + Agregar Empresa
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            <?php endif; ?>
-
-
-            <!-- =================================================
-                 OPERADORES
-                 ================================================= -->
-
-            <?php if (in_array($rol, $rolesOperadores)): ?>
+            <?php if (in_array($rol, $rolesOperadores, true)): ?>
 
                 <div class="col-12 col-md-6 col-xl-3">
 
@@ -468,7 +380,6 @@ if (in_array($rol, $rolesReportes)) {
 
                         </div>
 
-
                         <div class="mt-4 card-footer-action">
 
                             <button
@@ -487,11 +398,7 @@ if (in_array($rol, $rolesReportes)) {
             <?php endif; ?>
 
 
-            <!-- =================================================
-                 USUARIOS
-                 ================================================= -->
-
-            <?php if (in_array($rol, $rolesUsuarios)): ?>
+            <?php if (in_array($rol, $rolesUsuarios, true)): ?>
 
                 <div class="col-12 col-md-6 col-xl-3">
 
@@ -513,7 +420,6 @@ if (in_array($rol, $rolesReportes)) {
 
                         </div>
 
-
                         <div class="mt-4 card-footer-action">
 
                             <button
@@ -532,11 +438,7 @@ if (in_array($rol, $rolesReportes)) {
             <?php endif; ?>
 
 
-            <!-- =================================================
-                 REPORTE DE BAJA
-                 ================================================= -->
-
-            <?php if (in_array($rol, $rolesReportes)): ?>
+            <?php if (in_array($rol, $rolesReportes, true)): ?>
 
                 <div class="col-12 col-md-6 col-xl-3">
 
@@ -559,7 +461,6 @@ if (in_array($rol, $rolesReportes)) {
 
                             </div>
 
-
                             <h4 class="card-module-title">
                                 Reporte de Baja
                             </h4>
@@ -571,7 +472,6 @@ if (in_array($rol, $rolesReportes)) {
                             </p>
 
                         </div>
-
 
                         <div class="mt-4 card-footer-action">
 
@@ -590,13 +490,7 @@ if (in_array($rol, $rolesReportes)) {
 
             <?php endif; ?>
 
-
         </div>
-
-
-        <!-- =================================================
-             9. PIE DE PÁGINA
-             ================================================= -->
 
         <div
             class="mt-5 pt-4"
@@ -612,11 +506,6 @@ if (in_array($rol, $rolesReportes)) {
     </div>
 
 </div>
-
-
-<!-- =========================================================
-     10. JAVASCRIPT
-     ========================================================= -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/JS/funciones.js"></script>
