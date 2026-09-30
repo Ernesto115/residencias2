@@ -63,13 +63,17 @@ if (
 
     <div class="table-tabs-wrapper">
 
-        <button
-            type="button"
-            class="btn-agregar-op"
-            onclick="abrirModalEmpresa()"
-        >
-            + Agregar Empresa
-        </button>
+        <?php if ($rolFormulario === 'ADMIN'): ?>
+
+            <button
+                type="button"
+                class="btn-agregar-op"
+                onclick="abrirModalEmpresa()"
+            >
+                + Agregar Empresa
+            </button>
+
+        <?php endif; ?>
 
     </div>
 
