@@ -936,6 +936,124 @@ try {
         $db
     );
 }
+
+/* =========================================================
+   MOSTRAR PROPIETARIO EXISTENTE VINCULADO
+   ========================================================= */
+
+if (
+    $rol === 'ADMIN' &&
+    $tipoPropietario === 'EXISTENTE'
+) {
+
+    $usuarioSeguro = htmlspecialchars(
+        $prop_nombre_usuario,
+        ENT_QUOTES,
+        'UTF-8'
+    );
+
+    $empresaSegura = htmlspecialchars(
+        $nombre_empresa,
+        ENT_QUOTES,
+        'UTF-8'
+    );
+
+    $htmlMensaje =
+        '<div style="text-align:left;font-size:16px;line-height:1.6;">' .
+
+            '<p style="margin:0 0 18px 0;text-align:center;">' .
+                'La empresa fue registrada correctamente y se vinculó al propietario existente.' .
+            '</p>' .
+
+            '<div style="
+                margin-bottom:14px;
+                padding:12px 15px;
+                border-radius:10px;
+                background:#f3f4f6;
+            ">' .
+
+                '<div style="
+                    font-size:13px;
+                    color:#6b7280;
+                    margin-bottom:4px;
+                    font-weight:600;
+                ">
+                    PROPIETARIO
+                </div>' .
+
+                '<div style="
+                    font-size:18px;
+                    font-weight:800;
+                    color:#111827;
+                    word-break:break-all;
+                ">' .
+                    $usuarioSeguro .
+                '</div>' .
+
+            '</div>' .
+
+            '<div style="
+                margin-bottom:16px;
+                padding:12px 15px;
+                border-radius:10px;
+                background:#eff6ff;
+                border:1px solid #bfdbfe;
+            ">' .
+
+                '<div style="
+                    font-size:13px;
+                    color:#1d4ed8;
+                    margin-bottom:4px;
+                    font-weight:600;
+                ">
+                    EMPRESA ASIGNADA
+                </div>' .
+
+                '<div style="
+                    font-size:18px;
+                    font-weight:800;
+                    color:#1e40af;
+                    word-break:break-word;
+                ">' .
+                    $empresaSegura .
+                '</div>' .
+
+            '</div>' .
+
+            '<p style="
+                margin:0;
+                font-size:14px;
+                text-align:center;
+                color:#6b7280;
+            ">' .
+                'El propietario ya tenía una cuenta, por lo que conserva su contraseña actual.' .
+            '</p>' .
+
+        '</div>';
+
+    $mensaje = json_encode(
+        $htmlMensaje,
+        JSON_UNESCAPED_UNICODE |
+        JSON_UNESCAPED_SLASHES
+    );
+
+    echo "<script>
+
+        if(typeof Swal !== 'undefined'){
+
+            Swal.fire({
+                icon:'success',
+                title:'Propietario vinculado',
+                html:$mensaje,
+                confirmButtonText:'Entendido',
+                confirmButtonColor:'#1e40af',
+                width:600
+            });
+
+        }
+
+    </script>";
+}
 /* =========================================================
    RECARGAR TABLA
    ========================================================= */
