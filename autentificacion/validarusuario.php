@@ -6,23 +6,15 @@
 
 ini_set('display_errors', 0);
 
-
-if (
-    session_status() ===
-    PHP_SESSION_NONE
-) {
-
+if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-
 
 header(
     'Content-Type: application/json; charset=utf-8'
 );
 
-
 try {
-
 
     /* =====================================================
        1. CONEXIÓN
@@ -30,11 +22,7 @@ try {
 
     require_once __DIR__ . "/../DB/db.php";
 
-
-    $dbtransportistas =
-        new db();
-
-
+    $dbtransportistas = new db();
     $dbtransportistas->conectar();
 
 
@@ -47,7 +35,6 @@ try {
             $_POST['usuario'] ?? ''
         );
 
-
     $clave =
         $_POST['clave'] ?? '';
 
@@ -58,9 +45,9 @@ try {
     ) {
 
         echo json_encode([
-            "status" => "error",
-            "message" =>
-                "Debes ingresar usuario y contraseña."
+            'status' => 'error',
+            'message' =>
+                'Debes ingresar usuario y contraseña.'
         ]);
 
         exit;
@@ -84,13 +71,10 @@ try {
             ->prepare($sql);
 
 
-    $stmt->bindParam(
-        ':usuario',
-        $usuario
-    );
-
-
-    $stmt->execute();
+    $stmt->execute([
+        ':usuario' =>
+            $usuario
+    ]);
 
 
     $usuarioDB =
@@ -100,15 +84,15 @@ try {
 
 
     /* =====================================================
-       4. VALIDAR QUE EL USUARIO EXISTA
+       4. VALIDAR EXISTENCIA
        ===================================================== */
 
     if (!$usuarioDB) {
 
         echo json_encode([
-            "status" => "error",
-            "message" =>
-                "Usuario o contraseña incorrectos."
+            'status' => 'error',
+            'message' =>
+                'Usuario o contraseña incorrectos.'
         ]);
 
         exit;
@@ -119,16 +103,6 @@ try {
        5. VALIDAR CONTRASEÑA
        ===================================================== */
 
-    /*
-     * Durante la transición el sistema puede encontrar:
-     *
-     * 1. Contraseñas antiguas almacenadas en texto plano.
-     * 2. Contraseñas nuevas almacenadas con password_hash().
-     *
-     * Esto permite actualizar gradualmente el sistema
-     * sin bloquear a los usuarios que ya existen.
-     */
-
     $contrasenaGuardada =
         (string)(
             $usuarioDB['contrasena']
@@ -136,13 +110,9 @@ try {
         );
 
 
-    $credencialesValidas = false;
+    $credencialesValidas =
+        false;
 
-
-    /*
-     * password_get_info() revisa si el contenido almacenado
-     * corresponde a un hash reconocido por PHP.
-     */
 
     $informacionHash =
         password_get_info(
@@ -157,9 +127,9 @@ try {
         ) !== 'unknown';
 
 
-    /* =====================================================
-       CONTRASEÑA GUARDADA CON PASSWORD_HASH
-       ===================================================== */
+    /*
+     * Contraseña moderna con password_hash()
+     */
 
     if ($esHash) {
 
@@ -169,14 +139,12 @@ try {
                 $contrasenaGuardada
             );
 
-    }
+    /*
+     * Compatibilidad temporal con
+     * contraseñas antiguas en texto plano.
+     */
 
-
-    /* =====================================================
-       CONTRASEÑA ANTIGUA EN TEXTO PLANO
-       ===================================================== */
-
-    else {
+    } else {
 
         $credencialesValidas =
             hash_equals(
@@ -186,16 +154,12 @@ try {
     }
 
 
-    /* =====================================================
-       CREDENCIALES INCORRECTAS
-       ===================================================== */
-
     if (!$credencialesValidas) {
 
         echo json_encode([
-            "status" => "error",
-            "message" =>
-                "Usuario o contraseña incorrectos."
+            'status' => 'error',
+            'message' =>
+                'Usuario o contraseña incorrectos.'
         ]);
 
         exit;
@@ -203,17 +167,13 @@ try {
 
 
     /* =====================================================
-       6. VALIDAR ESTATUS DE LA CUENTA
+       6. VALIDAR ESTATUS
        ===================================================== */
 
-    /*
-     * Una cuenta desactivada permanece
-     * almacenada en la base de datos,
-     * pero NO puede iniciar sesión.
-     */
-
     $estatusUsuario =
-        isset($usuarioDB['estatus'])
+        isset(
+            $usuarioDB['estatus']
+        )
             ? (int)$usuarioDB['estatus']
             : 1;
 
@@ -221,9 +181,9 @@ try {
     if ($estatusUsuario !== 1) {
 
         echo json_encode([
-            "status" => "error",
-            "message" =>
-                "Tu cuenta se encuentra desactivada. Contacta al administrador del sistema."
+            'status' => 'error',
+            'message' =>
+                'Tu cuenta se encuentra desactivada. Contacta al administrador del sistema.'
         ]);
 
         exit;
@@ -238,6 +198,7 @@ try {
         strtoupper(
             trim(
                 $usuarioDB['rol']
+                ?? ''
             )
         );
 
@@ -265,9 +226,9 @@ try {
     ) {
 
         echo json_encode([
-            "status" => "error",
-            "message" =>
-                "Tu rol no tiene acceso asignado a este sistema."
+            'status' => 'error',
+            'message' =>
+                'Tu rol no tiene acceso asignado a este sistema.'
         ]);
 
         exit;
@@ -275,7 +236,32 @@ try {
 
 
     /* =====================================================
-       8. NOMBRE COMPLETO
+       8. CAMBIO DE CONTRASEÑA REQUERIDO
+       ===================================================== */
+
+    $requiereCambioContrasena =
+        isset(
+            $usuarioDB[
+                'requiere_cambio_contrasena'
+            ]
+        )
+            ? (int)$usuarioDB[
+                'requiere_cambio_contrasena'
+            ]
+            : 0;
+
+
+    /*
+     * Por ahora únicamente guardamos el valor.
+     *
+     * En el siguiente paso utilizaremos este dato
+     * para enviar al usuario a la pantalla obligatoria
+     * de cambio de contraseña.
+     */
+
+
+    /* =====================================================
+       9. NOMBRE COMPLETO
        ===================================================== */
 
     $nombreCompleto =
@@ -298,7 +284,7 @@ try {
 
 
     /* =====================================================
-       9. CREAR SESIÓN
+       10. CREAR SESIÓN
        ===================================================== */
 
     session_regenerate_id(true);
@@ -346,34 +332,49 @@ try {
             : 0;
 
 
+    /* NUEVO */
+
+    $_SESSION['requiere_cambio_contrasena'] =
+        $requiereCambioContrasena;
+
+
     /* =====================================================
-       10. RESPUESTA
+       11. RESPUESTA
        ===================================================== */
 
     echo json_encode([
-        "status" =>
-            "success",
 
-        "message" =>
-            "Inicio de sesión correcto.",
+        'status' =>
+            'success',
 
-        "nombre_completo" =>
+        'message' =>
+            'Inicio de sesión correcto.',
+
+        'nombre_completo' =>
             $_SESSION[
                 'nombre_completo'
             ],
 
-        "rol" =>
+        'rol' =>
             $_SESSION['rol'],
 
-        "id_empresa" =>
+        'id_empresa' =>
             $_SESSION[
                 'id_empresa'
             ],
 
-        "multiempresa" =>
+        'multiempresa' =>
             $_SESSION[
                 'multiempresa'
+            ],
+
+        /* NUEVO */
+
+        'requiere_cambio_contrasena' =>
+            $_SESSION[
+                'requiere_cambio_contrasena'
             ]
+
     ]);
 
 
@@ -382,13 +383,13 @@ try {
 
 } catch (Throwable $e) {
 
-
     echo json_encode([
-        "status" => "error",
-        "message" =>
-            "Error interno del servidor."
-    ]);
+        'status' =>
+            'error',
 
+        'message' =>
+            'Error interno del servidor.'
+    ]);
 
     exit;
 }

@@ -6433,6 +6433,507 @@ function enviarLogin(event) {
     });
 }
 
+/* =========================================================
+   CAMBIO OBLIGATORIO DE CONTRASEÑA
+   Validación visual en tiempo real
+   ========================================================= */
+
+
+/* ---------------------------------------------------------
+   ACTUALIZAR ESTADO VISUAL DE UN REQUISITO
+   --------------------------------------------------------- */
+
+function actualizarRequisitoContrasena(
+    elemento,
+    cumple,
+    texto
+) {
+
+    if (!elemento) {
+        return;
+    }
+
+
+    elemento.textContent =
+        (cumple ? '✅ ' : '❌ ') +
+        texto;
+
+
+    elemento.style.color =
+        cumple
+            ? '#22c55e'
+            : '#f43f5e';
+}
+
+
+/* ---------------------------------------------------------
+   VALIDAR NUEVA CONTRASEÑA
+   --------------------------------------------------------- */
+
+function validarCambioContrasena() {
+
+    const nueva =
+        document.getElementById(
+            'nueva_contrasena'
+        );
+
+
+    const confirmar =
+        document.getElementById(
+            'confirmar_contrasena'
+        );
+
+
+    const btnGuardar =
+        document.getElementById(
+            'btnGuardarNuevaContrasena'
+        );
+
+
+    if (
+        !nueva ||
+        !confirmar ||
+        !btnGuardar
+    ) {
+
+        return false;
+    }
+
+
+    const valor =
+        nueva.value;
+
+
+    const confirmacion =
+        confirmar.value;
+
+
+    /* =====================================================
+       REGLAS
+       ===================================================== */
+
+    const cumpleLongitud =
+        valor.length === 12;
+
+
+    const cumpleMayuscula =
+        /[A-ZÁÉÍÓÚÜÑ]/.test(
+            valor
+        );
+
+
+    const cumpleMinuscula =
+        /[a-záéíóúüñ]/.test(
+            valor
+        );
+
+
+    const cumpleNumero =
+        /[0-9]/.test(
+            valor
+        );
+
+
+    const cumpleEspecial =
+        /[!@#$%&*?]/.test(
+            valor
+        );
+
+
+    const coinciden =
+        confirmacion.length > 0 &&
+        valor === confirmacion;
+
+
+    /* =====================================================
+       ACTUALIZAR INTERFAZ
+       ===================================================== */
+
+    actualizarRequisitoContrasena(
+
+        document.getElementById(
+            'reqLongitud'
+        ),
+
+        cumpleLongitud,
+
+        '12 caracteres'
+    );
+
+
+    actualizarRequisitoContrasena(
+
+        document.getElementById(
+            'reqMayuscula'
+        ),
+
+        cumpleMayuscula,
+
+        'Una mayúscula'
+    );
+
+
+    actualizarRequisitoContrasena(
+
+        document.getElementById(
+            'reqMinuscula'
+        ),
+
+        cumpleMinuscula,
+
+        'Una minúscula'
+    );
+
+
+    actualizarRequisitoContrasena(
+
+        document.getElementById(
+            'reqNumero'
+        ),
+
+        cumpleNumero,
+
+        'Un número'
+    );
+
+
+    actualizarRequisitoContrasena(
+
+        document.getElementById(
+            'reqEspecial'
+        ),
+
+        cumpleEspecial,
+
+        'Un carácter especial'
+    );
+
+
+    /* =====================================================
+       COINCIDENCIA
+       ===================================================== */
+
+    const elementoCoincidencia =
+        document.getElementById(
+            'reqCoincidencia'
+        );
+
+
+    if (elementoCoincidencia) {
+
+        if (coinciden) {
+
+            elementoCoincidencia.textContent =
+                '✅ Las contraseñas coinciden';
+
+
+            elementoCoincidencia.style.color =
+                '#22c55e';
+
+        } else {
+
+            elementoCoincidencia.textContent =
+                '❌ Las contraseñas no coinciden';
+
+
+            elementoCoincidencia.style.color =
+                '#f43f5e';
+        }
+    }
+
+
+    /* =====================================================
+       HABILITAR BOTÓN
+       ===================================================== */
+
+    const formularioValido =
+
+        cumpleLongitud &&
+        cumpleMayuscula &&
+        cumpleMinuscula &&
+        cumpleNumero &&
+        cumpleEspecial &&
+        coinciden;
+
+
+  btnGuardar.disabled =
+    !formularioValido;
+
+
+/* =====================================================
+   APARIENCIA DEL BOTÓN
+   ===================================================== */
+
+if (formularioValido) {
+
+    /* Volver al estilo normal del botón */
+    btnGuardar.style.background =
+        '';
+
+    btnGuardar.style.opacity =
+        '1';
+
+    btnGuardar.style.boxShadow =
+        '';
+
+    btnGuardar.style.cursor =
+        'pointer';
+
+} else {
+
+    /* Botón apagado / deshabilitado */
+    btnGuardar.style.background =
+        '#475569';
+
+    btnGuardar.style.opacity =
+        '0.55';
+
+    btnGuardar.style.boxShadow =
+        'none';
+
+    btnGuardar.style.cursor =
+        'not-allowed';
+}
+}
+
+
+/* ---------------------------------------------------------
+   MOSTRAR / OCULTAR CONTRASEÑA
+   --------------------------------------------------------- */
+
+function alternarVisibilidadCambioContrasena(
+    inputId,
+    iconoId
+) {
+
+    const input =
+        document.getElementById(
+            inputId
+        );
+
+
+    const icono =
+        document.getElementById(
+            iconoId
+        );
+
+
+    if (
+        !input ||
+        !icono
+    ) {
+
+        return;
+    }
+
+
+    const mostrar =
+        input.type ===
+        'password';
+
+
+    input.type =
+        mostrar
+            ? 'text'
+            : 'password';
+
+
+    icono.title =
+        mostrar
+            ? 'Ocultar contraseña'
+            : 'Mostrar contraseña';
+
+
+    /* OJO TACHADO */
+
+    if (mostrar) {
+
+        icono.innerHTML = `
+
+            <svg viewBox="0 0 24 24">
+
+                <path d="M3 3l18 18"/>
+
+                <path d="M10.6 10.7a2 2 0 002.7 2.7"/>
+
+                <path
+                    d="M9.9 4.2A10.7 10.7 0 0112 4
+                       c5 0 9 4 10 8
+                       a11.8 11.8 0 01-2.1 4"
+                />
+
+                <path
+                    d="M6.6 6.6
+                       C4.4 8 2.8 10 2 12
+                       c1.3 4 5 8 10 8
+                       a10.7 10.7 0 005.4-1.5"
+                />
+
+            </svg>
+        `;
+
+
+    /* OJO NORMAL */
+
+    } else {
+
+        icono.innerHTML = `
+
+            <svg viewBox="0 0 24 24">
+
+                <path
+                    d="M2 12
+                       s3.5-7 10-7
+                       10 7 10 7
+                       -3.5 7-10 7
+                       S2 12 2 12z"
+                />
+
+                <circle
+                    cx="12"
+                    cy="12"
+                    r="3"
+                />
+
+            </svg>
+        `;
+    }
+}
+
+
+/* ---------------------------------------------------------
+   INICIALIZAR PANTALLA
+   --------------------------------------------------------- */
+
+function inicializarCambioContrasena() {
+
+    const formulario =
+        document.getElementById(
+            'formCambioContrasena'
+        );
+
+
+    if (!formulario) {
+
+        return;
+    }
+
+
+    const nueva =
+        document.getElementById(
+            'nueva_contrasena'
+        );
+
+
+    const confirmar =
+        document.getElementById(
+            'confirmar_contrasena'
+        );
+
+
+    const ojoNueva =
+        document.getElementById(
+            'iconoNuevaContrasena'
+        );
+
+
+    const ojoConfirmar =
+        document.getElementById(
+            'iconoConfirmarContrasena'
+        );
+
+
+    /* VALIDAR MIENTRAS ESCRIBE */
+
+    if (nueva) {
+
+        nueva.addEventListener(
+            'input',
+            validarCambioContrasena
+        );
+    }
+
+
+    if (confirmar) {
+
+        confirmar.addEventListener(
+            'input',
+            validarCambioContrasena
+        );
+    }
+
+
+    /* MOSTRAR / OCULTAR */
+
+    if (ojoNueva) {
+
+        ojoNueva.addEventListener(
+            'click',
+            function () {
+
+                alternarVisibilidadCambioContrasena(
+                    'nueva_contrasena',
+                    'iconoNuevaContrasena'
+                );
+            }
+        );
+    }
+
+
+    if (ojoConfirmar) {
+
+        ojoConfirmar.addEventListener(
+            'click',
+            function () {
+
+                alternarVisibilidadCambioContrasena(
+                    'confirmar_contrasena',
+                    'iconoConfirmarContrasena'
+                );
+            }
+        );
+    }
+
+
+    /*
+     * TEMPORAL:
+     * todavía no enviamos la contraseña al backend.
+     */
+
+    formulario.addEventListener(
+        'submit',
+        function (event) {
+
+            event.preventDefault();
+
+            validarCambioContrasena();
+        }
+    );
+
+
+    validarCambioContrasena();
+}
+
+
+/* ---------------------------------------------------------
+   EJECUTAR CUANDO EL HTML ESTÉ LISTO
+   --------------------------------------------------------- */
+
+if (
+    document.readyState ===
+    'loading'
+) {
+
+    document.addEventListener(
+        'DOMContentLoaded',
+        inicializarCambioContrasena
+    );
+
+} else {
+
+    inicializarCambioContrasena();
+}
+
 
 
 /* =========================================================
