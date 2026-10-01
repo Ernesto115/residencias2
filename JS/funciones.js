@@ -6196,7 +6196,9 @@ function mostrarPassword() {
    ========================================================= */
 
 // Valida el usuario y lo redirige según su rol.
+// Valida el usuario y lo redirige según su rol.
 function enviarLogin(event) {
+
     event.preventDefault();
 
 
@@ -6234,7 +6236,10 @@ function enviarLogin(event) {
             : "";
 
 
-    // Validar campos vacíos.
+    /* =====================================================
+       1. VALIDAR CAMPOS VACÍOS
+       ===================================================== */
+
     if (
         !usuario ||
         !clave
@@ -6250,9 +6255,14 @@ function enviarLogin(event) {
     }
 
 
-    // Desactivar botón.
+    /* =====================================================
+       2. DESACTIVAR BOTÓN
+       ===================================================== */
+
     if (btnSubmit) {
-        btnSubmit.disabled = true;
+
+        btnSubmit.disabled =
+            true;
     }
 
 
@@ -6263,7 +6273,10 @@ function enviarLogin(event) {
     `;
 
 
-    // Enviar datos al servidor.
+    /* =====================================================
+       3. ENVIAR LOGIN AL SERVIDOR
+       ===================================================== */
+
     fetch(
         "/autentificacion/validarusuario.php",
         {
@@ -6281,9 +6294,11 @@ function enviarLogin(event) {
                 encodeURIComponent(clave)
         }
     )
+
     .then(response =>
         response.text()
     )
+
     .then(texto => {
 
         console.log(
@@ -6295,7 +6310,10 @@ function enviarLogin(event) {
         let data;
 
 
-        // Convertir respuesta a JSON.
+        /* =================================================
+           4. CONVERTIR RESPUESTA A JSON
+           ================================================= */
+
         try {
 
             data =
@@ -6317,14 +6335,20 @@ function enviarLogin(event) {
 
 
             if (btnSubmit) {
-                btnSubmit.disabled = false;
+
+                btnSubmit.disabled =
+                    false;
             }
+
 
             return;
         }
 
 
-        // Login correcto.
+        /* =================================================
+           5. LOGIN CORRECTO
+           ================================================= */
+
         if (
             data.status ===
             "success"
@@ -6342,6 +6366,44 @@ function enviarLogin(event) {
                     .toUpperCase();
 
 
+            /* =============================================
+               6. CAMBIO OBLIGATORIO DE CONTRASEÑA
+               ============================================= */
+
+            const requiereCambioContrasena =
+                Number(
+                    data.requiere_cambio_contrasena
+                    ?? 0
+                );
+
+
+            console.log(
+                "Requiere cambio de contraseña:",
+                requiereCambioContrasena
+            );
+
+
+            if (
+                requiereCambioContrasena === 1
+            ) {
+
+                console.log(
+                    "Redirigiendo al cambio obligatorio de contraseña..."
+                );
+
+
+                window.location.href =
+                    "/autentificacion/cambiar_contrasena.php";
+
+
+                return;
+            }
+
+
+            /* =============================================
+               7. ROLES DEL DASHBOARD
+               ============================================= */
+
             const rolesDashboard = [
                 "ADMIN",
                 "ADMINISTRADOR",
@@ -6352,7 +6414,10 @@ function enviarLogin(event) {
             ];
 
 
-            // Dashboard principal.
+            /* =============================================
+               8. REDIRECCIÓN NORMAL POR ROL
+               ============================================= */
+
             if (
                 rolesDashboard.includes(
                     rol
@@ -6363,7 +6428,6 @@ function enviarLogin(event) {
                     "/index.php";
 
 
-            // Operadores.
             } else if (
                 rol === "OPERADOR"
             ) {
@@ -6372,7 +6436,6 @@ function enviarLogin(event) {
                     "/operadores/index.php";
 
 
-            // Empresas.
             } else if (
                 rol === "EMPRESA"
             ) {
@@ -6381,7 +6444,6 @@ function enviarLogin(event) {
                     "/empresas/index.php";
 
 
-            // Rol desconocido.
             } else {
 
                 errores.innerHTML = `
@@ -6392,12 +6454,17 @@ function enviarLogin(event) {
 
 
                 if (btnSubmit) {
-                    btnSubmit.disabled = false;
+
+                    btnSubmit.disabled =
+                        false;
                 }
             }
 
 
-        // Credenciales incorrectas.
+        /* =================================================
+           9. CREDENCIALES INCORRECTAS
+           ================================================= */
+
         } else {
 
             errores.innerHTML = `
@@ -6408,10 +6475,18 @@ function enviarLogin(event) {
 
 
             if (btnSubmit) {
-                btnSubmit.disabled = false;
+
+                btnSubmit.disabled =
+                    false;
             }
         }
     })
+
+
+    /* =====================================================
+       10. ERROR DE CONEXIÓN
+       ===================================================== */
+
     .catch(error => {
 
         console.error(
@@ -6428,11 +6503,12 @@ function enviarLogin(event) {
 
 
         if (btnSubmit) {
-            btnSubmit.disabled = false;
+
+            btnSubmit.disabled =
+                false;
         }
     });
 }
-
 /* =========================================================
    CAMBIO OBLIGATORIO DE CONTRASEÑA
    Validación visual en tiempo real
