@@ -35,6 +35,13 @@ function responderCambioContrasena(
 }
 
 
+/* =========================================================
+   CONEXIÓN
+   ========================================================= */
+
+$db = null;
+
+
 try {
 
     /* =====================================================
@@ -76,7 +83,7 @@ try {
 
 
     /* =====================================================
-       3. VALIDAR QUE REALMENTE REQUIERA CAMBIO
+       3. VALIDAR CAMBIO OBLIGATORIO EN SESIÓN
        ===================================================== */
 
     $requiereCambio =
@@ -151,19 +158,20 @@ try {
     /* =====================================================
        6. VALIDAR REQUISITOS
        ===================================================== */
-        if (
-    mb_strlen(
-        $nuevaContrasena,
-        'UTF-8'
-    ) !== 12
-    )   {
 
-    responderCambioContrasena(
-        'error',
-        'La contraseña debe contener exactamente 12 caracteres.',
-        422
-            );
-        }
+    if (
+        mb_strlen(
+            $nuevaContrasena,
+            'UTF-8'
+        ) !== 12
+    ) {
+
+        responderCambioContrasena(
+            'error',
+            'La contraseña debe contener exactamente 12 caracteres.',
+            422
+        );
+    }
 
 
     if (
@@ -227,7 +235,7 @@ try {
 
 
     /* =====================================================
-       7. CONSULTAR CONTRASEÑA ACTUAL
+       7. CONECTAR A MYSQL
        ===================================================== */
 
     require_once __DIR__ . "/../DB/db.php";
@@ -239,6 +247,10 @@ try {
 
     $db->conectar();
 
+
+    /* =====================================================
+       8. CONSULTAR USUARIO ACTUAL
+       ===================================================== */
 
     $stmt =
         $db->conn->prepare(
@@ -281,7 +293,7 @@ try {
 
 
     /* =====================================================
-       8. CUENTA ACTIVA
+       9. VALIDAR CUENTA ACTIVA
        ===================================================== */
 
     if (
@@ -300,7 +312,7 @@ try {
 
 
     /* =====================================================
-       9. CONFIRMAR BANDERA DIRECTAMENTE EN MYSQL
+       10. CONFIRMAR BANDERA EN MYSQL
        ===================================================== */
 
     if (
@@ -326,7 +338,7 @@ try {
 
 
     /* =====================================================
-       10. NO PERMITIR REUTILIZAR CONTRASEÑA TEMPORAL
+       11. NO REUTILIZAR CONTRASEÑA TEMPORAL
        ===================================================== */
 
     $contrasenaActual =
@@ -379,27 +391,114 @@ try {
     }
 
 
+    /* =====================================================
+       12. GENERAR NUEVO HASH
+       ===================================================== */
+
+    $nuevoHash =
+        password_hash(
+            $nuevaContrasena,
+            PASSWORD_DEFAULT
+        );
+
+
+    if ($nuevoHash === false) {
+
+        $db->desconectar();
+
+        responderCambioContrasena(
+            'error',
+            'No fue posible proteger la nueva contraseña.',
+            500
+        );
+    }
+
+
+    /* =====================================================
+       13. ACTUALIZAR CONTRASEÑA
+       ===================================================== */
+
+    $stmt =
+        $db->conn->prepare(
+
+            "UPDATE usuarios
+
+             SET
+                contrasena = :contrasena,
+                requiere_cambio_contrasena = 0
+
+             WHERE
+                id_usuario = :id
+                AND requiere_cambio_contrasena = 1
+                AND estatus = 1"
+        );
+
+
+    $stmt->execute([
+        ':contrasena' =>
+            $nuevoHash,
+
+        ':id' =>
+            $idUsuario
+    ]);
+
+
+    if (
+        $stmt->rowCount() !== 1
+    ) {
+
+        $db->desconectar();
+
+        responderCambioContrasena(
+            'error',
+            'No fue posible actualizar la contraseña. Intenta nuevamente.',
+            409
+        );
+    }
+
+
+    /* =====================================================
+       14. ACTUALIZAR SESIÓN
+       ===================================================== */
+
+    $_SESSION[
+        'requiere_cambio_contrasena'
+    ] = 0;
+
+
     $db->desconectar();
 
 
     /* =====================================================
-       11. VALIDACIONES CORRECTAS
-
-       TODAVÍA NO HACEMOS UPDATE.
+       15. RESPUESTA FINAL
        ===================================================== */
 
     responderCambioContrasena(
         'success',
-        'La nueva contraseña cumple todos los requisitos.'
+        'Tu contraseña fue actualizada correctamente.'
     );
 
 
 } catch (Throwable $e) {
 
+    if (
+        $db !== null &&
+        isset($db->conn) &&
+        $db->conn
+    ) {
+
+        try {
+            $db->desconectar();
+        } catch (Throwable $ignorar) {
+        }
+    }
+
+
     responderCambioContrasena(
         'error',
-        'Ocurrió un error interno al validar la contraseña.',
+        'Ocurrió un error interno al actualizar la contraseña.',
         500
     );
 }
+
 ?>

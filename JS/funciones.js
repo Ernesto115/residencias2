@@ -6694,6 +6694,14 @@ if (formularioValido) {
     btnGuardar.style.cursor =
         'not-allowed';
 }
+
+
+/* =====================================================
+   DEVOLVER RESULTADO DE LA VALIDACIÓN
+   ===================================================== */
+
+return formularioValido;
+
 }
 
 
@@ -6894,24 +6902,211 @@ function inicializarCambioContrasena() {
         );
     }
 
+/* =========================================================
+   ENVIAR NUEVA CONTRASEÑA AL BACKEND
+   ========================================================= */
 
-    /*
-     * TEMPORAL:
-     * todavía no enviamos la contraseña al backend.
-     */
+formulario.addEventListener(
+    'submit',
+    async function (event) {
 
-    formulario.addEventListener(
-        'submit',
-        function (event) {
+        event.preventDefault();
 
-            event.preventDefault();
+
+        /* Validar nuevamente antes de enviar */
+        if (!validarCambioContrasena()) {
+            return;
+        }
+
+
+        const nueva =
+            document.getElementById(
+                'nueva_contrasena'
+            );
+
+
+        const confirmar =
+            document.getElementById(
+                'confirmar_contrasena'
+            );
+
+
+        const btnGuardar =
+            document.getElementById(
+                'btnGuardarNuevaContrasena'
+            );
+
+
+        const contenedor =
+            document.getElementById(
+                'contenedorCambioContrasena'
+            );
+
+
+        if (
+            !nueva ||
+            !confirmar ||
+            !btnGuardar ||
+            !contenedor
+        ) {
+            return;
+        }
+
+
+        /* Preparar datos */
+        const datos =
+            new FormData();
+
+
+        datos.append(
+            'nueva_contrasena',
+            nueva.value
+        );
+
+
+        datos.append(
+            'confirmar_contrasena',
+            confirmar.value
+        );
+
+
+        /* Bloquear botón mientras guarda */
+        btnGuardar.disabled = true;
+        btnGuardar.textContent = 'Guardando...';
+        btnGuardar.style.opacity = '0.65';
+        btnGuardar.style.cursor = 'wait';
+
+        contenedor.innerHTML = '';
+
+
+        try {
+
+            const response =
+                await fetch(
+                    '/autentificacion/actualizar_contrasena.php',
+                    {
+                        method: 'POST',
+                        body: datos
+                    }
+                );
+
+
+            const respuesta =
+                await response.json();
+
+
+            /* =================================================
+               ERROR
+               ================================================= */
+
+            if (
+                !response.ok ||
+                respuesta.status !== 'success'
+            ) {
+
+                contenedor.innerHTML = `
+                    <div style="
+                        margin-bottom:15px;
+                        padding:10px 12px;
+                        border-radius:8px;
+                        background:rgba(244,63,94,.10);
+                        border:1px solid rgba(244,63,94,.35);
+                        color:#f43f5e;
+                        font-size:.82rem;
+                        text-align:left;
+                    ">
+                        ❌ ${respuesta.message || 'No fue posible actualizar la contraseña.'}
+                    </div>
+                `;
+
+
+                btnGuardar.textContent =
+                    'Guardar y continuar';
+
+
+                validarCambioContrasena();
+
+                return;
+            }
+
+
+            /* =================================================
+               ÉXITO
+               ================================================= */
+
+            contenedor.innerHTML = `
+                <div style="
+                    margin-bottom:15px;
+                    padding:10px 12px;
+                    border-radius:8px;
+                    background:rgba(34,197,94,.10);
+                    border:1px solid rgba(34,197,94,.35);
+                    color:#22c55e;
+                    font-size:.82rem;
+                    text-align:center;
+                    font-weight:600;
+                ">
+                    ✅ Contraseña actualizada correctamente.
+                </div>
+            `;
+
+
+            btnGuardar.textContent =
+                'Contraseña guardada';
+
+
+            btnGuardar.disabled =
+                true;
+
+
+            /* Ir al sistema */
+            setTimeout(
+                function () {
+
+                    window.location.href =
+                        '/index.php';
+                },
+                1200
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                'Error al actualizar contraseña:',
+                error
+            );
+
+
+            contenedor.innerHTML = `
+                <div style="
+                    margin-bottom:15px;
+                    padding:10px 12px;
+                    border-radius:8px;
+                    background:rgba(244,63,94,.10);
+                    border:1px solid rgba(244,63,94,.35);
+                    color:#f43f5e;
+                    font-size:.82rem;
+                    text-align:left;
+                ">
+                    ❌ No fue posible conectar con el servidor.
+                </div>
+            `;
+
+
+            btnGuardar.textContent =
+                'Guardar y continuar';
+
 
             validarCambioContrasena();
         }
-    );
+    }
+);
 
 
-    validarCambioContrasena();
+/* Estado inicial */
+validarCambioContrasena();
+
 }
 
 
