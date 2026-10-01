@@ -21,6 +21,7 @@ function cerrarSesionInvalida($motivo = '')
         $parametros =
             session_get_cookie_params();
 
+
         setcookie(
             session_name(),
             '',
@@ -41,7 +42,10 @@ function cerrarSesionInvalida($motivo = '')
        REDIRECCIÓN
        ===================================================== */
 
-    if ($motivo === 'cuenta_desactivada') {
+    if (
+        $motivo ===
+        'cuenta_desactivada'
+    ) {
 
         header(
             "Location: /login.php?motivo=cuenta_desactivada"
@@ -51,7 +55,10 @@ function cerrarSesionInvalida($motivo = '')
     }
 
 
-    header("Location: /login.php");
+    header(
+        "Location: /login.php"
+    );
+
     exit();
 }
 
@@ -60,14 +67,18 @@ function cerrarSesionInvalida($motivo = '')
    VERIFICAR SESIÓN
    ========================================================= */
 
-function verificarSesion()
+function verificarSesion(
+    $permitirCambioContrasena = false
+)
 {
     /* =====================================================
-       NO EXISTE SESIÓN
+       1. NO EXISTE SESIÓN
        ===================================================== */
 
     if (
-        !isset($_SESSION['id_usuario']) ||
+        !isset(
+            $_SESSION['id_usuario']
+        ) ||
         (int)$_SESSION['id_usuario'] <= 0
     ) {
 
@@ -76,12 +87,14 @@ function verificarSesion()
 
 
     /* =====================================================
-       VALIDAR CUENTA EN BASE DE DATOS
+       2. VALIDAR CUENTA EN BASE DE DATOS
        ===================================================== */
 
     require_once __DIR__ . "/../DB/db.php";
-    
-    $dbSesion = new db();
+
+
+    $dbSesion =
+        new db();
 
 
     try {
@@ -91,18 +104,25 @@ function verificarSesion()
 
         $stmt =
             $dbSesion->conn->prepare(
+
                 "SELECT
                     id_usuario,
-                    estatus
+                    estatus,
+                    requiere_cambio_contrasena
+
                  FROM usuarios
+
                  WHERE id_usuario = :id
+
                  LIMIT 1"
             );
 
 
         $stmt->execute([
             ':id' =>
-                (int)$_SESSION['id_usuario']
+                (int)$_SESSION[
+                    'id_usuario'
+                ]
         ]);
 
 
@@ -113,7 +133,7 @@ function verificarSesion()
 
 
         /* =================================================
-           USUARIO YA NO EXISTE
+           3. USUARIO YA NO EXISTE
            ================================================= */
 
         if (!$usuarioSesion) {
@@ -125,14 +145,17 @@ function verificarSesion()
 
 
         /* =================================================
-           CUENTA DESACTIVADA
+           4. CUENTA DESACTIVADA
            ================================================= */
 
         if (
-            (int)$usuarioSesion['estatus'] !== 1
+            (int)$usuarioSesion[
+                'estatus'
+            ] !== 1
         ) {
 
             $dbSesion->desconectar();
+
 
             cerrarSesionInvalida(
                 'cuenta_desactivada'
@@ -140,7 +163,47 @@ function verificarSesion()
         }
 
 
-        /* Cuenta correcta */
+        /* =================================================
+           5. SINCRONIZAR CAMBIO DE CONTRASEÑA CON MYSQL
+           ================================================= */
+
+        $requiereCambioContrasena =
+            (int)$usuarioSesion[
+                'requiere_cambio_contrasena'
+            ];
+
+
+        $_SESSION[
+            'requiere_cambio_contrasena'
+        ] =
+            $requiereCambioContrasena;
+
+
+        /* =================================================
+           6. FORZAR CAMBIO DE CONTRASEÑA
+           ================================================= */
+
+        if (
+            $requiereCambioContrasena === 1 &&
+            !$permitirCambioContrasena
+        ) {
+
+            $dbSesion->desconectar();
+
+
+            header(
+                "Location: /autentificacion/cambiar_contrasena.php"
+            );
+
+
+            exit();
+        }
+
+
+        /* =================================================
+           7. CUENTA CORRECTA
+           ================================================= */
+
         $dbSesion->desconectar();
 
 
@@ -151,7 +214,12 @@ function verificarSesion()
             $dbSesion->conn
         ) {
 
-            $dbSesion->desconectar();
+            try {
+
+                $dbSesion->desconectar();
+
+            } catch (Throwable $ignorar) {
+            }
         }
 
 
@@ -164,12 +232,23 @@ function verificarSesion()
    VERIFICAR ROL
    ========================================================= */
 
-function verificarRol($rolesPermitidos = [])
+function verificarRol(
+    $rolesPermitidos = []
+)
 {
+    /*
+     * Al no enviar TRUE, cualquier usuario
+     * con cambio obligatorio pendiente será
+     * redirigido antes de validar su rol.
+     */
     verificarSesion();
 
 
-    if (!is_array($rolesPermitidos)) {
+    if (
+        !is_array(
+            $rolesPermitidos
+        )
+    ) {
 
         $rolesPermitidos = [
             $rolesPermitidos
@@ -186,12 +265,15 @@ function verificarRol($rolesPermitidos = [])
 
     $rolUsuario =
         strtoupper(
-            $_SESSION['rol'] ?? ''
+            $_SESSION['rol']
+            ?? ''
         );
 
 
     if (
-        !empty($rolesPermitidosUpper) &&
+        !empty(
+            $rolesPermitidosUpper
+        ) &&
         !in_array(
             $rolUsuario,
             $rolesPermitidosUpper,

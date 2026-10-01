@@ -2,7 +2,7 @@
 
 require_once "../configuracion/sesion.php";
 
-verificarSesion();
+verificarSesion(true);
 
 
 $requiereCambio =
