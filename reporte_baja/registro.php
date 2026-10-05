@@ -1,12 +1,12 @@
 <?php
 
 /* =========================================================
-   SESIÓN
+   SESIÓN CENTRAL
    ========================================================= */
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once "../configuracion/sesion.php";
+
+verificarSesion();
 
 
 /* =========================================================
@@ -18,7 +18,11 @@ header(
 );
 
 
-include_once "../db/db.php";
+/* =========================================================
+   BASE DE DATOS
+   ========================================================= */
+
+require_once "../DB/db.php";
 
 
 $db = new db();
@@ -135,8 +139,20 @@ $multiempresa =
 
 
 /* =========================================================
-   SESIÓN VÁLIDA
+   CONTEXTO DE SESIÓN VÁLIDO
    ========================================================= */
+
+/*
+ * verificarSesion() ya comprobó en la base de datos:
+ *
+ * - Que exista una sesión.
+ * - Que el usuario siga existiendo.
+ * - Que la cuenta esté activa.
+ * - Que no tenga cambio obligatorio de contraseña pendiente.
+ *
+ * Aquí solamente verificamos que el contexto necesario
+ * para este módulo esté disponible en la sesión.
+ */
 
 if (
     $id_usuario <= 0 ||
@@ -145,7 +161,7 @@ if (
 
     errorRegistroReporte(
         401,
-        'Tu sesión no es válida o ha finalizado.',
+        'No fue posible identificar correctamente tu sesión.',
         $db
     );
 }
@@ -298,7 +314,10 @@ if (
  * o finalice bajas.
  */
 
-if ($rol === 'ADMIN') {
+if (
+    $rol ===
+    'ADMIN'
+) {
 
     echo json_encode(
         $reporte,

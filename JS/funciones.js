@@ -3,6 +3,180 @@
    Navegación, Tema, AJAX, CRUD y Login
    ========================================================= */
 
+   /* =========================================================
+   CONTROL GLOBAL DE SESIÓN EN PETICIONES FETCH
+   ========================================================= */
+
+/*
+ * Detecta cuando PHP redirige una petición Fetch debido a:
+ *
+ * - Sesión finalizada.
+ * - Cuenta desactivada.
+ * - Cambio obligatorio de contraseña.
+ *
+ * Devuelve TRUE cuando la respuesta fue interceptada
+ * y la navegación será redirigida.
+ *
+ * Devuelve FALSE cuando la respuesta puede continuar
+ * procesándose normalmente.
+ */
+function manejarRedireccionSesion(response) {
+
+    if (
+        !response ||
+        !response.redirected ||
+        !response.url
+    ) {
+
+        return false;
+    }
+
+
+    let urlDestino;
+
+
+    try {
+
+        urlDestino =
+            new URL(
+                response.url,
+                window.location.origin
+            );
+
+    } catch (error) {
+
+        console.error(
+            'No se pudo interpretar la URL de redirección:',
+            response.url,
+            error
+        );
+
+        return false;
+    }
+
+
+    const rutaDestino =
+        urlDestino.pathname;
+
+
+    /* =====================================================
+       CAMBIO OBLIGATORIO DE CONTRASEÑA
+       ===================================================== */
+
+    if (
+        rutaDestino ===
+        '/autentificacion/cambiar_contrasena.php'
+    ) {
+
+        console.warn(
+            'La cuenta requiere un cambio obligatorio de contraseña.'
+        );
+
+
+        window.location.href =
+            urlDestino.href;
+
+
+        return true;
+    }
+
+
+    /* =====================================================
+       LOGIN / SESIÓN FINALIZADA
+       ===================================================== */
+
+    if (
+        rutaDestino !==
+        '/login.php'
+    ) {
+
+        return false;
+    }
+
+
+    const motivo =
+        urlDestino.searchParams.get(
+            'motivo'
+        );
+
+
+    /* =====================================================
+       CUENTA DESACTIVADA
+       ===================================================== */
+
+    if (
+        motivo ===
+        'cuenta_desactivada'
+    ) {
+
+        if (
+            typeof Swal !==
+            'undefined'
+        ) {
+
+            Swal.fire({
+
+                icon:
+                    'warning',
+
+                title:
+                    'Sesión finalizada',
+
+                text:
+                    'Tu cuenta fue desactivada por un administrador. Ya no tienes acceso al sistema.',
+
+                confirmButtonText:
+                    'Entendido',
+
+                confirmButtonColor:
+                    '#e67e00',
+
+                background:
+                    '#1e293b',
+
+                color:
+                    '#ffffff',
+
+                allowOutsideClick:
+                    false,
+
+                allowEscapeKey:
+                    false
+
+            }).then(() => {
+
+                window.location.href =
+                    urlDestino.href;
+
+            });
+
+
+        } else {
+
+            alert(
+                'Tu sesión fue finalizada porque tu cuenta fue desactivada.'
+            );
+
+
+            window.location.href =
+                urlDestino.href;
+        }
+
+
+        return true;
+    }
+
+
+    /* =====================================================
+       SESIÓN NORMAL FINALIZADA
+       ===================================================== */
+
+    window.location.href =
+        urlDestino.href;
+
+
+    return true;
+}
 
 /* =========================================================
    1. NAVEGACIÓN
@@ -15,85 +189,6 @@ function ver(ruta) {
         document.getElementById(
             'contenido-principal'
         );
-
-
-    /* =========================================================
-       FUNCIÓN PARA REDIRIGIR AL LOGIN
-       ========================================================= */
-
-    function manejarSesionFinalizada(response) {
-
-        if (
-            !response.redirected ||
-            !response.url.includes('/login.php')
-        ) {
-            return false;
-        }
-
-
-        const url =
-            new URL(response.url);
-
-
-        const motivo =
-            url.searchParams.get('motivo');
-
-
-        /* =====================================================
-           CUENTA DESACTIVADA
-           ===================================================== */
-
-        if (
-            motivo ===
-            'cuenta_desactivada'
-        ) {
-
-            if (
-                typeof Swal !==
-                'undefined'
-            ) {
-
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Sesión finalizada',
-                    text:
-                        'Tu cuenta fue desactivada por un administrador. Ya no tienes acceso al sistema.',
-                    confirmButtonText: 'Entendido',
-                    confirmButtonColor: '#e67e00',
-                    background: '#1e293b',
-                    color: '#ffffff',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false
-                })
-                .then(() => {
-
-                    window.location.href =
-                        response.url;
-                });
-
-            } else {
-
-                alert(
-                    'Tu sesión fue finalizada porque tu cuenta fue desactivada.'
-                );
-
-
-                window.location.href =
-                    response.url;
-            }
-
-
-            return true;
-        }
-
-
-        /* Sesión normal finalizada */
-        window.location.href =
-            response.url;
-
-
-        return true;
-    }
 
 
     /* =========================================================
@@ -115,7 +210,7 @@ function ver(ruta) {
                 .then(response => {
 
                     if (
-                        manejarSesionFinalizada(
+                        manejarRedireccionSesion(
                             response
                         )
                     ) {
@@ -194,7 +289,7 @@ function ver(ruta) {
                ================================================= */
 
             if (
-                manejarSesionFinalizada(
+                manejarRedireccionSesion(
                     response
                 )
             ) {
@@ -1851,7 +1946,23 @@ function editar(id, tb, pfrm) {
         }
     )
 
+
     .then(async response => {
+
+
+        /* =================================================
+           COMPROBAR REDIRECCIÓN DE SESIÓN
+           ================================================= */
+
+        if (
+            manejarRedireccionSesion(
+                response
+            )
+        ) {
+
+            return null;
+        }
+
 
         /*
          * Primero leemos el texto.
@@ -1912,6 +2023,16 @@ function editar(id, tb, pfrm) {
 
 
     .then(registro => {
+
+
+        /* =================================================
+           RESPUESTA INTERCEPTADA POR SESIÓN
+           ================================================= */
+
+        if (registro === null) {
+
+            return;
+        }
 
 
         let frm =
@@ -1979,10 +2100,10 @@ function editar(id, tb, pfrm) {
 
             /* =================================================
                EMPRESAS
-               
+
                Cuando estamos EDITANDO una empresa,
                id_empresa ya contiene un valor.
-               
+
                Por lo tanto, la sección para crear una cuenta
                nueva de propietario debe permanecer oculta.
                ================================================= */
@@ -2205,7 +2326,6 @@ function editar(id, tb, pfrm) {
         }
     }
 }
-
 // Elimina un registro.
 function eliminar(id, tb) { 
 
@@ -3856,8 +3976,9 @@ function confirmarBaja() {
 
     const reabrirModal = () => {
 
-        if (!modal)
+        if (!modal) {
             return;
+        }
 
         modal.classList.add(
             'active',
@@ -3871,6 +3992,7 @@ function confirmarBaja() {
 
 
     /* CERRAR MODAL ANTES DE CONFIRMAR */
+
     cerrarRevisionBaja();
 
 
@@ -3936,6 +4058,7 @@ function confirmarBaja() {
 
 
         /* ENVIAR LOS 7 CRITERIOS */
+
         Object.entries(valores).forEach(
             ([campo, valor]) => {
 
@@ -3966,8 +4089,24 @@ function confirmarBaja() {
 
         .then(async response => {
 
+
+            /* =================================================
+               COMPROBAR REDIRECCIÓN DE SESIÓN
+               ================================================= */
+
+            if (
+                manejarRedireccionSesion(
+                    response
+                )
+            ) {
+
+                return null;
+            }
+
+
             const texto =
                 await response.text();
+
 
             let data;
 
@@ -4010,7 +4149,18 @@ function confirmarBaja() {
         .then(data => {
 
 
+            /* =================================================
+               RESPUESTA INTERCEPTADA POR SESIÓN
+               ================================================= */
+
+            if (data === null) {
+
+                return;
+            }
+
+
             /* ERROR CONTROLADO POR PHP */
+
             if (!data.ok) {
 
                 Swal.fire({
@@ -4174,11 +4324,13 @@ function confirmarBaja() {
 
 
                     /* ESTE REPORTE YA USA EL NUEVO FORMATO */
+
                     botonEvaluacion.dataset.tipo =
                         'nueva';
 
 
                     /* INFORMACIÓN GENERAL */
+
                     botonEvaluacion.dataset.operador =
                         operador;
 
@@ -4190,6 +4342,7 @@ function confirmarBaja() {
 
 
                     /* RESULTADOS */
+
                     botonEvaluacion.dataset.general =
                         calificacionTexto;
 
@@ -4198,6 +4351,7 @@ function confirmarBaja() {
 
 
                     /* SERVICIO */
+
                     botonEvaluacion.dataset.distancia =
                         valores.eval_distancia;
 
@@ -4209,6 +4363,7 @@ function confirmarBaja() {
 
 
                     /* DESEMPEÑO */
+
                     botonEvaluacion.dataset.cuidado =
                         valores.eval_cuidado_vehiculo;
 
@@ -4223,6 +4378,7 @@ function confirmarBaja() {
 
 
                     /* ABRIR EVALUACIÓN */
+
                     botonEvaluacion.onclick =
                         function() {
 
@@ -4329,7 +4485,6 @@ function confirmarBaja() {
 
     });
 }
-
 
 // Cierra el modal del operador al hacer clic afuera.
 window.addEventListener(
