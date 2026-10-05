@@ -1469,6 +1469,20 @@ function guardar(tb, pfrm, event) {
     .then(async response => {
 
 
+        /* =================================================
+           COMPROBAR REDIRECCIÓN DE SESIÓN
+           ================================================= */
+
+        if (
+            manejarRedireccionSesion(
+                response
+            )
+        ) {
+
+            return null;
+        }
+
+
         /*
          * Solo usamos la ruta alternativa si
          * realmente no existe la primera ruta.
@@ -1484,6 +1498,20 @@ function guardar(tb, pfrm, event) {
                 await enviarPeticion(
                     rutaAlternativa
                 );
+
+
+            /* =============================================
+               COMPROBAR TAMBIÉN LA RUTA ALTERNATIVA
+               ============================================= */
+
+            if (
+                manejarRedireccionSesion(
+                    response
+                )
+            ) {
+
+                return null;
+            }
         }
 
 
@@ -1503,10 +1531,25 @@ function guardar(tb, pfrm, event) {
        PROCESAR RESPUESTA
        ===================================================== */
 
-    .then(({
-        response,
-        data
-    }) => {
+    .then(resultado => {
+
+
+        /* =================================================
+           RESPUESTA INTERCEPTADA POR SESIÓN
+           ================================================= */
+
+        if (
+            resultado === null
+        ) {
+
+            return;
+        }
+
+
+        const {
+            response,
+            data
+        } = resultado;
 
 
         console.log(
@@ -1779,7 +1822,6 @@ function guardar(tb, pfrm, event) {
 
     .catch(error => {
 
-
         console.error(
 
             '❌ Error AJAX al guardar en ' +
@@ -1798,7 +1840,6 @@ function guardar(tb, pfrm, event) {
         );
     });
 }
-
 // Envía un formulario mediante POST.
 function enviardatos(url_tabla) {
     let cont3 = document.querySelector("#contenedor3");

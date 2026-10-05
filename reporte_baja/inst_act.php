@@ -1,10 +1,20 @@
 <?php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+/* =========================================================
+   SESIÓN CENTRAL
+   ========================================================= */
 
-include_once "../db/db.php";
+require_once "../configuracion/sesion.php";
+
+verificarSesion();
+
+
+/* =========================================================
+   BASE DE DATOS
+   ========================================================= */
+
+require_once "../DB/db.php";
+
 
 $db = new db();
 $db->conectar();
@@ -14,52 +24,116 @@ $db->conectar();
    SESIÓN
    ========================================================= */
 
-$rol = strtoupper(trim($_SESSION['rol'] ?? ''));
+$rol =
+    strtoupper(
+        trim(
+            $_SESSION['rol'] ?? ''
+        )
+    );
 
-if ($rol === 'ADMINISTRADOR') {
-    $rol = 'ADMIN';
+
+if (
+    $rol ===
+    'ADMINISTRADOR'
+) {
+
+    $rol =
+        'ADMIN';
 }
 
-if (in_array($rol, ['RH', 'RECURSOS HUMANOS'], true)) {
-    $rol = 'RRHH';
+
+if (
+    in_array(
+        $rol,
+        [
+            'RH',
+            'RECURSOS HUMANOS'
+        ],
+        true
+    )
+) {
+
+    $rol =
+        'RRHH';
 }
 
-$id_usuario = (int)($_SESSION['id_usuario'] ?? 0);
-$id_empresa_sesion = (int)($_SESSION['id_empresa'] ?? 0);
-$multiempresa = (int)($_SESSION['multiempresa'] ?? 0);
+
+$id_usuario =
+    (int)(
+        $_SESSION['id_usuario'] ?? 0
+    );
+
+
+$id_empresa_sesion =
+    (int)(
+        $_SESSION['id_empresa'] ?? 0
+    );
+
+
+$multiempresa =
+    (int)(
+        $_SESSION['multiempresa'] ?? 0
+    );
 
 
 /* =========================================================
    ERROR CONTROLADO
    ========================================================= */
 
-function errorReporte($mensaje, $db, $codigoHttp = 400)
-{
-    http_response_code($codigoHttp);
+function errorReporte(
+    $mensaje,
+    $db,
+    $codigoHttp = 400
+) {
 
-    $mensajeJS = json_encode(
-        $mensaje,
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+    http_response_code(
+        $codigoHttp
     );
 
+
+    $mensajeJS =
+        json_encode(
+            $mensaje,
+            JSON_UNESCAPED_UNICODE |
+            JSON_UNESCAPED_SLASHES
+        );
+
+
     echo "<!-- Error controlado de reporte de baja -->
+
     <script>
+
         if(typeof Swal!=='undefined'){
+
             Swal.fire({
+
                 icon:'warning',
+
                 title:'No se pudo registrar la baja',
+
                 text:$mensajeJS,
+
                 confirmButtonText:'Entendido',
+
                 confirmButtonColor:'#e11d48',
+
                 background:'#1e293b',
+
                 color:'#ffffff'
+
             });
+
         }else{
+
             alert('⚠️ '+$mensajeJS);
+
         }
+
     </script>";
 
+
     $db->desconectar();
+
     exit;
 }
 
@@ -68,9 +142,15 @@ function errorReporte($mensaje, $db, $codigoHttp = 400)
    SOLO POST
    ========================================================= */
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if (
+    $_SERVER['REQUEST_METHOD'] !==
+    'POST'
+) {
 
-    header('Allow: POST');
+    header(
+        'Allow: POST'
+    );
+
 
     errorReporte(
         'Método de solicitud no permitido.',
@@ -81,13 +161,28 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 
 /* =========================================================
-   SESIÓN VÁLIDA
+   CONTEXTO DE SESIÓN VÁLIDO
    ========================================================= */
 
-if ($id_usuario <= 0 || $rol === '') {
+/*
+ * verificarSesion() ya comprobó directamente en MySQL:
+ *
+ * - Que exista una sesión.
+ * - Que el usuario siga existiendo.
+ * - Que la cuenta esté activa.
+ * - Que no tenga cambio obligatorio de contraseña pendiente.
+ *
+ * Aquí solamente comprobamos que el contexto requerido por
+ * este módulo esté disponible en la sesión.
+ */
+
+if (
+    $id_usuario <= 0 ||
+    $rol === ''
+) {
 
     errorReporte(
-        'Tu sesión no es válida o ha finalizado.',
+        'No fue posible identificar correctamente tu sesión.',
         $db,
         401
     );
@@ -98,7 +193,10 @@ if ($id_usuario <= 0 || $rol === '') {
    ADMIN = SOLO CONSULTA
    ========================================================= */
 
-if ($rol === 'ADMIN') {
+if (
+    $rol ===
+    'ADMIN'
+) {
 
     errorReporte(
         'El administrador solo puede consultar los reportes de baja. La solicitud debe realizarla la empresa responsable del operador.',
@@ -112,7 +210,16 @@ if ($rol === 'ADMIN') {
    ROLES QUE PUEDEN SOLICITAR BAJA
    ========================================================= */
 
-if (!in_array($rol, ['PROPIETARIO', 'RRHH'], true)) {
+if (
+    !in_array(
+        $rol,
+        [
+            'PROPIETARIO',
+            'RRHH'
+        ],
+        true
+    )
+) {
 
     errorReporte(
         'No tienes permiso para solicitar bajas de operadores.',
@@ -126,24 +233,45 @@ if (!in_array($rol, ['PROPIETARIO', 'RRHH'], true)) {
    DATOS
    ========================================================= */
 
-$id_reporte = (int)($_POST['id_reporte'] ?? 0);
-$id_operador = (int)($_POST['id_operador'] ?? 0);
-$id_empresa_form = (int)($_POST['id_empresa'] ?? 0);
+$id_reporte =
+    (int)(
+        $_POST['id_reporte'] ?? 0
+    );
 
-$motivo_baja = strtoupper(
-    trim($_POST['motivo_baja'] ?? '')
-);
 
-$calif_cualitativa = trim(
-    $_POST['calif_cualitativa'] ?? ''
-);
+$id_operador =
+    (int)(
+        $_POST['id_operador'] ?? 0
+    );
+
+
+$id_empresa_form =
+    (int)(
+        $_POST['id_empresa'] ?? 0
+    );
+
+
+$motivo_baja =
+    strtoupper(
+        trim(
+            $_POST['motivo_baja'] ?? ''
+        )
+    );
+
+
+$calif_cualitativa =
+    trim(
+        $_POST['calif_cualitativa'] ?? ''
+    );
 
 
 /* =========================================================
    NO EDITAR SOLICITUDES EXISTENTES
    ========================================================= */
 
-if ($id_reporte > 0) {
+if (
+    $id_reporte > 0
+) {
 
     errorReporte(
         'Las solicitudes de baja existentes no pueden modificarse.',
@@ -157,7 +285,9 @@ if ($id_reporte > 0) {
    VALIDAR OPERADOR
    ========================================================= */
 
-if ($id_operador <= 0) {
+if (
+    $id_operador <= 0
+) {
 
     errorReporte(
         'Debes seleccionar un operador.',
@@ -171,20 +301,36 @@ if ($id_operador <= 0) {
    ========================================================= */
 
 $motivosPermitidos = [
+
     'ROBO',
+
     'GASTO_COMBUSTIBLE',
+
     'CHOQUES',
+
     'MULTAS',
+
     'FALTAS',
+
     'RENUNCIA_VOLUNTARIA',
+
     'DESPIDO',
+
     'ABANDONO_TRABAJO',
+
     'INCUMPLIMIENTO',
+
     'OTRO'
 ];
 
 
-if (!in_array($motivo_baja, $motivosPermitidos, true)) {
+if (
+    !in_array(
+        $motivo_baja,
+        $motivosPermitidos,
+        true
+    )
+) {
 
     errorReporte(
         'El motivo de baja seleccionado no es válido.',
@@ -197,9 +343,14 @@ if (!in_array($motivo_baja, $motivosPermitidos, true)) {
    MOTIVO OTRO
    ========================================================= */
 
-if ($motivo_baja === 'OTRO') {
+if (
+    $motivo_baja ===
+    'OTRO'
+) {
 
-    if ($calif_cualitativa === '') {
+    if (
+        $calif_cualitativa === ''
+    ) {
 
         errorReporte(
             'Debes especificar el motivo cuando seleccionas "Otro".',
@@ -221,9 +372,11 @@ if ($motivo_baja === 'OTRO') {
         );
     }
 
+
 } else {
 
-    $calif_cualitativa = '';
+    $calif_cualitativa =
+        '';
 }
 
 
@@ -231,27 +384,43 @@ if ($motivo_baja === 'OTRO') {
    OBTENER OPERADOR
    ========================================================= */
 
-$stmt = $db->conn->prepare(
-    "SELECT
-        id_operador,
-        id_empresa,
-        estatus,
-        fecha_ingreso
-     FROM operadores
-     WHERE id_operador = :id
-     LIMIT 1"
+$stmt =
+    $db->conn->prepare(
+        "SELECT
+            id_operador,
+            id_empresa,
+            estatus,
+            fecha_ingreso
+
+         FROM operadores
+
+         WHERE id_operador = :id
+
+         LIMIT 1"
+    );
+
+
+$stmt->execute(
+    [
+        ':id' =>
+            $id_operador
+    ]
 );
 
-$stmt->execute([
-    ':id' => $id_operador
-]);
 
-$operador = $stmt->fetch(
-    PDO::FETCH_ASSOC
-);
+$operador =
+    $stmt->fetch(
+        PDO::FETCH_ASSOC
+    );
 
 
-if (!$operador) {
+/* =========================================================
+   OPERADOR EXISTENTE
+   ========================================================= */
+
+if (
+    !$operador
+) {
 
     errorReporte(
         'El operador seleccionado no existe.',
@@ -262,14 +431,18 @@ if (!$operador) {
 
 
 $id_empresa_operador =
-    (int)$operador['id_empresa'];
+    (int)(
+        $operador['id_empresa']
+    );
 
 
 /* =========================================================
    OPERADOR DEBE ESTAR ACTIVO
    ========================================================= */
 
-if ((int)$operador['estatus'] !== 1) {
+if (
+    (int)$operador['estatus'] !== 1
+) {
 
     errorReporte(
         'Este operador ya se encuentra inactivo.',
@@ -285,7 +458,8 @@ if ((int)$operador['estatus'] !== 1) {
 
 if (
     $id_empresa_form > 0 &&
-    $id_empresa_form !== $id_empresa_operador
+    $id_empresa_form !==
+    $id_empresa_operador
 ) {
 
     errorReporte(
@@ -299,34 +473,51 @@ if (
    VALIDAR PERMISOS DE LA EMPRESA
    ========================================================= */
 
-$permitido = false;
+$permitido =
+    false;
 
 
-/* PROPIETARIO MULTIEMPRESA */
+/* =========================================================
+   PROPIETARIO MULTIEMPRESA
+   ========================================================= */
 
 if (
     $rol === 'PROPIETARIO' &&
     $multiempresa === 1
 ) {
 
-    $stmt = $db->conn->prepare(
-        "SELECT 1
-         FROM usuario_empresas
-         WHERE id_usuario = :usuario
-         AND id_empresa = :empresa
-         LIMIT 1"
+    $stmt =
+        $db->conn->prepare(
+            "SELECT 1
+
+             FROM usuario_empresas
+
+             WHERE id_usuario = :usuario
+
+             AND id_empresa = :empresa
+
+             LIMIT 1"
+        );
+
+
+    $stmt->execute(
+        [
+            ':usuario' =>
+                $id_usuario,
+
+            ':empresa' =>
+                $id_empresa_operador
+        ]
     );
 
-    $stmt->execute([
-        ':usuario' => $id_usuario,
-        ':empresa' => $id_empresa_operador
-    ]);
 
     $permitido =
         (bool)$stmt->fetchColumn();
 
 
-/* PROPIETARIO NORMAL / RRHH */
+/* =========================================================
+   PROPIETARIO NORMAL / RRHH
+   ========================================================= */
 
 } elseif (
     $rol === 'PROPIETARIO' ||
@@ -335,11 +526,18 @@ if (
 
     $permitido =
         $id_empresa_sesion > 0 &&
-        $id_empresa_operador === $id_empresa_sesion;
+        $id_empresa_operador ===
+        $id_empresa_sesion;
 }
 
 
-if (!$permitido) {
+/* =========================================================
+   PERMISO VÁLIDO
+   ========================================================= */
+
+if (
+    !$permitido
+) {
 
     errorReporte(
         'No tienes permiso para reportar la baja de este operador.',
@@ -353,20 +551,31 @@ if (!$permitido) {
    EVITAR DOS BAJAS PENDIENTES
    ========================================================= */
 
-$stmt = $db->conn->prepare(
-    "SELECT 1
-     FROM reportes_baja
-     WHERE id_operador = :operador
-     AND estatus_evaluacion = 'PENDIENTE'
-     LIMIT 1"
+$stmt =
+    $db->conn->prepare(
+        "SELECT 1
+
+         FROM reportes_baja
+
+         WHERE id_operador = :operador
+
+         AND estatus_evaluacion = 'PENDIENTE'
+
+         LIMIT 1"
+    );
+
+
+$stmt->execute(
+    [
+        ':operador' =>
+            $id_operador
+    ]
 );
 
-$stmt->execute([
-    ':operador' => $id_operador
-]);
 
-
-if ($stmt->fetchColumn()) {
+if (
+    $stmt->fetchColumn()
+) {
 
     errorReporte(
         'Este operador ya tiene una solicitud de baja pendiente.',
@@ -380,51 +589,75 @@ if ($stmt->fetchColumn()) {
    INSERTAR SOLICITUD
    ========================================================= */
 
-$stmt = $db->conn->prepare(
-    "INSERT INTO reportes_baja (
-        id_operador,
-        id_empresa,
-        motivo_baja,
-        calificacion_cuantitativa,
-        calif_cualitativa,
-        fecha_ingreso,
-        fecha_baja,
-        estatus_evaluacion
-    )
-    VALUES (
-        :operador,
-        :empresa,
-        :motivo,
-        NULL,
-        :comentario,
-        :fecha_ingreso,
-        NULL,
-        'PENDIENTE'
-    )"
-);
+$stmt =
+    $db->conn->prepare(
+        "INSERT INTO reportes_baja (
+
+            id_operador,
+
+            id_empresa,
+
+            motivo_baja,
+
+            calificacion_cuantitativa,
+
+            calif_cualitativa,
+
+            fecha_ingreso,
+
+            fecha_baja,
+
+            estatus_evaluacion
+
+        )
+
+        VALUES (
+
+            :operador,
+
+            :empresa,
+
+            :motivo,
+
+            NULL,
+
+            :comentario,
+
+            :fecha_ingreso,
+
+            NULL,
+
+            'PENDIENTE'
+
+        )"
+    );
 
 
-$guardado = $stmt->execute([
+$guardado =
+    $stmt->execute(
+        [
+            ':operador' =>
+                $id_operador,
 
-    ':operador' =>
-        $id_operador,
+            ':empresa' =>
+                $id_empresa_operador,
 
-    ':empresa' =>
-        $id_empresa_operador,
+            ':motivo' =>
+                $motivo_baja,
 
-    ':motivo' =>
-        $motivo_baja,
+            ':comentario' =>
+                $calif_cualitativa,
 
-    ':comentario' =>
-        $calif_cualitativa,
-
-    ':fecha_ingreso' =>
-        $operador['fecha_ingreso']
-            ?: null
-]);
+            ':fecha_ingreso' =>
+                $operador['fecha_ingreso']
+                    ?: null
+        ]
+    );
 
 
-if (!$guardado) {
+if (
+    !$guardado
+) {
 
     errorReporte(
         'No se pudo registrar la solicitud de baja.',
@@ -438,15 +671,26 @@ if (!$guardado) {
    RECARGAR TABLA
    ========================================================= */
 
-$busqueda = '';
-$estatus_filtro = 'todos';
-$pagina_actual = 1;
-$registros_por_pagina = 5;
+$busqueda =
+    '';
 
-$condiciones = [];
+$estatus_filtro =
+    'todos';
+
+$pagina_actual =
+    1;
+
+$registros_por_pagina =
+    5;
 
 
-/* PROPIETARIO MULTIEMPRESA */
+$condiciones =
+    [];
+
+
+/* =========================================================
+   PROPIETARIO MULTIEMPRESA
+   ========================================================= */
 
 if (
     $rol === 'PROPIETARIO' &&
@@ -454,15 +698,23 @@ if (
 ) {
 
     $condiciones[] = "
+
         rb.id_empresa IN (
+
             SELECT id_empresa
+
             FROM usuario_empresas
+
             WHERE id_usuario = $id_usuario
+
         )
+
     ";
 
 
-/* PROPIETARIO NORMAL / RRHH */
+/* =========================================================
+   PROPIETARIO NORMAL / RRHH
+   ========================================================= */
 
 } elseif (
     $rol === 'PROPIETARIO' ||
@@ -471,65 +723,89 @@ if (
 
     $condiciones[] =
         $id_empresa_sesion > 0
-        ? "rb.id_empresa = $id_empresa_sesion"
-        : "1 = 0";
+
+            ? "rb.id_empresa = $id_empresa_sesion"
+
+            : "1 = 0";
 }
 
 
-$where = $condiciones
-    ? "WHERE " . implode(
-        " AND ",
-        $condiciones
-    )
-    : "";
+$where =
+    $condiciones
+
+        ? "WHERE " .
+          implode(
+              " AND ",
+              $condiciones
+          )
+
+        : "";
 
 
-/* TOTAL */
+/* =========================================================
+   TOTAL
+   ========================================================= */
 
-$res = $db->obtenerRegistros(
-    "SELECT COUNT(*) AS total
-     FROM reportes_baja rb
-     $where"
-);
+$res =
+    $db->obtenerRegistros(
+        "SELECT COUNT(*) AS total
+
+         FROM reportes_baja rb
+
+         $where"
+    );
+
 
 $total_registros =
-    (int)($res[0]['total'] ?? 0);
-
-$total_paginas = max(
-    1,
-    (int)ceil(
-        $total_registros /
-        $registros_por_pagina
-    )
-);
+    (int)(
+        $res[0]['total'] ?? 0
+    );
 
 
-/* REPORTES */
+$total_paginas =
+    max(
+        1,
+        (int)ceil(
+            $total_registros /
+            $registros_por_pagina
+        )
+    );
 
-$datos2 = $db->obtenerRegistros(
-    "SELECT
-        rb.*,
-        CONCAT(
-            o.nombres,' ',
-            o.primer_apellido,' ',
-            o.segundo_apellido
-        ) AS nombre_operador,
-        e.nombre_empresa
 
-     FROM reportes_baja rb
+/* =========================================================
+   REPORTES
+   ========================================================= */
 
-     INNER JOIN operadores o
-        ON o.id_operador = rb.id_operador
+$datos2 =
+    $db->obtenerRegistros(
+        "SELECT
 
-     INNER JOIN empresas e
-        ON e.id_empresa = rb.id_empresa
+            rb.*,
 
-     $where
+            CONCAT(
+                o.nombres,' ',
+                o.primer_apellido,' ',
+                o.segundo_apellido
+            ) AS nombre_operador,
 
-     ORDER BY rb.id_reporte DESC
+            e.nombre_empresa
 
-     LIMIT 5"
-);
+         FROM reportes_baja rb
+
+         INNER JOIN operadores o
+            ON o.id_operador =
+               rb.id_operador
+
+         INNER JOIN empresas e
+            ON e.id_empresa =
+               rb.id_empresa
+
+         $where
+
+         ORDER BY rb.id_reporte DESC
+
+         LIMIT 5"
+    );
 
 
 /* =========================================================
@@ -537,6 +813,7 @@ $datos2 = $db->obtenerRegistros(
    ========================================================= */
 
 include "../reporte_baja/tabla.php";
+
 
 $db->desconectar();
 
