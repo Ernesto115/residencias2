@@ -7442,24 +7442,108 @@ function cargarSidebar() {
 
 let timerReportes;
 
-function cargarReportes(pagina = 1, estatus = 'todos', busqueda = '') {
+function cargarReportes(
+    pagina = 1,
+    estatus = 'todos',
+    busqueda = ''
+) {
 
-    const url = `/reporte_baja/index.php?pagina=${pagina}&estatus=${encodeURIComponent(estatus)}&busqueda=${encodeURIComponent(busqueda)}`;
+    const url =
+        `/reporte_baja/index.php?pagina=${pagina}` +
+        `&estatus=${encodeURIComponent(estatus)}` +
+        `&busqueda=${encodeURIComponent(busqueda)}`;
+
 
     fetch(url)
-        .then(r => r.text())
+
+        /* =================================================
+           COMPROBAR RESPUESTA Y SESIÓN
+           ================================================= */
+
+        .then(response => {
+
+            if (
+                manejarRedireccionSesion(
+                    response
+                )
+            ) {
+
+                return null;
+            }
+
+
+            if (
+                !response.ok
+            ) {
+
+                throw new Error(
+                    'No fue posible cargar los reportes de baja.'
+                );
+            }
+
+
+            return response.text();
+        })
+
+
+        /* =================================================
+           ACTUALIZAR TABLA
+           ================================================= */
+
         .then(html => {
 
-            const doc = new DOMParser().parseFromString(html, 'text/html');
-            const nuevo = doc.querySelector('#contenedor3');
-            const actual = document.querySelector('.modulo-reportes #contenedor3');
+            if (
+                html === null
+            ) {
 
-            if (nuevo && actual) {
-                actual.innerHTML = nuevo.innerHTML;
+                return;
+            }
+
+
+            const doc =
+                new DOMParser()
+                    .parseFromString(
+                        html,
+                        'text/html'
+                    );
+
+
+            const nuevo =
+                doc.querySelector(
+                    '#contenedor3'
+                );
+
+
+            const actual =
+                document.querySelector(
+                    '.modulo-reportes #contenedor3'
+                );
+
+
+            if (
+                nuevo &&
+                actual
+            ) {
+
+                actual.innerHTML =
+                    nuevo.innerHTML;
             }
 
         })
-        .catch(error => console.error('Error al cargar reportes:', error));
+
+
+        /* =================================================
+           ERROR DE RED / SERVIDOR
+           ================================================= */
+
+        .catch(error => {
+
+            console.error(
+                'Error al cargar reportes:',
+                error
+            );
+
+        });
 }
 
 
