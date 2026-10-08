@@ -26,6 +26,7 @@ require_once "../DB/db.php";
 
 
 $db = new db();
+
 $db->conectar();
 
 
@@ -316,20 +317,54 @@ if (
 $stmt =
     $db->conn->prepare(
         "SELECT
+
             rb.id_reporte,
+
             rb.id_operador,
+
             rb.id_empresa,
+
             rb.estatus_evaluacion,
 
+
             o.estatus AS estatus_operador,
-            o.id_empresa AS id_empresa_operador
+
+            o.id_empresa AS id_empresa_operador,
+
+
+            o.nombres,
+
+            o.primer_apellido,
+
+            o.segundo_apellido,
+
+            o.rfc,
+
+
+            e.nombre_empresa,
+
+            e.razon_social,
+
+            e.direccion_fiscal,
+
+            e.responsable
+
 
          FROM reportes_baja rb
 
+
          INNER JOIN operadores o
+
             ON o.id_operador = rb.id_operador
 
+
+         INNER JOIN empresas e
+
+            ON e.id_empresa = rb.id_empresa
+
+
          WHERE rb.id_reporte = :reporte
+
 
          LIMIT 1"
     );
@@ -385,6 +420,48 @@ $id_empresa_operador =
 $id_operador =
     (int)(
         $reporte['id_operador']
+    );
+
+
+/* =========================================================
+   DATOS PARA SNAPSHOT HISTÓRICO
+   ========================================================= */
+
+$nombre_operador_historico =
+    trim(
+        $reporte['nombres'] . ' ' .
+        $reporte['primer_apellido'] . ' ' .
+        $reporte['segundo_apellido']
+    );
+
+
+$rfc_operador_historico =
+    trim(
+        (string)$reporte['rfc']
+    );
+
+
+$nombre_empresa_historico =
+    trim(
+        (string)$reporte['nombre_empresa']
+    );
+
+
+$razon_social_historica =
+    trim(
+        (string)$reporte['razon_social']
+    );
+
+
+$direccion_fiscal_historica =
+    trim(
+        (string)$reporte['direccion_fiscal']
+    );
+
+
+$responsable_empresa_historico =
+    trim(
+        (string)$reporte['responsable']
     );
 
 
@@ -522,9 +599,13 @@ $promedio_servicio =
     round(
         (
             $eval_distancia +
+
             $eval_tiempo +
+
             $eval_ganancias
+
         ) / 3,
+
         2
     );
 
@@ -547,6 +628,7 @@ $calificacion_general =
             $eval_cuidado_fisico
 
         ) / 7,
+
         2
     );
 
@@ -561,7 +643,7 @@ try {
 
 
     /* =====================================================
-       GUARDAR EVALUACIÓN
+       GUARDAR EVALUACIÓN Y SNAPSHOT HISTÓRICO
        ===================================================== */
 
     $stmt =
@@ -586,11 +668,33 @@ try {
 
                 calificacion_cuantitativa = :general,
 
+
+                nombre_operador_historico =
+                    :nombre_operador_historico,
+
+                rfc_operador_historico =
+                    :rfc_operador_historico,
+
+                nombre_empresa_historico =
+                    :nombre_empresa_historico,
+
+                razon_social_historica =
+                    :razon_social_historica,
+
+                direccion_fiscal_historica =
+                    :direccion_fiscal_historica,
+
+                responsable_empresa_historico =
+                    :responsable_empresa_historico,
+
+
                 fecha_baja = CURDATE(),
 
                 estatus_evaluacion = 'COMPLETADA'
 
+
              WHERE id_reporte = :reporte
+
 
              AND estatus_evaluacion = 'PENDIENTE'"
         );
@@ -624,6 +728,26 @@ try {
 
             ':general' =>
                 $calificacion_general,
+
+
+            ':nombre_operador_historico' =>
+                $nombre_operador_historico,
+
+            ':rfc_operador_historico' =>
+                $rfc_operador_historico,
+
+            ':nombre_empresa_historico' =>
+                $nombre_empresa_historico,
+
+            ':razon_social_historica' =>
+                $razon_social_historica,
+
+            ':direccion_fiscal_historica' =>
+                $direccion_fiscal_historica,
+
+            ':responsable_empresa_historico' =>
+                $responsable_empresa_historico,
+
 
             ':reporte' =>
                 $id_reporte
