@@ -449,7 +449,7 @@ $fechaExpedicion =
    ========================================================= */
 
 $rutaCSS =
-    "../css/styles.css";
+    "../css/constancia_pdf.css";
 
 
 $css =
@@ -482,67 +482,114 @@ $css
 <div class='pdf-marco'>
 
 
+    <!-- ================================================
+         ENCABEZADO
+         ================================================ -->
+
     <div class='pdf-encabezado'>
 
-        <div class='pdf-empresa'>
-            $empresa
+
+        <div class='pdf-linea-titulo'></div>
+
+
+        <div class='pdf-titulo'>
+            CONSTANCIA LABORAL
         </div>
 
-        <div>
-            $razon
+
+        <div class='pdf-linea-titulo'></div>
+
+
+        <div class='pdf-datos-empresa'>
+
+
+            <div class='pdf-empresa'>
+                $empresa
+            </div>
+
+
+            <div class='pdf-razon-social'>
+                $razon
+            </div>
+
+
+            <div class='pdf-direccion'>
+                $direccion
+            </div>
+
+
         </div>
 
-        <div>
-            $direccion
-        </div>
 
     </div>
 
 
-    <h1 class='pdf-titulo'>
-        CONSTANCIA LABORAL
-    </h1>
-
+    <!-- ================================================
+         INFORMACIÓN LABORAL
+         ================================================ -->
 
     <div class='pdf-texto'>
 
 
-        <p>
+        <p class='pdf-introduccion'>
 
-            Por medio de la presente se hace constar que
-
-            <strong>
-                $operador
-            </strong>,
-
-            con RFC
-
-            <strong>
-                $rfc
-            </strong>,
-
-            laboró en
-
-            <strong>
-                $empresa
-            </strong>
-
-            durante el periodo comprendido del
-
-            <strong>
-                $fechaIngreso
-            </strong>
-
-            al
-
-            <strong>
-                $fechaBaja
-            </strong>.
+            Por medio de la presente, se hace constar que:
 
         </p>
 
 
-        <p>
+        <div class='pdf-datos-laborales'>
+
+
+            <div class='pdf-nombre-operador'>
+                $operador
+            </div>
+
+
+            <div class='pdf-rfc-operador'>
+
+                RFC:
+
+                <strong>
+                    $rfc
+                </strong>
+
+            </div>
+
+
+            <div class='pdf-separador-datos'></div>
+
+
+            <div class='pdf-dato'>
+
+                <span>
+                    Empresa:
+                </span>
+
+                <strong>
+                    $empresa
+                </strong>
+
+            </div>
+
+
+            <div class='pdf-dato'>
+
+                <span>
+                    Periodo laboral:
+                </span>
+
+                <strong>
+                    $fechaIngreso al $fechaBaja
+                </strong>
+
+            </div>
+
+
+        </div>
+
+
+        <p class='pdf-cierre'>
 
             Se expide la presente constancia para los fines
             que al interesado convengan.
@@ -552,6 +599,10 @@ $css
 
     </div>
 
+
+    <!-- ================================================
+         FECHA DE EXPEDICIÓN
+         ================================================ -->
 
     <div class='pdf-fecha'>
 
@@ -564,6 +615,10 @@ $css
     </div>
 
 
+    <!-- ================================================
+         FIRMA
+         ================================================ -->
+
     <div class='pdf-firma'>
 
         <div class='pdf-linea'></div>
@@ -574,14 +629,21 @@ $css
 
         <br>
 
-        $empresa
+        <span class='pdf-firma-empresa'>
+            $empresa
+        </span>
 
     </div>
 
 
+    <!-- ================================================
+         PIE
+         ================================================ -->
+
     <div class='pdf-pie'>
 
-        Documento generado por la Plataforma de Transportistas
+        Documento generado por el Sistema Integral del Consejo Binacional
+                            de Transportistas
 
     </div>
 
