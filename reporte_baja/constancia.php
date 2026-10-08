@@ -108,6 +108,7 @@ $stmt =
 
             rb.fecha_ingreso,
             rb.fecha_baja,
+            rb.fecha_expedicion_constancia,
 
             rb.estatus_evaluacion,
 
@@ -271,6 +272,80 @@ foreach (
 
 
 /* =========================================================
+   FIJAR FECHA DE EXPEDICIÓN
+   ========================================================= */
+
+/*
+ * La fecha solamente se guarda si la constancia nunca
+ * había sido expedida anteriormente.
+ *
+ * Una vez almacenada, futuras aperturas no la modifican.
+ */
+
+if (
+    empty(
+        $datos['fecha_expedicion_constancia']
+    )
+) {
+
+    $stmt =
+        $db->conn->prepare(
+            "UPDATE reportes_baja
+
+             SET fecha_expedicion_constancia = CURDATE()
+
+             WHERE id_reporte = :id
+
+             AND fecha_expedicion_constancia IS NULL"
+        );
+
+
+    $stmt->execute([
+        ':id' => $id_reporte
+    ]);
+
+
+    /* =====================================================
+       RECUPERAR FECHA GUARDADA
+       ===================================================== */
+
+    $stmt =
+        $db->conn->prepare(
+            "SELECT fecha_expedicion_constancia
+
+             FROM reportes_baja
+
+             WHERE id_reporte = :id
+
+             LIMIT 1"
+        );
+
+
+    $stmt->execute([
+        ':id' => $id_reporte
+    ]);
+
+
+    $fecha_expedicion_guardada =
+        $stmt->fetchColumn();
+
+
+    if (
+        !$fecha_expedicion_guardada
+    ) {
+
+        die(
+            'No fue posible registrar la fecha de expedición de la constancia.'
+        );
+    }
+
+
+    $datos['fecha_expedicion_constancia'] =
+        $fecha_expedicion_guardada;
+}
+
+
+/* =========================================================
    FUNCIONES
    ========================================================= */
 
@@ -359,8 +434,14 @@ $fechaBaja =
     );
 
 
-$fechaHoy =
-    date('d/m/Y');
+/* =========================================================
+   FECHA FIJA DE EXPEDICIÓN
+   ========================================================= */
+
+$fechaExpedicion =
+    fechaBonita(
+        $datos['fecha_expedicion_constancia']
+    );
 
 
 /* =========================================================
@@ -477,7 +558,7 @@ $css
         Fecha de expedición:
 
         <strong>
-            $fechaHoy
+            $fechaExpedicion
         </strong>
 
     </div>
@@ -559,4 +640,4 @@ $pdf->stream(
 
 exit;
 
-?>  
+?>
