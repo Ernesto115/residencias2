@@ -97,36 +97,36 @@ $db->conectar();
 
 
 /* =========================================================
-   OBTENER REPORTE
+   OBTENER REPORTE HISTÓRICO
    ========================================================= */
 
 $stmt =
     $db->conn->prepare(
         "SELECT
+
             rb.id_empresa,
+
             rb.fecha_ingreso,
             rb.fecha_baja,
+
             rb.estatus_evaluacion,
 
-            o.nombres,
-            o.primer_apellido,
-            o.segundo_apellido,
-            o.rfc,
 
-            e.nombre_empresa,
-            e.razon_social,
-            e.direccion_fiscal,
-            e.responsable
+            rb.nombre_operador_historico,
+            rb.rfc_operador_historico,
+
+
+            rb.nombre_empresa_historico,
+            rb.razon_social_historica,
+            rb.direccion_fiscal_historica,
+            rb.responsable_empresa_historico
+
 
          FROM reportes_baja rb
 
-         INNER JOIN operadores o
-            ON o.id_operador = rb.id_operador
-
-         INNER JOIN empresas e
-            ON e.id_empresa = rb.id_empresa
 
          WHERE rb.id_reporte = :id
+
 
          LIMIT 1"
     );
@@ -194,6 +194,7 @@ if ($rol === 'PROPIETARIO') {
                  FROM usuario_empresas
 
                  WHERE id_usuario = :usuario
+
                  AND id_empresa = :empresa
 
                  LIMIT 1"
@@ -231,6 +232,45 @@ if ($rol === 'PROPIETARIO') {
 
 
 /* =========================================================
+   COMPROBAR SNAPSHOT HISTÓRICO
+   ========================================================= */
+
+$campos_historicos = [
+
+    'nombre_operador_historico',
+
+    'rfc_operador_historico',
+
+    'nombre_empresa_historico',
+
+    'razon_social_historica',
+
+    'direccion_fiscal_historica',
+
+    'responsable_empresa_historico'
+
+];
+
+
+foreach (
+    $campos_historicos as $campo
+) {
+
+    if (
+        !isset($datos[$campo]) ||
+        trim(
+            (string)$datos[$campo]
+        ) === ''
+    ) {
+
+        die(
+            'La información histórica de esta constancia está incompleta.'
+        );
+    }
+}
+
+
+/* =========================================================
    FUNCIONES
    ========================================================= */
 
@@ -261,41 +301,49 @@ function fechaBonita($fecha)
 
 $operador =
     limpiar(
-        trim(
-            $datos['nombres'] . ' ' .
-            $datos['primer_apellido'] . ' ' .
-            $datos['segundo_apellido']
-        )
-    );
-
-
-$empresa =
-    limpiar(
-        $datos['nombre_empresa']
-    );
-
-
-$razon =
-    limpiar(
-        $datos['razon_social']
-    );
-
-
-$direccion =
-    limpiar(
-        $datos['direccion_fiscal']
-    );
-
-
-$responsable =
-    limpiar(
-        $datos['responsable']
+        $datos[
+            'nombre_operador_historico'
+        ]
     );
 
 
 $rfc =
     limpiar(
-        $datos['rfc']
+        $datos[
+            'rfc_operador_historico'
+        ]
+    );
+
+
+$empresa =
+    limpiar(
+        $datos[
+            'nombre_empresa_historico'
+        ]
+    );
+
+
+$razon =
+    limpiar(
+        $datos[
+            'razon_social_historica'
+        ]
+    );
+
+
+$direccion =
+    limpiar(
+        $datos[
+            'direccion_fiscal_historica'
+        ]
+    );
+
+
+$responsable =
+    limpiar(
+        $datos[
+            'responsable_empresa_historico'
+        ]
     );
 
 
@@ -511,4 +559,4 @@ $pdf->stream(
 
 exit;
 
-?>
+?>  
