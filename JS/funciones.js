@@ -8197,3 +8197,159 @@ document.addEventListener('submit', function (event) {
     });
 
 });
+
+
+/* =========================================================
+   ERROR DE CONSTANCIA LABORAL
+   ========================================================= */
+
+function mostrarErrorConstanciaDesdeURL() {
+
+    const parametros =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    const codigo =
+        parametros.get(
+            "error_constancia"
+        );
+
+
+    if (!codigo) {
+
+        return;
+
+    }
+
+
+    const errores = {
+
+        sin_permiso: {
+            titulo: "Acceso no permitido",
+            mensaje:
+                "No tienes permiso para consultar esta constancia."
+        },
+
+        reporte_invalido: {
+            titulo: "Reporte no válido",
+            mensaje:
+                "El reporte solicitado no es válido."
+        },
+
+        reporte_no_encontrado: {
+            titulo: "Reporte no encontrado",
+            mensaje:
+                "No se encontró el reporte solicitado."
+        },
+
+        baja_pendiente: {
+            titulo: "Baja pendiente",
+            mensaje:
+                "La baja todavía no ha sido completada. La constancia estará disponible cuando finalice el proceso."
+        },
+
+        historico_incompleto: {
+            titulo: "Información incompleta",
+            mensaje:
+                "No fue posible generar la constancia porque la información histórica está incompleta."
+        },
+
+        fecha_expedicion: {
+            titulo: "Error al generar la constancia",
+            mensaje:
+                "No fue posible registrar la fecha de expedición de la constancia. Inténtalo nuevamente."
+        }
+
+    };
+
+
+    const error =
+        errores[codigo] ?? {
+            titulo: "Error de constancia",
+            mensaje:
+                "No fue posible generar la constancia."
+        };
+
+
+    /* =====================================================
+       LIMPIAR PARÁMETRO DE LA URL
+       ===================================================== */
+
+    parametros.delete(
+        "error_constancia"
+    );
+
+
+    const nuevaUrl =
+        window.location.pathname +
+        (
+            parametros.toString()
+                ? "?" + parametros.toString()
+                : ""
+        ) +
+        window.location.hash;
+
+
+    window.history.replaceState(
+        {},
+        document.title,
+        nuevaUrl
+    );
+
+
+    /* =====================================================
+       MOSTRAR ERROR
+       ===================================================== */
+
+    if (
+        typeof Swal !== "undefined"
+    ) {
+
+        Swal.fire({
+
+            icon: "error",
+
+            title: error.titulo,
+
+            text: error.mensaje,
+
+            confirmButtonText:
+                "Entendido",
+
+            confirmButtonColor:
+                "#2563eb"
+
+        });
+
+    } else {
+
+        alert(
+            error.titulo +
+            "\n\n" +
+            error.mensaje
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   EJECUTAR AL CARGAR LA PÁGINA
+   ========================================================= */
+
+if (
+    document.readyState === "loading"
+) {
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        mostrarErrorConstanciaDesdeURL
+    );
+
+} else {
+
+    mostrarErrorConstanciaDesdeURL();
+
+}

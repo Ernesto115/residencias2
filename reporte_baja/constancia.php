@@ -1,5 +1,6 @@
 <?php
 
+
 /* =========================================================
    SESIÓN SEGURA
    ========================================================= */
@@ -33,6 +34,7 @@ $rol = strtoupper(
 
 
 if ($rol === 'ADMINISTRADOR') {
+
     $rol = 'ADMIN';
 }
 
@@ -73,17 +75,21 @@ if (
     )
 ) {
 
-    die(
-        'No tienes permiso para consultar esta constancia.'
+    header(
+        "Location: /index.php?error_constancia=sin_permiso"
     );
+
+    exit;
 }
 
 
 if ($id_reporte <= 0) {
 
-    die(
-        'Reporte no válido.'
+    header(
+        "Location: /index.php?error_constancia=reporte_invalido"
     );
+
+    exit;
 }
 
 
@@ -112,22 +118,17 @@ $stmt =
 
             rb.estatus_evaluacion,
 
-
             rb.nombre_operador_historico,
             rb.rfc_operador_historico,
-
 
             rb.nombre_empresa_historico,
             rb.razon_social_historica,
             rb.direccion_fiscal_historica,
             rb.responsable_empresa_historico
 
-
          FROM reportes_baja rb
 
-
          WHERE rb.id_reporte = :id
-
 
          LIMIT 1"
     );
@@ -150,9 +151,13 @@ $datos =
 
 if (!$datos) {
 
-    die(
-        'No se encontró el reporte.'
+    $db->desconectar();
+
+    header(
+        "Location: /index.php?error_constancia=reporte_no_encontrado"
     );
+
+    exit;
 }
 
 
@@ -166,9 +171,13 @@ if (
     ) !== 'COMPLETADA'
 ) {
 
-    die(
-        'La baja todavía no ha sido completada.'
+    $db->desconectar();
+
+    header(
+        "Location: /index.php?error_constancia=baja_pendiente"
     );
+
+    exit;
 }
 
 
@@ -210,9 +219,13 @@ if ($rol === 'PROPIETARIO') {
 
         if (!$stmt->fetchColumn()) {
 
-            die(
-                'No tienes permiso para consultar esta constancia.'
+            $db->desconectar();
+
+            header(
+                "Location: /index.php?error_constancia=sin_permiso"
             );
+
+            exit;
         }
 
 
@@ -225,9 +238,13 @@ if ($rol === 'PROPIETARIO') {
         $id_empresa_sesion !== $id_empresa
     ) {
 
-        die(
-            'No tienes permiso para consultar esta constancia.'
+        $db->desconectar();
+
+        header(
+            "Location: /index.php?error_constancia=sin_permiso"
         );
+
+        exit;
     }
 }
 
@@ -264,9 +281,13 @@ foreach (
         ) === ''
     ) {
 
-        die(
-            'La información histórica de esta constancia está incompleta.'
+        $db->desconectar();
+
+        header(
+            "Location: /index.php?error_constancia=historico_incompleto"
         );
+
+        exit;
     }
 }
 
@@ -334,9 +355,13 @@ if (
         !$fecha_expedicion_guardada
     ) {
 
-        die(
-            'No fue posible registrar la fecha de expedición de la constancia.'
+        $db->desconectar();
+
+        header(
+            "Location: /index.php?error_constancia=fecha_expedicion"
         );
+
+        exit;
     }
 
 
@@ -643,7 +668,7 @@ $css
     <div class='pdf-pie'>
 
         Documento generado por el Sistema Integral del Consejo Binacional
-                            de Transportistas
+                                de Transportistas
 
     </div>
 
