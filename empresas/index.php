@@ -25,7 +25,7 @@ if (!in_array($rol, ['ADMIN','PROPIETARIO'], true)) {
 }
 
 
-include_once "../db/db.php";
+include_once "../DB/db.php";
 
 $dbtransportistas = new db();
 $dbtransportistas->conectar();

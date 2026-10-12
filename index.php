@@ -50,7 +50,7 @@ $rolesReportes = [
 ];
 
 /* MÉTRICAS DEL DASHBOARD */
-require_once "db/db.php";
+require_once "DB/db.php";
 
 $dbDashboard = new db();
 $dbDashboard->conectar();
@@ -168,7 +168,7 @@ $dbDashboard->desconectar();
         rel="stylesheet"
     >
 
-    <link href="/css/styles.css" rel="stylesheet">
+    <link href="/CSS/styles.css" rel="stylesheet">
 </head>
 
 <body>

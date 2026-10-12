@@ -1,37 +1,57 @@
 <?php
+
 require_once "../configuracion/sesion.php";
+
 verificarSesion();
 
-include_once "../db/db.php";
+
+include_once "../DB/db.php";
+
 
 $rol = strtoupper(trim($_SESSION['rol'] ?? ''));
 
+
 if ($rol === 'ADMINISTRADOR') {
+
     $rol = 'ADMIN';
+
 }
+
 
 if (in_array($rol, ['RH', 'RECURSOS HUMANOS'], true)) {
+
     $rol = 'RRHH';
+
 }
 
+
 if (!in_array($rol, ['ADMIN', 'PROPIETARIO', 'RRHH'], true)) {
+
     http_response_code(403);
+
 
     echo '<div class="alert alert-danger">
             No tienes permiso para acceder a Reporte de Baja.
           </div>';
 
+
     exit;
 }
 
 
+
 $id_usuario = (int)($_SESSION['id_usuario'] ?? 0);
+
 $id_empresa_sesion = (int)($_SESSION['id_empresa'] ?? 0);
+
 $multiempresa = (int)($_SESSION['multiempresa'] ?? 0);
 
 
+
 $dbtransportistas = new db();
+
 $dbtransportistas->conectar();
+
 
 
 /* =========================================================
@@ -46,18 +66,27 @@ $consultarPreparado = function (
     try {
 
         if ($dbtransportistas->conn === null) {
+
             $dbtransportistas->conectar();
+
         }
 
+
         if ($dbtransportistas->conn === null) {
+
             return [];
+
         }
+
 
         $stmt = $dbtransportistas->conn->prepare($sql);
 
+
         $stmt->execute($parametros);
 
+
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 
     } catch (PDOException $e) {
 
@@ -65,9 +94,13 @@ $consultarPreparado = function (
          * No mostramos información técnica al usuario.
          * Más adelante podremos mejorar el registro de errores.
          */
+
         return [];
+
     }
+
 };
+
 
 
 /* =========================================================
@@ -83,6 +116,7 @@ if ($rol === 'ADMIN') {
         FROM empresas
         ORDER BY nombre_empresa
     ";
+
 
     $empresas = $consultarPreparado(
         $sql_empresas
@@ -108,6 +142,7 @@ if ($rol === 'ADMIN') {
         ORDER BY e.nombre_empresa
     ";
 
+
     $empresas = $consultarPreparado(
         $sql_empresas,
         [
@@ -129,13 +164,16 @@ if ($rol === 'ADMIN') {
         LIMIT 1
     ";
 
+
     $empresas = $consultarPreparado(
         $sql_empresas,
         [
             'id_empresa' => $id_empresa_sesion
         ]
     );
+
 }
+
 
 
 /* =========================================================
@@ -158,6 +196,7 @@ if ($rol === 'ADMIN') {
 
         ORDER BY primer_apellido
     ";
+
 
     $operadores = $consultarPreparado(
         $sql_operadores
@@ -189,6 +228,7 @@ if ($rol === 'ADMIN') {
         ORDER BY o.primer_apellido
     ";
 
+
     $operadores = $consultarPreparado(
         $sql_operadores,
         [
@@ -216,13 +256,16 @@ if ($rol === 'ADMIN') {
         ORDER BY primer_apellido
     ";
 
+
     $operadores = $consultarPreparado(
         $sql_operadores,
         [
             'id_empresa' => $id_empresa_sesion
         ]
     );
+
 }
+
 
 
 /* =========================================================
@@ -232,6 +275,7 @@ if ($rol === 'ADMIN') {
 $busqueda = trim(
     $_GET['busqueda'] ?? ''
 );
+
 
 $estatus_filtro = strtolower(
     trim(
@@ -253,6 +297,7 @@ if (
 ) {
 
     $estatus_filtro = 'todos';
+
 }
 
 
@@ -261,11 +306,15 @@ $pagina_actual = max(
     (int)($_GET['pagina'] ?? 1)
 );
 
+
 $registros_por_pagina = 5;
+
 
 $condiciones = [];
 
+
 $parametrosWhere = [];
+
 
 
 /* =========================================================
@@ -285,6 +334,7 @@ if (
         )
     ";
 
+
     $parametrosWhere['id_usuario_permiso'] =
         $id_usuario;
 
@@ -300,8 +350,10 @@ if (
             rb.id_empresa = :id_empresa_permiso
         ";
 
+
         $parametrosWhere['id_empresa_permiso'] =
             $id_empresa_sesion;
+
 
     } else {
 
@@ -309,9 +361,13 @@ if (
          * Si el usuario no tiene empresa válida,
          * no permitimos mostrar reportes.
          */
+
         $condiciones[] = "1 = 0";
+
     }
+
 }
+
 
 
 /* =========================================================
@@ -330,7 +386,9 @@ if ($estatus_filtro === 'pendientes') {
     $condiciones[] = "
         rb.estatus_evaluacion = 'COMPLETADA'
     ";
+
 }
+
 
 
 /* =========================================================
@@ -371,18 +429,24 @@ if ($busqueda !== '') {
     $parametrosWhere['busqueda_rfc'] =
         $valorBusqueda;
 
+
     $parametrosWhere['busqueda_nombre'] =
         $valorBusqueda;
+
 
     $parametrosWhere['busqueda_empresa'] =
         $valorBusqueda;
 
+
     $parametrosWhere['busqueda_motivo'] =
         $valorBusqueda;
 
+
     $parametrosWhere['busqueda_calif'] =
         $valorBusqueda;
+
 }
+
 
 
 /* =========================================================
@@ -395,6 +459,7 @@ $where = $condiciones
         $condiciones
     )
     : "";
+
 
 
 /* =========================================================
@@ -441,12 +506,14 @@ if ($pagina_actual > $total_paginas) {
 
     $pagina_actual =
         $total_paginas;
+
 }
 
 
 $offset =
     ($pagina_actual - 1) *
     $registros_por_pagina;
+
 
 
 /* =========================================================
@@ -491,6 +558,7 @@ $datos2 = $consultarPreparado(
 
 ?>
 
+
 <div class="main-wrapper modulo-reportes">
 
     <nav class="d-flex justify-content-end align-items-center gap-2 p-3">
@@ -530,6 +598,9 @@ $datos2 = $consultarPreparado(
 
 </div>
 
+
 <?php
+
 $dbtransportistas->desconectar();
+
 ?>

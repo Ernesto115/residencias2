@@ -5,7 +5,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 
-include_once "../db/db.php";
+include_once "../DB/db.php";
 
 
 $db = new db();

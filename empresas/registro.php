@@ -77,7 +77,7 @@ if ($id_empresa <= 0) {
    CONEXIÓN
    ========================================================= */
 
-include_once "../db/db.php";
+include_once "../DB/db.php";
 
 $db = new db();
 $db->conectar();
