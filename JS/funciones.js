@@ -587,7 +587,7 @@ function enviar() {
     const usuario = document.querySelector("#usuario").value;
     const clave = document.querySelector("#clave").value;
 
-    fetch("/autenticacion/validarusuario.php?usuario=" + usuario + "&clave=" + clave)
+fetch("/autentificacion/validarusuario.php?usuario=" + usuario + "&clave=" + clave)
         .then(response => response.text())
         .then(data => {
             if (
@@ -7410,7 +7410,7 @@ if (
 // Carga la barra lateral del sistema.
 function cargarSidebar() {
     fetch(
-        '../includes/sidebar.php'
+        '../INCLUDES/sidebar.php'
     )
     .then(response =>
         response.text()
