@@ -449,7 +449,7 @@ $fechaExpedicion =
    ========================================================= */
 
 $rutaCSS =
-    "../css/constancia_pdf.css";
+    "../CSS/constancia_pdf.css";
 
 
 $css =

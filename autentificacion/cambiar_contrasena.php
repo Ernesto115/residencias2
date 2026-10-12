@@ -56,8 +56,8 @@ if ($nombreMostrar === '') {
     </title>
 
     <link
-        href="/css/styles.css"
-        rel="stylesheet"
+    href="/CSS/styles.css"
+    rel="stylesheet"
     >
 
     <script

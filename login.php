@@ -3,8 +3,8 @@
 <head> 
     <meta charset="UTF-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-    <title>Inicio de Sesión | Transportes 1° de Mayo</title> 
-    <link href="/css/styles.css" rel="stylesheet"> 
+    <title>Inicio de Sesión | Líneas 1 de Mayo S.A. de C.V</title> 
+    <link href="/CSS/styles.css" rel="stylesheet">
     <script src="/JS/funciones.js"></script> 
 </head> 
 
@@ -193,7 +193,7 @@ if ($motivo === 'cuenta_desactivada'):
             <div class="login-footer"> 
                 © 2026 Consejo Binacional de Transportistas
                 <br>
-                Todos los derechos reservados a Transportes 1° de Mayo S.A. de C.V. 
+                Todos los derechos reservados a Líneas 1 de Mayo S.A. de C.V
 
                 <div class="login-version">
                     Versión 1.0.2
