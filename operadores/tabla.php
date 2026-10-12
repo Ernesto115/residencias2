@@ -24,7 +24,7 @@ if (
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 if (!isset($dbtransportistas) && !isset($db)) {
-    include_once "../db/db.php";
+    include_once "../DB/db.php";
     $db = new db();
     $db->conectar();
     $conexionLocal = true;

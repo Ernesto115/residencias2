@@ -90,7 +90,7 @@ if (isset($dbtransportistas)) {
 
 } else {
 
-    include_once "../db/db.php";
+    include_once "../DB/db.php";
 
     $dbFrm = new db();
     $dbFrm->conectar();

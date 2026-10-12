@@ -4,7 +4,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 require_once "../configuracion/sesion.php";
-require_once "../db/db.php";
+require_once "../DB/db.php";
 require_once dirname(__DIR__) . "/vendor/autoload.php";
 
 verificarSesion();

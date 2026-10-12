@@ -24,7 +24,7 @@ $rolModulo =
 // ... TODO TU CÓDIGO ACTUAL DE ROLES ...
 
 
-include_once "../db/db.php";
+include_once "../DB/db.php";
 
 $dbtransportistas = new db();
 
@@ -52,7 +52,7 @@ if (
    CONEXIÓN
    ========================================================= */
 
-include_once "../db/db.php";
+include_once "../DB/db.php";
 
 $dbtransportistas = new db();
 
@@ -129,30 +129,30 @@ $dbtransportistas->conectar();
                 "
             >
 
-                            <!-- Descargar plantilla -->
+                <!-- Descargar plantilla -->
 
-            <button
-                type="button"
-                class="btn-action btn-info"
-                id="btnPlantillaOperadores"
-                onclick="window.location.href='/operadores/plantilla_excel.php'"
-                title="Descargar plantilla para alta masiva de operadores"
+                <button
+                    type="button"
+                    class="btn-action btn-info"
+                    id="btnPlantillaOperadores"
+                    onclick="window.location.href='/operadores/plantilla_excel.php'"
+                    title="Descargar plantilla para alta masiva de operadores"
                 >
-                ⬇️ Descargar plantilla Excel
+                    ⬇️ Descargar plantilla Excel
                 </button>
 
 
-                <!-- IMPORTAR CSV -->
+                <!-- IMPORTAR EXCEL -->
 
                 <button
-                type="button"
-                class="btn-action btn-edit"
-                id="btnImportarOperadoresExcel"
-                onclick="window.location.href='/operadores/importar_excel.php'"
-                title="Importar operadores desde un archivo Excel"
+                    type="button"
+                    class="btn-action btn-edit"
+                    id="btnImportarOperadoresExcel"
+                    onclick="window.location.href='/operadores/importar_excel.php'"
+                    title="Importar operadores desde un archivo Excel"
                 >
                     📊 Importar Excel
-                    </button>
+                </button>
 
 
             </div>

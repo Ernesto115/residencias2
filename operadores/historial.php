@@ -22,7 +22,8 @@ if ($idOperador <= 0) {
     exit;
 }
 
-include_once "../db/db.php";
+include_once "../DB/db.php";
+
 $db = new db();
 $db->conectar();
 

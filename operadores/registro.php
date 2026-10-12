@@ -1,7 +1,8 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-include_once "../db/db.php";
+include_once "../DB/db.php";
+
 $db = new db();
 $db->conectar();
 

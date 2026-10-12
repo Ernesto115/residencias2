@@ -1,10 +1,15 @@
 <?php
+
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-include_once "../db/db.php";
+
+include_once "../DB/db.php";
+
 
 $db = new db();
+
 $db->conectar();
+
 
 
 /* =========================================================
@@ -13,12 +18,18 @@ $db->conectar();
 
 $rol = strtoupper(trim($_SESSION['rol'] ?? ''));
 
+
 if ($rol === 'ADMINISTRADOR') $rol = 'ADMIN';
+
 if (in_array($rol, ['RH','RECURSOS HUMANOS'], true)) $rol = 'RRHH';
 
+
 $id_usuario = (int)($_SESSION['id_usuario'] ?? 0);
+
 $id_empresa_sesion = (int)($_SESSION['id_empresa'] ?? 0);
+
 $multiempresa = (int)($_SESSION['multiempresa'] ?? 0);
+
 
 
 /* =========================================================
@@ -27,16 +38,20 @@ $multiempresa = (int)($_SESSION['multiempresa'] ?? 0);
 
 function errorOperador($mensaje, $db, $cerrar = false, $codigoHttp = 400)
 {
+
     http_response_code($codigoHttp);
+
 
     $msg = json_encode(
         $mensaje,
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
     );
 
+
     $cerrarJS = $cerrar
         ? "if(typeof cerrarModalOperador==='function') cerrarModalOperador();"
         : "";
+
 
     echo "<!-- Error controlado de operadores -->
     <script>
@@ -55,9 +70,12 @@ function errorOperador($mensaje, $db, $cerrar = false, $codigoHttp = 400)
         }
     </script>";
 
+
     $db->desconectar();
+
     exit;
 }
+
 
 
 /* =========================================================
@@ -75,6 +93,7 @@ if ($rol === 'ADMIN') {
     );
 }
 
+
 if (!in_array($rol, ['PROPIETARIO','RRHH'], true)) {
 
     errorOperador(
@@ -86,6 +105,7 @@ if (!in_array($rol, ['PROPIETARIO','RRHH'], true)) {
 }
 
 
+
 /* =========================================================
    DATOS DEL FORMULARIO
    ========================================================= */
@@ -94,11 +114,13 @@ $id_operador = is_numeric($_REQUEST['id_operador'] ?? null)
     ? (int)$_REQUEST['id_operador']
     : 0;
 
+
 $id_empresa_form = (int)($_REQUEST['id_empresa'] ?? 0);
 
 
 function campo($nombre)
 {
+
     return addslashes(trim($_REQUEST[$nombre] ?? ''));
 }
 
@@ -112,27 +134,42 @@ function campo($nombre)
  */
 
 $rfc_formulario = trim((string)($_REQUEST['rfc'] ?? ''));
+
 $rfc = addslashes($rfc_formulario);
 
+
 $nombres = campo('nombres');
+
 $primer_apellido = campo('primer_apellido');
+
 $segundo_apellido = campo('segundo_apellido');
+
 $telefono_celular = campo('telefono_celular');
 
+
 $calle_y_numero = campo('calle_y_numero');
+
 $colonia = campo('colonia');
+
 $codigo_postal = campo('codigo_postal');
 
+
 $licencia_federal_actual = campo('licencia_federal_actual');
+
 $apto_medico_actual = campo('apto_medico_actual');
 
+
 $visa = campo('visa');
+
 $fast = campo('fast');
+
 
 
 function fechaSQL($campo)
 {
+
     $fecha = trim($_REQUEST[$campo] ?? '');
+
 
     return $fecha === ''
         ? 'NULL'
@@ -141,9 +178,13 @@ function fechaSQL($campo)
 
 
 $vencimiento_lic_federal = fechaSQL('vencimiento_lic_federal');
+
 $vencimiento_apto_medico = fechaSQL('vencimiento_apto_medico');
+
 $vencimiento_visa = fechaSQL('vencimiento_visa');
+
 $vencimiento_fast = fechaSQL('vencimiento_fast');
+
 
 
 /* =========================================================
@@ -157,6 +198,7 @@ if (
 
     $id_empresa = $id_empresa_form;
 
+
     if (
         $id_empresa <= 0 ||
         empty(
@@ -169,6 +211,7 @@ if (
             )
         )
     ) {
+
         errorOperador(
             'No tienes permiso para utilizar esa empresa.',
             $db,
@@ -177,9 +220,11 @@ if (
         );
     }
 
+
 } else {
 
     $id_empresa = $id_empresa_sesion;
+
 
     if ($id_empresa <= 0) {
 
@@ -189,6 +234,7 @@ if (
         );
     }
 }
+
 
 
 /* =========================================================
@@ -210,11 +256,13 @@ if (
 }
 
 
+
 /* =========================================================
    RFC / EDICIÓN / RECONTRATACIÓN
    ========================================================= */
 
 $recontratacion = false;
+
 
 
 /* =========================================================
@@ -226,6 +274,7 @@ if ($id_operador > 0) {
     /*
      * También recuperamos el RFC original.
      */
+
     $actual = $db->obtenerRegistros(
         "SELECT
             id_empresa,
@@ -247,8 +296,11 @@ if ($id_operador > 0) {
 
 
     $empresa_actual = (int)$actual[0]['id_empresa'];
+
     $estatus_actual = (int)$actual[0]['estatus'];
+
     $rfc_actual = trim((string)($actual[0]['rfc'] ?? ''));
+
 
 
     /* =====================================================
@@ -265,6 +317,7 @@ if ($id_operador > 0) {
     }
 
 
+
     /* =====================================================
        NO CAMBIAR EMPRESA DE UN OPERADOR ACTIVO
        ===================================================== */
@@ -277,6 +330,7 @@ if ($id_operador > 0) {
             true
         );
     }
+
 
 
     /* =====================================================
@@ -308,6 +362,7 @@ if ($id_operador > 0) {
             );
         }
 
+
     } elseif ($empresa_actual !== $id_empresa_sesion) {
 
         errorOperador(
@@ -317,6 +372,7 @@ if ($id_operador > 0) {
             403
         );
     }
+
 
 
     /* =====================================================
@@ -352,6 +408,7 @@ if ($id_operador > 0) {
     $rfc = addslashes($rfc_actual);
 
 
+
     /* =====================================================
        RFC DUPLICADO
        ===================================================== */
@@ -373,6 +430,7 @@ if ($id_operador > 0) {
         );
     }
 }
+
 
 
 /* =========================================================
@@ -398,7 +456,9 @@ else {
 
         $op = $existente[0];
 
+
         $idExistente = (int)$op['id_operador'];
+
 
 
         /* =================================================
@@ -424,6 +484,7 @@ else {
         }
 
 
+
         /* =================================================
            OPERADOR TODAVÍA ACTIVO
            ================================================= */
@@ -437,6 +498,7 @@ else {
                 true
             );
         }
+
 
 
         /* =================================================
@@ -467,15 +529,18 @@ else {
         }
 
 
+
         /* =================================================
            RECONTRATACIÓN PERMITIDA
            ================================================= */
 
         $id_operador = $idExistente;
 
+
         $recontratacion = true;
     }
 }
+
 
 
 /* =========================================================
@@ -498,12 +563,14 @@ if (
 }
 
 
+
 /* =========================================================
    FUNCIÓN SUBIR PDF
    ========================================================= */
 
 function subirPDF($campo, $prefijo, $dir, $db)
 {
+
     if (
         !isset($_FILES[$campo]) ||
         $_FILES[$campo]['error'] === UPLOAD_ERR_NO_FILE
@@ -525,6 +592,7 @@ function subirPDF($campo, $prefijo, $dir, $db)
     }
 
 
+
     /* =====================================================
        MÁXIMO 10 MB
        ===================================================== */
@@ -539,6 +607,7 @@ function subirPDF($campo, $prefijo, $dir, $db)
             $db
         );
     }
+
 
 
     /* =====================================================
@@ -561,6 +630,7 @@ function subirPDF($campo, $prefijo, $dir, $db)
     }
 
 
+
     /* =====================================================
        FIRMA DEL ARCHIVO
        ===================================================== */
@@ -581,6 +651,7 @@ function subirPDF($campo, $prefijo, $dir, $db)
             $db
         );
     }
+
 
 
     /* =====================================================
@@ -615,6 +686,7 @@ function subirPDF($campo, $prefijo, $dir, $db)
     }
 
 
+
     /* =====================================================
        NOMBRE SEGURO
        ===================================================== */
@@ -642,6 +714,7 @@ function subirPDF($campo, $prefijo, $dir, $db)
 
     return $nombre;
 }
+
 
 
 /* =========================================================
@@ -680,6 +753,7 @@ $pdfFast = subirPDF(
 );
 
 
+
 /* =========================================================
    ACTUALIZAR / RECONTRATAR
    ========================================================= */
@@ -716,6 +790,7 @@ if ($id_operador > 0) {
     ";
 
 
+
     /* =====================================================
        RECONTRATACIÓN
        ===================================================== */
@@ -727,6 +802,7 @@ if ($id_operador > 0) {
             fecha_ingreso=CURDATE()
         ";
     }
+
 
 
     /* =====================================================
@@ -772,6 +848,7 @@ if ($id_operador > 0) {
 
     $db->actualizar($sql);
 }
+
 
 
 /* =========================================================
@@ -841,6 +918,7 @@ else {
 }
 
 
+
 /* =========================================================
    ACTUALIZAR TABLA
    ========================================================= */
@@ -849,7 +927,9 @@ $id_operador = 0;
 
 
 /* Permitir carga interna de tabla.php después de guardar */
+
 if (!defined('OPERADORES_TABLA_INTERNA')) {
+
     define('OPERADORES_TABLA_INTERNA', true);
 }
 
