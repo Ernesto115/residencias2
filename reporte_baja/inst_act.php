@@ -597,6 +597,8 @@ $stmt =
 
             id_empresa,
 
+            id_usuario_solicita,
+
             motivo_baja,
 
             calificacion_cuantitativa,
@@ -616,6 +618,8 @@ $stmt =
             :operador,
 
             :empresa,
+
+            :usuario_solicita,
 
             :motivo,
 
@@ -641,6 +645,9 @@ $guardado =
 
             ':empresa' =>
                 $id_empresa_operador,
+
+            ':usuario_solicita' =>
+                $id_usuario,
 
             ':motivo' =>
                 $motivo_baja,

@@ -643,7 +643,7 @@ try {
 
 
     /* =====================================================
-       GUARDAR EVALUACIÓN Y SNAPSHOT HISTÓRICO
+       GUARDAR EVALUACIÓN, AUDITORÍA Y SNAPSHOT HISTÓRICO
        ===================================================== */
 
     $stmt =
@@ -688,9 +688,17 @@ try {
                     :responsable_empresa_historico,
 
 
-                fecha_baja = CURDATE(),
+                id_usuario_finaliza =
+                    :usuario_finaliza,
 
-                estatus_evaluacion = 'COMPLETADA'
+                fecha_finalizacion =
+                    NOW(),
+
+                fecha_baja =
+                    CURDATE(),
+
+                estatus_evaluacion =
+                    'COMPLETADA'
 
 
              WHERE id_reporte = :reporte
@@ -747,6 +755,10 @@ try {
 
             ':responsable_empresa_historico' =>
                 $responsable_empresa_historico,
+
+
+            ':usuario_finaliza' =>
+                $id_usuario,
 
 
             ':reporte' =>
