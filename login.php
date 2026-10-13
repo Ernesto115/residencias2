@@ -17,7 +17,7 @@
          ========================================== --> 
     <section class="login-left"> 
 
-        <h2>Consejo Binacional<br>de Transportistas</h2> 
+        <h2>Sistema del Consejo Binacional<br>de Transportistas</h2> 
 
         <p class="login-left-description"> 
             Sistema Integral para la gestión de operadores, empresas transportistas y documentación laboral. 
@@ -61,8 +61,7 @@
                 Sistema Empresarial
             </div> 
 
-            <div class="login-main-icon">🚚</div> 
-
+            <div class="login-main-icon">🚛</div>
             <h1>Bienvenido</h1> 
 
             <p class="login-card-subtitle">
@@ -191,12 +190,12 @@ if ($motivo === 'cuenta_desactivada'):
                  PIE DEL LOGIN
                  ========================================== -->
             <div class="login-footer"> 
-                © 2026 Consejo Binacional de Transportistas
+                © 2026  Sistema del Consejo Binacional de Transportistas
                 <br>
                 Todos los derechos reservados a Líneas 1 de Mayo S.A. de C.V
 
                 <div class="login-version">
-                    Versión 1.0.2
+                    Versión 1.0.3
                 </div> 
             </div> 
 
