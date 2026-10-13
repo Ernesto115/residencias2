@@ -4023,3 +4023,356 @@ button[type="submit"]:hover {
         margin: 0 auto !important;
     }
 }
+
+/* =========================================================
+   EMPRESAS - TABLA
+   ESTÁNDAR GENERAL DEL SISTEMA
+   ========================================================= */
+
+
+/* =========================================================
+   CONTENEDOR
+   ========================================================= */
+
+.empresa-tabla-card {
+    width: 100%;
+}
+
+
+/* =========================================================
+   HERRAMIENTAS
+   ========================================================= */
+
+.empresa-table-tools {
+    justify-content: space-between;
+}
+
+
+.empresa-header-summary {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+
+    flex-wrap: wrap;
+}
+
+
+/* =========================================================
+   CONTADOR / MODO CONSULTA
+   ========================================================= */
+
+.empresa-contador,
+.modo-consulta-empresa {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 32px;
+
+    padding:
+        .35rem
+        .75rem;
+
+    border-radius: 999px;
+
+    font-size: .78rem;
+    font-weight: 800;
+
+    white-space: nowrap;
+}
+
+
+.empresa-contador {
+    color:
+        var(--accent-color);
+
+    background:
+        var(--accent-glow);
+
+    border:
+        1px solid
+        var(--accent-color);
+}
+
+
+.modo-consulta-empresa {
+    color:
+        var(--texto-secundario);
+
+    background:
+        var(--input-bg);
+
+    border:
+        1px solid
+        var(--borde-sutil);
+}
+
+
+/* =========================================================
+   BUSCADOR
+   ========================================================= */
+
+.empresa-buscador {
+    position: relative;
+
+    width: min(
+        380px,
+        100%
+    );
+
+    flex:
+        0
+        1
+        380px;
+}
+
+
+.empresa-buscador-icono {
+    position: absolute;
+
+    left: 14px;
+    top: 50%;
+
+    transform:
+        translateY(-50%);
+
+    pointer-events: none;
+
+    z-index: 2;
+
+    font-size: .9rem;
+
+    opacity: .75;
+}
+
+
+.empresa-buscador input {
+    width: 100%;
+
+    padding-left: 42px;
+    padding-right: 42px;
+}
+
+
+.empresa-limpiar {
+    position: absolute;
+
+    right: 9px;
+    top: 50%;
+
+    transform:
+        translateY(-50%);
+
+    width: 28px;
+    height: 28px;
+
+    display: none;
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    border: 0;
+
+    border-radius: 7px;
+
+    background:
+        rgba(
+            148,
+            163,
+            184,
+            .10
+        );
+
+    color:
+        var(--texto-secundario);
+
+    font-size: 1.15rem;
+
+    cursor: pointer;
+
+    transition:
+        background .2s ease,
+        color .2s ease;
+}
+
+
+.empresa-limpiar:hover {
+    color: #ffffff;
+
+    background:
+        rgba(
+            225,
+            29,
+            72,
+            .20
+        );
+}
+
+
+/* =========================================================
+   TABLA
+   ========================================================= */
+
+.empresa-tabla {
+    min-width: 900px;
+}
+
+
+.empresa-nombre {
+    color:
+        var(--texto-principal);
+
+    font-size: .91rem;
+    font-weight: 700;
+
+    line-height: 1.3;
+}
+
+
+.empresa-razon {
+    margin-top: 3px;
+
+    color:
+        var(--texto-secundario);
+
+    font-size: .78rem;
+
+    line-height: 1.35;
+
+    white-space: normal;
+}
+
+
+.empresa-direccion,
+.empresa-responsable {
+    color:
+        var(--texto-secundario);
+
+    line-height: 1.45;
+
+    white-space: normal;
+}
+
+
+/* =========================================================
+   ACCIONES
+   ========================================================= */
+
+.empresa-acciones {
+    justify-content: center;
+
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   ESTADO VACÍO
+   ========================================================= */
+
+.empresa-vacio {
+    min-height: 130px;
+
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 7px;
+
+    padding: 24px;
+
+    text-align: center;
+
+    color:
+        var(--texto-secundario);
+}
+
+
+.empresa-vacio-icono {
+    margin-bottom: 3px;
+
+    font-size: 1.8rem;
+}
+
+
+.empresa-vacio strong {
+    color:
+        var(--texto-principal);
+}
+
+
+.empresa-vacio span {
+    max-width: 400px;
+
+    font-size: .82rem;
+
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   ESTADO DE CARGA
+   ========================================================= */
+
+.empresa-contenedor-cargando {
+    opacity: .55;
+
+    pointer-events: none;
+
+    transition:
+        opacity .18s ease;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    .empresa-table-tools {
+        align-items: stretch;
+
+        flex-direction: column;
+    }
+
+
+    .empresa-header-summary {
+        width: 100%;
+    }
+
+
+    .empresa-buscador {
+        width: 100%;
+
+        max-width: none;
+
+        flex-basis: auto;
+    }
+
+
+    .empresa-buscador input {
+        width: 100%;
+    }
+
+}
+
+
+@media (max-width: 520px) {
+
+    .empresa-header-summary {
+        align-items: flex-start;
+
+        flex-direction: column;
+    }
+
+
+    .empresa-buscador input {
+        font-size: .85rem;
+    }
+
+}

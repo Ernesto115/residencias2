@@ -1064,6 +1064,7 @@ function procesarRespuestaEmpresa(
 
 
     if (!respuesta) {
+
         return false;
     }
 
@@ -1072,7 +1073,9 @@ function procesarRespuestaEmpresa(
         respuesta.datos;
 
 
-    /* ERROR */
+    /* =====================================================
+       ERROR
+       ===================================================== */
 
     if (
         !response.ok ||
@@ -1098,19 +1101,73 @@ function procesarRespuestaEmpresa(
     }
 
 
-    /* ACTUALIZAR TABLA */
+    /* =====================================================
+       ESTADO ACTUAL DE LA TABLA
+       ===================================================== */
 
-    if (
-        cont &&
-        respuesta.htmlTabla
-    ) {
-
-        cont.innerHTML =
-            respuesta.htmlTabla;
-    }
+    const tarjetaEmpresa =
+        document.querySelector(
+            '.empresa-tabla-card'
+        );
 
 
-    /* LIMPIAR */
+    const paginaActual =
+        Math.max(
+            1,
+            parseInt(
+                tarjetaEmpresa
+                    ?.dataset
+                    .pagina || '1',
+                10
+            ) || 1
+        );
+
+
+    const inputBusqueda =
+        document.getElementById(
+            'inputBuscadorEmpresa'
+        );
+
+
+    const busquedaActual =
+        inputBusqueda
+            ? inputBusqueda.value.trim()
+            : '';
+
+
+    /* =====================================================
+       DETERMINAR DESTINO DESPUÉS DE GUARDAR
+       ===================================================== */
+
+    /*
+     * Si editamos:
+     * conservamos página y búsqueda.
+     *
+     * Si registramos una empresa nueva:
+     * regresamos a página 1 y quitamos la búsqueda
+     * para que la empresa recién creada sea visible.
+     */
+
+    const esEdicion =
+        datos.accion ===
+        'EDITADA';
+
+
+    const paginaDestino =
+        esEdicion
+            ? paginaActual
+            : 1;
+
+
+    const busquedaDestino =
+        esEdicion
+            ? busquedaActual
+            : '';
+
+
+    /* =====================================================
+       LIMPIAR FORMULARIO
+       ===================================================== */
 
     frm.reset();
 
@@ -1122,7 +1179,22 @@ function procesarRespuestaEmpresa(
     }
 
 
-    /* CERRAR MODAL */
+    /* =====================================================
+       RESTAURAR FORMULARIO DE EMPRESA
+       ===================================================== */
+
+    if (
+        typeof configurarPropietarioEmpresa ===
+        'function'
+    ) {
+
+        configurarPropietarioEmpresa();
+    }
+
+
+    /* =====================================================
+       CERRAR MODAL
+       ===================================================== */
 
     if (
         typeof cerrarModalEmpresa ===
@@ -1133,7 +1205,33 @@ function procesarRespuestaEmpresa(
     }
 
 
-    /* MOSTRAR RESULTADO */
+    /* =====================================================
+       RECARGAR TABLA PAGINADA
+       ===================================================== */
+
+    if (
+        typeof cargarEmpresas ===
+        'function'
+    ) {
+
+        cargarEmpresas(
+            paginaDestino,
+            busquedaDestino,
+            false
+        );
+
+
+    } else {
+
+        console.error(
+            'No se encontró la función cargarEmpresas().'
+        );
+    }
+
+
+    /* =====================================================
+       MOSTRAR RESULTADO
+       ===================================================== */
 
     mostrarRespuestaEmpresa(
         datos
@@ -1142,7 +1240,6 @@ function procesarRespuestaEmpresa(
 
     return true;
 }
-
 /* =========================================================
    7. CRUD GENERAL
    ========================================================= */
@@ -2367,27 +2464,92 @@ function editar(id, tb, pfrm) {
         }
     }
 }
-// Elimina un registro.
-function eliminar(id, tb) { 
 
-    let contenedor = '#contenedor3'; 
- 
-    if (tb === 'detalles_compra') { 
-        contenedor = '#contenedor_detalle'; 
-    } 
- 
-    const contenedorElemento = 
-        document.querySelector(contenedor); 
- 
-    if (!contenedorElemento) { 
 
-        console.error(
-            "No se encontró el contenedor objetivo:",
+function eliminar(id, tb) {
+
+    let contenedor =
+        '#contenedor3';
+
+
+    if (
+        tb ===
+        'detalles_compra'
+    ) {
+
+        contenedor =
+            '#contenedor_detalle';
+    }
+
+
+    const contenedorElemento =
+        document.querySelector(
             contenedor
         );
 
+
+    if (
+        !contenedorElemento
+    ) {
+
+        console.error(
+            'No se encontró el contenedor objetivo:',
+            contenedor
+        );
+
+
         return;
     }
+
+
+    /* =====================================================
+       ESTADO ACTUAL DEL MÓDULO EMPRESAS
+       ===================================================== */
+
+    const tarjetaEmpresas =
+        tb === 'empresas'
+
+            ? document.querySelector(
+                '.empresa-tabla-card'
+            )
+
+            : null;
+
+
+    const paginaEmpresas =
+        tb === 'empresas'
+
+            ? Math.max(
+                1,
+                parseInt(
+                    tarjetaEmpresas
+                        ?.dataset
+                        .pagina || '1',
+                    10
+                ) || 1
+            )
+
+            : 1;
+
+
+    const inputBusquedaEmpresas =
+        tb === 'empresas'
+
+            ? document.getElementById(
+                'inputBuscadorEmpresa'
+            )
+
+            : null;
+
+
+    const busquedaEmpresas =
+        inputBusquedaEmpresas
+
+            ? inputBusquedaEmpresas
+                .value
+                .trim()
+
+            : '';
 
 
     /* =====================================================
@@ -2397,40 +2559,86 @@ function eliminar(id, tb) {
     function ejecutarEliminacion() {
 
         fetch(
-            "/" +
+            '/' +
             tb +
-            "/eliminar.php?id=" +
+            '/eliminar.php?id=' +
             encodeURIComponent(id) +
-            "&tb=" +
+            '&tb=' +
             encodeURIComponent(tb)
         )
+
         .then(async response => {
 
-            const data = await response.text();
+
+            /* =================================================
+               CONTROL GLOBAL DE SESIÓN
+               ================================================= */
+
+            if (
+                typeof manejarRedireccionSesion ===
+                'function' &&
+                manejarRedireccionSesion(
+                    response
+                )
+            ) {
+
+                return null;
+            }
+
+
+            /* =================================================
+               LEER RESPUESTA
+               ================================================= */
+
+            const data =
+                await response.text();
 
 
             /* =================================================
                PHP BLOQUEÓ LA ELIMINACIÓN
                ================================================= */
 
-            if (!response.ok) {
+            if (
+                !response.ok
+            ) {
 
-                if (typeof Swal !== 'undefined') {
+                if (
+                    typeof Swal !==
+                    'undefined'
+                ) {
 
                     Swal.fire({
-                        icon: 'warning',
-                        title: 'No se puede eliminar',
-                        text: data,
-                        confirmButtonText: 'Entendido',
-                        confirmButtonColor: '#e67e00',
-                        background: '#1e293b',
-                        color: '#ffffff'
+
+                        icon:
+                            'warning',
+
+                        title:
+                            'No se puede eliminar',
+
+                        text:
+                            data,
+
+                        confirmButtonText:
+                            'Entendido',
+
+                        confirmButtonColor:
+                            '#e67e00',
+
+                        background:
+                            '#1e293b',
+
+                        color:
+                            '#ffffff'
                     });
+
 
                 } else {
 
-                    alert(data);
+                    alert(
+                        data
+                    );
                 }
+
 
                 return null;
             }
@@ -2438,32 +2646,119 @@ function eliminar(id, tb) {
 
             return data;
         })
+
         .then(data => {
 
-            /* Si PHP rechazó la eliminación */
-            if (data === null) {
+
+            /* =================================================
+               SESIÓN REDIRIGIDA O ELIMINACIÓN RECHAZADA
+               ================================================= */
+
+            if (
+                data === null
+            ) {
+
                 return;
             }
 
 
-            /* Actualizar tabla */
-            contenedorElemento.innerHTML = data;
+            /* =================================================
+               EMPRESAS
+               ================================================= */
+
+            if (
+                tb ===
+                'empresas'
+            ) {
+
+                if (
+                    typeof cargarEmpresas ===
+                    'function'
+                ) {
+
+                    cargarEmpresas(
+                        paginaEmpresas,
+                        busquedaEmpresas,
+                        false
+                    );
 
 
-            /* Mensaje de éxito */
-            mostrarToast(
-                "Registro eliminado correctamente"
-            );
+                } else {
+
+                    console.error(
+                        'No se encontró cargarEmpresas().'
+                    );
+
+
+                    window.location.reload();
+                }
+
+
+            /* =================================================
+               OTROS MÓDULOS
+               ================================================= */
+
+            } else {
+
+                contenedorElemento.innerHTML =
+                    data;
+            }
+
+
+            /* =================================================
+               MENSAJE DE ÉXITO
+               ================================================= */
+
+            if (
+                typeof mostrarToast ===
+                'function'
+            ) {
+
+                mostrarToast(
+                    'Registro eliminado correctamente'
+                );
+            }
         })
+
         .catch(error => {
 
             console.error(
-                "Error al eliminar en " +
+                'Error al eliminar en ' +
                 tb +
-                ":",
+                ':',
                 error
             );
 
+
+            if (
+                typeof Swal !==
+                'undefined'
+            ) {
+
+                Swal.fire({
+
+                    icon:
+                        'error',
+
+                    title:
+                        'Error al eliminar',
+
+                    text:
+                        'No fue posible completar la eliminación.',
+
+                    confirmButtonText:
+                        'Entendido',
+
+                    confirmButtonColor:
+                        '#dc2626',
+
+                    background:
+                        '#1e293b',
+
+                    color:
+                        '#ffffff'
+                });
+            }
         });
     }
 
@@ -2472,49 +2767,181 @@ function eliminar(id, tb) {
        CONFIRMACIÓN ANTES DE ELIMINAR
        ===================================================== */
 
-    if (typeof Swal !== 'undefined') {
+    if (
+        typeof Swal !==
+        'undefined'
+    ) {
 
         Swal.fire({
-            icon: 'question',
-            title: '¿Deseas eliminar este registro?',
-            text: 'Esta acción no se puede deshacer.',
-            showCancelButton: true,
 
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar',
+            icon:
+                'question',
 
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#475569',
+            title:
+                tb === 'empresas'
+                    ? '¿Deseas eliminar esta empresa?'
+                    : '¿Deseas eliminar este registro?',
 
-            background: '#1e293b',
-            color: '#ffffff',
+            text:
+                'Esta acción no se puede deshacer.',
 
-            reverseButtons: true
+            showCancelButton:
+                true,
+
+            confirmButtonText:
+                tb === 'empresas'
+                    ? 'Sí, continuar'
+                    : 'Sí, eliminar',
+
+            cancelButtonText:
+                'Cancelar',
+
+            confirmButtonColor:
+                '#dc2626',
+
+            cancelButtonColor:
+                '#475569',
+
+            background:
+                '#1e293b',
+
+            color:
+                '#ffffff',
+
+            reverseButtons:
+                true
         })
+
         .then(resultado => {
 
-            if (resultado.isConfirmed) {
+            if (
+                !resultado.isConfirmed
+            ) {
 
-                ejecutarEliminacion();
+                return;
             }
 
+
+            /* =================================================
+               SEGUNDA CONFIRMACIÓN SOLO PARA EMPRESAS
+               ================================================= */
+
+            if (
+                tb ===
+                'empresas'
+            ) {
+
+                Swal.fire({
+
+                    icon:
+                        'warning',
+
+                    title:
+                        '¿Estás completamente seguro?',
+
+                    text:
+                        'La empresa será eliminada de forma definitiva si no tiene información relacionada.',
+
+                    showCancelButton:
+                        true,
+
+                    confirmButtonText:
+                        'Sí, eliminar definitivamente',
+
+                    cancelButtonText:
+                        'No, conservar empresa',
+
+                    confirmButtonColor:
+                        '#dc2626',
+
+                    cancelButtonColor:
+                        '#475569',
+
+                    background:
+                        '#1e293b',
+
+                    color:
+                        '#ffffff',
+
+                    reverseButtons:
+                        true
+                })
+
+                .then(
+                    confirmacionFinal => {
+
+                        if (
+                            confirmacionFinal
+                                .isConfirmed
+                        ) {
+
+                            ejecutarEliminacion();
+                        }
+                    }
+                );
+
+
+                return;
+            }
+
+
+            /* =================================================
+               OTROS MÓDULOS
+               ================================================= */
+
+            ejecutarEliminacion();
         });
+
 
     } else {
 
-        /* Respaldo por si SweetAlert no carga */
-        const confirmar = confirm(
-            "¿Deseas eliminar este registro?"
-        );
+        /* =====================================================
+           RESPALDO SIN SWEETALERT
+           ===================================================== */
 
-        if (confirmar) {
+        const confirmar =
+            confirm(
+                tb === 'empresas'
+                    ? '¿Deseas eliminar esta empresa?'
+                    : '¿Deseas eliminar este registro?'
+            );
 
-            ejecutarEliminacion();
+
+        if (
+            !confirmar
+        ) {
+
+            return;
         }
+
+
+        /* =================================================
+           SEGUNDA CONFIRMACIÓN SOLO PARA EMPRESAS
+           ================================================= */
+
+        if (
+            tb ===
+            'empresas'
+        ) {
+
+            const confirmarDefinitivamente =
+                confirm(
+                    '¿Estás completamente seguro? La empresa será eliminada definitivamente.'
+                );
+
+
+            if (
+                !confirmarDefinitivamente
+            ) {
+
+                return;
+            }
+        }
+
+
+        ejecutarEliminacion();
     }
 }
-
-
 /* =========================================================
    8. NOTIFICACIONES
    ========================================================= */
@@ -8352,4 +8779,511 @@ if (
 
     mostrarErrorConstanciaDesdeURL();
 
+}
+
+
+/* =========================================================
+   EMPRESAS - BÚSQUEDA Y PAGINACIÓN
+   ========================================================= */
+
+let temporizadorBusquedaEmpresas =
+    null;
+
+
+let controladorCargaEmpresas =
+    null;
+
+
+/* =========================================================
+   PROGRAMAR BÚSQUEDA
+   ========================================================= */
+
+/*
+ * Espera brevemente después de que el usuario escribe.
+ *
+ * Esto evita realizar una petición al servidor
+ * por cada tecla pulsada.
+ */
+
+function programarBusquedaEmpresas() {
+
+    const input =
+        document.getElementById(
+            'inputBuscadorEmpresa'
+        );
+
+
+    if (!input) {
+
+        return;
+    }
+
+
+    const termino =
+        input.value.trim();
+
+
+    const btnLimpiar =
+        document.getElementById(
+            'btnLimpiarEmpresa'
+        );
+
+
+    /* =====================================================
+       BOTÓN LIMPIAR
+       ===================================================== */
+
+    if (btnLimpiar) {
+
+        btnLimpiar.style.display =
+            termino !== ''
+                ? 'flex'
+                : 'none';
+    }
+
+
+    /* =====================================================
+       CANCELAR TEMPORIZADOR ANTERIOR
+       ===================================================== */
+
+    clearTimeout(
+        temporizadorBusquedaEmpresas
+    );
+
+
+    /* =====================================================
+       NUEVA BÚSQUEDA
+       ===================================================== */
+
+    temporizadorBusquedaEmpresas =
+        setTimeout(
+            () => {
+
+                cargarEmpresas(
+                    1,
+                    termino,
+                    true
+                );
+
+            },
+            350
+        );
+}
+
+
+/* =========================================================
+   CARGAR EMPRESAS
+   ========================================================= */
+
+function cargarEmpresas(
+    pagina = 1,
+    busqueda = null,
+    mantenerFoco = false
+) {
+
+    const contenedor =
+        document.getElementById(
+            'contenedor3'
+        );
+
+
+    if (!contenedor) {
+
+        console.error(
+            'No se encontró #contenedor3 para cargar empresas.'
+        );
+
+        return;
+    }
+
+
+    /* =====================================================
+       PÁGINA VÁLIDA
+       ===================================================== */
+
+    pagina =
+        Math.max(
+            1,
+            parseInt(
+                pagina,
+                10
+            ) || 1
+        );
+
+
+    /* =====================================================
+       OBTENER BÚSQUEDA ACTUAL
+       ===================================================== */
+
+    if (
+        busqueda === null
+    ) {
+
+        const input =
+            document.getElementById(
+                'inputBuscadorEmpresa'
+            );
+
+
+        busqueda =
+            input
+                ? input.value.trim()
+                : '';
+    }
+
+
+    /* =====================================================
+       CANCELAR PETICIÓN ANTERIOR
+       ===================================================== */
+
+    if (
+        controladorCargaEmpresas
+    ) {
+
+        controladorCargaEmpresas
+            .abort();
+    }
+
+
+    const controladorActual =
+        new AbortController();
+
+
+    controladorCargaEmpresas =
+        controladorActual;
+
+
+    /* =====================================================
+       PARÁMETROS
+       ===================================================== */
+
+    const parametros =
+        new URLSearchParams();
+
+
+    parametros.set(
+        'solo_tabla',
+        '1'
+    );
+
+
+    parametros.set(
+        'pagina',
+        String(pagina)
+    );
+
+
+    parametros.set(
+        'busqueda',
+        busqueda
+    );
+
+
+    /* =====================================================
+       ESTADO DE CARGA
+       ===================================================== */
+
+    contenedor.classList.add(
+        'empresa-contenedor-cargando'
+    );
+
+
+    contenedor.setAttribute(
+        'aria-busy',
+        'true'
+    );
+
+
+    /* =====================================================
+       CONSULTAR SERVIDOR
+       ===================================================== */
+
+    fetch(
+        '/empresas/index.php?' +
+        parametros.toString(),
+        {
+            method:
+                'GET',
+
+            signal:
+                controladorActual.signal,
+
+            headers: {
+                'X-Requested-With':
+                    'XMLHttpRequest'
+            }
+        }
+    )
+
+    .then(response => {
+
+        /* =================================================
+           CONTROL GLOBAL DE SESIÓN
+           ================================================= */
+
+        if (
+            typeof manejarRedireccionSesion ===
+            'function' &&
+            manejarRedireccionSesion(
+                response
+            )
+        ) {
+
+            return null;
+        }
+
+
+        /* =================================================
+           ERROR HTTP
+           ================================================= */
+
+        if (!response.ok) {
+
+            throw new Error(
+                'No fue posible cargar las empresas.'
+            );
+        }
+
+
+        return response.text();
+    })
+
+    .then(html => {
+
+        if (
+            html === null
+        ) {
+
+            return;
+        }
+
+
+        /* =================================================
+           ACTUALIZAR TABLA
+           ================================================= */
+
+        contenedor.innerHTML =
+            html;
+
+
+        /* =================================================
+           RESTAURAR FOCO DEL BUSCADOR
+           ================================================= */
+
+        if (
+            mantenerFoco
+        ) {
+
+            requestAnimationFrame(
+                () => {
+
+                    const nuevoInput =
+                        document.getElementById(
+                            'inputBuscadorEmpresa'
+                        );
+
+
+                    if (!nuevoInput) {
+
+                        return;
+                    }
+
+
+                    nuevoInput.focus();
+
+
+                    const longitud =
+                        nuevoInput
+                            .value
+                            .length;
+
+
+                    nuevoInput.setSelectionRange(
+                        longitud,
+                        longitud
+                    );
+                }
+            );
+
+
+        /* =================================================
+           CAMBIO DE PÁGINA
+           ================================================= */
+
+        } else {
+
+            requestAnimationFrame(
+                () => {
+
+                    const tarjeta =
+                        document.querySelector(
+                            '.empresa-tabla-card'
+                        );
+
+
+                    if (tarjeta) {
+
+                        tarjeta.scrollIntoView({
+
+                            behavior:
+                                'smooth',
+
+                            block:
+                                'start'
+                        });
+                    }
+                }
+            );
+        }
+    })
+
+    .catch(error => {
+
+        /* =================================================
+           PETICIÓN CANCELADA
+           ================================================= */
+
+        if (
+            error.name ===
+            'AbortError'
+        ) {
+
+            return;
+        }
+
+
+        console.error(
+            'Error al cargar empresas:',
+            error
+        );
+
+
+        /* =================================================
+           MENSAJE AL USUARIO
+           ================================================= */
+
+        if (
+            typeof Swal !==
+            'undefined'
+        ) {
+
+            Swal.fire({
+
+                icon:
+                    'error',
+
+                title:
+                    'No se pudieron cargar las empresas',
+
+                text:
+                    'Intenta nuevamente.',
+
+                confirmButtonText:
+                    'Entendido',
+
+                confirmButtonColor:
+                    '#dc2626',
+
+                background:
+                    '#1e293b',
+
+                color:
+                    '#ffffff'
+            });
+
+
+        } else {
+
+            alert(
+                'No se pudieron cargar las empresas.'
+            );
+        }
+    })
+
+    .finally(() => {
+
+        /*
+         * Solo quitamos el estado de carga
+         * si esta sigue siendo la petición más reciente.
+         */
+
+        if (
+            controladorCargaEmpresas ===
+            controladorActual
+        ) {
+
+            controladorCargaEmpresas =
+                null;
+
+
+            contenedor.classList.remove(
+                'empresa-contenedor-cargando'
+            );
+
+
+            contenedor.removeAttribute(
+                'aria-busy'
+            );
+        }
+    });
+}
+
+
+/* =========================================================
+   CAMBIAR PÁGINA
+   ========================================================= */
+
+function cambiarPaginaEmpresas(
+    pagina
+) {
+
+    const input =
+        document.getElementById(
+            'inputBuscadorEmpresa'
+        );
+
+
+    const busqueda =
+        input
+            ? input.value.trim()
+            : '';
+
+
+    cargarEmpresas(
+        pagina,
+        busqueda,
+        false
+    );
+}
+
+
+/* =========================================================
+   LIMPIAR BÚSQUEDA
+   ========================================================= */
+
+function limpiarBuscadorEmpresa() {
+
+    clearTimeout(
+        temporizadorBusquedaEmpresas
+    );
+
+
+    const input =
+        document.getElementById(
+            'inputBuscadorEmpresa'
+        );
+
+
+    if (input) {
+
+        input.value =
+            '';
+    }
+
+
+    cargarEmpresas(
+        1,
+        '',
+        true
+    );
 }

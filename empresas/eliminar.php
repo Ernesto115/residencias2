@@ -1,17 +1,40 @@
 <?php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+/* =========================================================
+   SESIÓN CENTRAL
+   ========================================================= */
+
+require_once "../configuracion/sesion.php";
+
+verificarSesion();
 
 
-include_once "../DB/db.php";
+/* =========================================================
+   RESPUESTA
+   ========================================================= */
+
+header(
+    'Content-Type: text/plain; charset=UTF-8'
+);
 
 
-$db = new db();
+/* =========================================================
+   BASE DE DATOS
+   ========================================================= */
+
+require_once "../DB/db.php";
+
+
+$db =
+    new db();
+
 
 $db->conectar();
 
+
+/* =========================================================
+   ERROR CONTROLADO
+   ========================================================= */
 
 function errorEliminarEmpresa(
     $mensaje,
@@ -22,11 +45,16 @@ function errorEliminarEmpresa(
         $codigo
     );
 
+
     exit(
         $mensaje
     );
 }
 
+
+/* =========================================================
+   DATOS DE SESIÓN
+   ========================================================= */
 
 $rol =
     strtoupper(
@@ -36,11 +64,35 @@ $rol =
     );
 
 
-if ($rol === 'ADMINISTRADOR') {
+if (
+    $rol ===
+    'ADMINISTRADOR'
+) {
 
-    $rol = 'ADMIN';
+    $rol =
+        'ADMIN';
 }
 
+
+/* =========================================================
+   SOLO ADMIN PUEDE ELIMINAR EMPRESAS
+   ========================================================= */
+
+if (
+    $rol !==
+    'ADMIN'
+) {
+
+    errorEliminarEmpresa(
+        'Solo el administrador puede eliminar empresas.',
+        403
+    );
+}
+
+
+/* =========================================================
+   ID DE EMPRESA
+   ========================================================= */
 
 $id_empresa =
     (int)(
@@ -51,23 +103,12 @@ $id_empresa =
 
 
 /* =========================================================
-   SOLO ADMIN PUEDE ELIMINAR EMPRESAS
-   ========================================================= */
-
-if ($rol !== 'ADMIN') {
-
-    errorEliminarEmpresa(
-        'Solo el administrador puede eliminar empresas.',
-        403
-    );
-}
-
-
-/* =========================================================
    VALIDAR ID
    ========================================================= */
 
-if ($id_empresa <= 0) {
+if (
+    $id_empresa <= 0
+) {
 
     errorEliminarEmpresa(
         'La empresa seleccionada no es válida.',
@@ -82,9 +123,10 @@ if ($id_empresa <= 0) {
 
 $stmt =
     $db->conn->prepare(
-
         "SELECT
+
             id_empresa,
+
             nombre_empresa
 
          FROM empresas
@@ -95,12 +137,12 @@ $stmt =
     );
 
 
-$stmt->execute([
-
-    ':empresa' =>
-        $id_empresa
-
-]);
+$stmt->execute(
+    [
+        ':empresa' =>
+            $id_empresa
+    ]
+);
 
 
 $empresa =
@@ -109,7 +151,9 @@ $empresa =
     );
 
 
-if (!$empresa) {
+if (
+    !$empresa
+) {
 
     errorEliminarEmpresa(
         'La empresa que intentas eliminar no existe.',
@@ -122,15 +166,18 @@ if (!$empresa) {
    VALIDAR DEPENDENCIAS
    ========================================================= */
 
-$dependencias = [];
+$dependencias =
+    [];
 
 
-/* OPERADORES */
+/* =========================================================
+   OPERADORES
+   ========================================================= */
 
 $stmt =
     $db->conn->prepare(
-
-        "SELECT COUNT(*)
+        "SELECT
+            COUNT(*)
 
          FROM operadores
 
@@ -138,31 +185,36 @@ $stmt =
     );
 
 
-$stmt->execute([
-
-    ':empresa' =>
-        $id_empresa
-
-]);
+$stmt->execute(
+    [
+        ':empresa' =>
+            $id_empresa
+    ]
+);
 
 
 $total_operadores =
-    (int)$stmt->fetchColumn();
+    (int)$stmt
+        ->fetchColumn();
 
 
-if ($total_operadores > 0) {
+if (
+    $total_operadores > 0
+) {
 
     $dependencias[] =
         "$total_operadores operador(es)";
 }
 
 
-/* USUARIOS */
+/* =========================================================
+   USUARIOS
+   ========================================================= */
 
 $stmt =
     $db->conn->prepare(
-
-        "SELECT COUNT(*)
+        "SELECT
+            COUNT(*)
 
          FROM usuarios
 
@@ -170,31 +222,36 @@ $stmt =
     );
 
 
-$stmt->execute([
-
-    ':empresa' =>
-        $id_empresa
-
-]);
+$stmt->execute(
+    [
+        ':empresa' =>
+            $id_empresa
+    ]
+);
 
 
 $total_usuarios =
-    (int)$stmt->fetchColumn();
+    (int)$stmt
+        ->fetchColumn();
 
 
-if ($total_usuarios > 0) {
+if (
+    $total_usuarios > 0
+) {
 
     $dependencias[] =
         "$total_usuarios usuario(s)";
 }
 
 
-/* REPORTES DE BAJA */
+/* =========================================================
+   REPORTES DE BAJA
+   ========================================================= */
 
 $stmt =
     $db->conn->prepare(
-
-        "SELECT COUNT(*)
+        "SELECT
+            COUNT(*)
 
          FROM reportes_baja
 
@@ -202,19 +259,22 @@ $stmt =
     );
 
 
-$stmt->execute([
-
-    ':empresa' =>
-        $id_empresa
-
-]);
+$stmt->execute(
+    [
+        ':empresa' =>
+            $id_empresa
+    ]
+);
 
 
 $total_reportes =
-    (int)$stmt->fetchColumn();
+    (int)$stmt
+        ->fetchColumn();
 
 
-if ($total_reportes > 0) {
+if (
+    $total_reportes > 0
+) {
 
     $dependencias[] =
         "$total_reportes reporte(s) de baja";
@@ -225,10 +285,13 @@ if ($total_reportes > 0) {
    BLOQUEAR SI EXISTEN RELACIONES
    ========================================================= */
 
-if ($dependencias) {
+if (
+    !empty(
+        $dependencias
+    )
+) {
 
     errorEliminarEmpresa(
-
         'No se puede eliminar esta empresa porque tiene ' .
 
         implode(
@@ -236,7 +299,8 @@ if ($dependencias) {
             $dependencias
         ) .
 
-        ' relacionados.'
+        ' relacionados.',
+        409
     );
 }
 
@@ -247,8 +311,8 @@ if ($dependencias) {
 
 $stmt =
     $db->conn->prepare(
-
         "SELECT DISTINCT
+
             id_usuario
 
          FROM usuario_empresas
@@ -257,12 +321,12 @@ $stmt =
     );
 
 
-$stmt->execute([
-
-    ':empresa' =>
-        $id_empresa
-
-]);
+$stmt->execute(
+    [
+        ':empresa' =>
+            $id_empresa
+    ]
+);
 
 
 $propietarios =
@@ -281,49 +345,51 @@ try {
         ->beginTransaction();
 
 
-    /* QUITAR RELACIONES */
+    /* =====================================================
+       QUITAR RELACIONES DE LA EMPRESA
+       ===================================================== */
 
     $stmt =
         $db->conn->prepare(
-
             "DELETE FROM usuario_empresas
 
              WHERE id_empresa = :empresa"
         );
 
 
-    $stmt->execute([
+    $stmt->execute(
+        [
+            ':empresa' =>
+                $id_empresa
+        ]
+    );
 
-        ':empresa' =>
-            $id_empresa
 
-    ]);
-
-
-    /* ELIMINAR EMPRESA */
+    /* =====================================================
+       ELIMINAR EMPRESA
+       ===================================================== */
 
     $stmt =
         $db->conn->prepare(
-
             "DELETE FROM empresas
 
              WHERE id_empresa = :empresa"
         );
 
 
-    $stmt->execute([
-
-        ':empresa' =>
-            $id_empresa
-
-    ]);
+    $stmt->execute(
+        [
+            ':empresa' =>
+                $id_empresa
+        ]
+    );
 
 
     if (
         $stmt->rowCount() !== 1
     ) {
 
-        throw new Exception(
+        throw new RuntimeException(
             'No fue posible eliminar la empresa.'
         );
     }
@@ -339,15 +405,30 @@ try {
     ) {
 
         $id_propietario =
-            (int)$propietario[
-                'id_usuario'
-            ];
+            (int)(
+                $propietario[
+                    'id_usuario'
+                ] ?? 0
+            );
 
+
+        if (
+            $id_propietario <= 0
+        ) {
+
+            continue;
+        }
+
+
+        /* =================================================
+           EMPRESAS RESTANTES
+           ================================================= */
 
         $stmt =
             $db->conn->prepare(
+                "SELECT
 
-                "SELECT id_empresa
+                    id_empresa
 
                  FROM usuario_empresas
 
@@ -357,12 +438,12 @@ try {
             );
 
 
-        $stmt->execute([
-
-            ':usuario' =>
-                $id_propietario
-
-        ]);
+        $stmt->execute(
+            [
+                ':usuario' =>
+                    $id_propietario
+            ]
+        );
 
 
         $restantes =
@@ -377,9 +458,13 @@ try {
             );
 
 
-        /* QUEDÓ CON UNA EMPRESA */
+        /* =================================================
+           QUEDÓ CON UNA EMPRESA
+           ================================================= */
 
-        if ($cantidad === 1) {
+        if (
+            $cantidad === 1
+        ) {
 
             $empresa_restante =
                 (int)$restantes[0];
@@ -387,57 +472,67 @@ try {
 
             $stmt =
                 $db->conn->prepare(
-
                     "UPDATE usuarios
 
                      SET
+
                         multiempresa = 0,
+
                         id_empresa = :empresa
 
                      WHERE id_usuario = :usuario"
                 );
 
 
-            $stmt->execute([
+            $stmt->execute(
+                [
+                    ':empresa' =>
+                        $empresa_restante,
 
-                ':empresa' =>
-                    $empresa_restante,
-
-                ':usuario' =>
-                    $id_propietario
-
-            ]);
+                    ':usuario' =>
+                        $id_propietario
+                ]
+            );
 
 
-            /* LIMPIAR TABLA PUENTE */
+            /*
+             * Ya no necesita utilizar tabla puente
+             * porque volvió a ser propietario normal.
+             */
 
             $stmt =
                 $db->conn->prepare(
-
                     "DELETE FROM usuario_empresas
 
                      WHERE id_usuario = :usuario"
                 );
 
 
-            $stmt->execute([
+            $stmt->execute(
+                [
+                    ':usuario' =>
+                        $id_propietario
+                ]
+            );
 
-                ':usuario' =>
-                    $id_propietario
 
-            ]);
-
-
-        /* SIGUE SIENDO MULTIEMPRESA */
+        /* =================================================
+           SIGUE SIENDO MULTIEMPRESA
+           ================================================= */
 
         } elseif (
             $cantidad >= 2
         ) {
 
+            /* =============================================
+               EMPRESA BASE ACTUAL
+               ============================================= */
+
             $stmt =
                 $db->conn->prepare(
+                    "SELECT
 
-                    "SELECT id_empresa
+                        id_empresa
 
                      FROM usuarios
 
@@ -447,12 +542,12 @@ try {
                 );
 
 
-            $stmt->execute([
-
-                ':usuario' =>
-                    $id_propietario
-
-            ]);
+            $stmt->execute(
+                [
+                    ':usuario' =>
+                        $id_propietario
+                ]
+            );
 
 
             $empresaBase =
@@ -466,6 +561,12 @@ try {
                     $restantes
                 );
 
+
+            /*
+             * Si la empresa base ya no está entre
+             * las empresas disponibles, asignamos
+             * la primera restante.
+             */
 
             if (
                 !in_array(
@@ -482,36 +583,42 @@ try {
 
             $stmt =
                 $db->conn->prepare(
-
                     "UPDATE usuarios
 
                      SET
+
                         multiempresa = 1,
+
                         id_empresa = :empresa
 
                      WHERE id_usuario = :usuario"
                 );
 
 
-            $stmt->execute([
+            $stmt->execute(
+                [
+                    ':empresa' =>
+                        $empresaBase,
 
-                ':empresa' =>
-                    $empresaBase,
-
-                ':usuario' =>
-                    $id_propietario
-
-            ]);
+                    ':usuario' =>
+                        $id_propietario
+                ]
+            );
         }
     }
 
+
+    /* =====================================================
+       CONFIRMAR TRANSACCIÓN
+       ===================================================== */
 
     $db->conn
         ->commit();
 
 
-} catch (Throwable $e) {
-
+} catch (
+    Throwable $e
+) {
 
     if (
         $db->conn
@@ -524,32 +631,37 @@ try {
 
 
     errorEliminarEmpresa(
-
         'No se pudo eliminar la empresa debido a una relación existente.',
-
         500
     );
 }
 
 
 /* =========================================================
-   RECARGAR TABLA PARA ADMIN
+   RESPUESTA CORRECTA
    ========================================================= */
 
-$datos2 =
-    $db->obtenerRegistros(
+/*
+ * Ya NO regresamos tabla.php.
+ *
+ * funciones.js será responsable de volver
+ * a solicitar únicamente la página necesaria.
+ */
 
-        "SELECT *
-
-         FROM empresas
-
-         ORDER BY id_empresa DESC"
-    );
+http_response_code(
+    200
+);
 
 
-include "../empresas/tabla.php";
+echo 'OK';
 
+
+/* =========================================================
+   FINALIZAR
+   ========================================================= */
 
 $db->desconectar();
+
+exit;
 
 ?>
