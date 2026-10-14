@@ -1,8 +1,12 @@
 <?php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+/* =========================================================
+   SESIÓN CENTRALIZADA
+   ========================================================= */
+
+require_once __DIR__ . "/../configuracion/sesion.php";
+
+verificarSesion();
 
 
 /* =========================================================
@@ -68,6 +72,7 @@ $rol =
 
 
 if ($rol === 'ADMINISTRADOR') {
+
     $rol = 'ADMIN';
 }
 
@@ -162,7 +167,9 @@ if ($idUsuario === $idUsuarioSesion) {
 
 require_once __DIR__ . "/../DB/db.php";
 
+
 $db = new db();
+
 $db->conectar();
 
 
@@ -172,13 +179,17 @@ $db->conectar();
 
 $stmt =
     $db->conn->prepare(
+
         "SELECT
             id_usuario,
             nombre_usuario,
             rol,
             estatus
+
          FROM usuarios
+
          WHERE id_usuario = :id
+
          LIMIT 1"
     );
 
@@ -219,6 +230,7 @@ $rolUsuario =
 
 
 if ($rolUsuario === 'ADMIN') {
+
     $rolUsuario = 'ADMINISTRADOR';
 }
 
@@ -292,8 +304,11 @@ try {
 
     $stmt =
         $db->conn->prepare(
+
             "UPDATE usuarios
+
              SET estatus = :estatus
+
              WHERE id_usuario = :id"
         );
 

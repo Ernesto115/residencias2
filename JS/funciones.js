@@ -6651,41 +6651,127 @@ function cambiarPaginaUsuarios(
 
 
     fetch(urlPeticion)
-        .then(response => {
+
+        .then(async response => {
+
+
+            /* =================================================
+               COMPROBAR REDIRECCIÓN DE SESIÓN
+               ================================================= */
+
+            if (
+                typeof manejarRedireccionSesion ===
+                    'function' &&
+                manejarRedireccionSesion(
+                    response
+                )
+            ) {
+
+                return null;
+            }
+
+
+            /* =================================================
+               RUTA ALTERNATIVA
+               ================================================= */
 
             if (!response.ok) {
 
-                return fetch(
-                    `usuarios/tabla.php?pagina=${numPagina}&rol=${encodeURIComponent(rol)}`
-                );
+                const respuestaAlternativa =
+                    await fetch(
+
+                        `usuarios/tabla.php?pagina=${numPagina}&rol=${encodeURIComponent(rol)}`
+                    );
+
+
+                if (
+                    typeof manejarRedireccionSesion ===
+                        'function' &&
+                    manejarRedireccionSesion(
+                        respuestaAlternativa
+                    )
+                ) {
+
+                    return null;
+                }
+
+
+                return respuestaAlternativa;
             }
+
 
             return response;
         })
-        .then(response => {
+
+
+        .then(async response => {
+
+
+            /* =================================================
+               SESIÓN INTERCEPTADA
+               ================================================= */
+
+            if (response === null) {
+
+                return null;
+            }
+
+
+            /* =================================================
+               ERROR HTTP
+               ================================================= */
 
             if (!response.ok) {
+
+                const texto =
+                    await response.text();
+
+
                 throw new Error(
+                    texto ||
                     `HTTP Error status: ${response.status}`
                 );
             }
 
+
             return response.text();
         })
+
+
         .then(html => {
+
+
+            /* =================================================
+               REDIRECCIÓN DE SESIÓN
+               ================================================= */
+
+            if (html === null) {
+
+                return;
+            }
+
+
+            /* =================================================
+               ACTUALIZAR TABLA
+               ================================================= */
 
             contenedor.innerHTML =
                 html;
 
+
             contenedor.style.opacity =
                 '1';
         })
+
+
         .catch(error => {
+
 
             console.error(
                 'Error AJAX al paginar/filtrar usuarios:',
                 error
             );
+
 
             contenedor.style.opacity =
                 '1';

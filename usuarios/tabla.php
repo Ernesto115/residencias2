@@ -1,17 +1,24 @@
 <?php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+/* =========================================================
+   SESIÓN CENTRALIZADA
+   ========================================================= */
+
+require_once __DIR__ . "/../configuracion/sesion.php";
+
+verificarSesion();
 
 
 /* =========================================================
    SESIÓN Y SEGURIDAD
    ========================================================= */
 
-$rolSesion = strtoupper(
-    trim($_SESSION['rol'] ?? '')
-);
+$rolSesion =
+    strtoupper(
+        trim(
+            $_SESSION['rol'] ?? ''
+        )
+    );
 
 if ($rolSesion === 'ADMINISTRADOR') {
     $rolSesion = 'ADMIN';
