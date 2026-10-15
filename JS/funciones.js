@@ -3777,8 +3777,8 @@ window.onpopstate = function() {
    13. MODALES
    ========================================================= */
 
-// Abre un modal dependiendo del módulo.
 function abrirModal(tipo) {
+
     const config = {
 
         operador: {
@@ -3795,7 +3795,7 @@ function abrirModal(tipo) {
 
         usuario: {
             modal: 'modalUsuario',
-            titulo: 'Nuevo Usuario',
+            titulo: 'Nuevo RRHH',
             alerta: 'contenedor-alertas-usuarios',
             frmAlt: 'formGuardarUsuario'
         },
@@ -3808,10 +3808,19 @@ function abrirModal(tipo) {
     };
 
 
-    const cfg = config[tipo];
+    const cfg =
+        config[tipo];
 
-    if (!cfg) return;
 
+    if (!cfg) {
+
+        return;
+    }
+
+
+    /* =====================================================
+       FORMULARIO
+       ===================================================== */
 
     const frm =
         (
@@ -3820,13 +3829,20 @@ function abrirModal(tipo) {
                 cfg.frmAlt
             )
         ) ||
-        document.getElementById('frm');
+        document.getElementById(
+            'frm'
+        );
 
 
     if (frm) {
 
+
+        /* LIMPIAR FORMULARIO */
+
         frm.reset();
 
+
+        /* LIMPIAR ID */
 
         const campoId =
             frm.querySelector(
@@ -3838,36 +3854,56 @@ function abrirModal(tipo) {
 
 
         if (campoId) {
-            campoId.value = '';
+
+            campoId.value =
+                '';
         }
     }
 
 
-    // Configuración especial para usuarios.
+    /* =====================================================
+       CONFIGURACIÓN ESPECIAL PARA USUARIO / RRHH
+       ===================================================== */
+
     if (tipo === 'usuario') {
 
-        if (
-            typeof controlarDespliegueEmpresa ===
-            'function'
-        ) {
 
-            controlarDespliegueEmpresa();
+        /*
+         * La sección de empresa solamente se procesa
+         * si realmente existe en el formulario.
+         *
+         * Actualmente el formulario RRHH del propietario
+         * todavía no incluye esta sección.
+         */
 
-        } else {
-
-            const seccionEmp =
-                document.getElementById(
-                    'seccion_empresa'
-                );
+        const seccionEmp =
+            document.getElementById(
+                'seccion_empresa'
+            );
 
 
-            if (seccionEmp) {
+        if (seccionEmp) {
+
+
+            if (
+                typeof controlarDespliegueEmpresa ===
+                'function'
+            ) {
+
+                controlarDespliegueEmpresa();
+
+            } else {
+
                 seccionEmp.style.display =
                     'none';
             }
         }
     }
 
+
+    /* =====================================================
+       ABRIR MODAL
+       ===================================================== */
 
     const modal =
         document.getElementById(
@@ -3877,6 +3913,7 @@ function abrirModal(tipo) {
 
     if (modal) {
 
+
         const tituloModal =
             modal.querySelector(
                 '.modal-title, .modal-title-text, h2, h3'
@@ -3884,6 +3921,7 @@ function abrirModal(tipo) {
 
 
         if (tituloModal) {
+
             tituloModal.innerText =
                 cfg.titulo;
         }
@@ -3895,6 +3933,10 @@ function abrirModal(tipo) {
     }
 
 
+    /* =====================================================
+       LIMPIAR ALERTAS
+       ===================================================== */
+
     const contenedorAlertas =
         document.getElementById(
             cfg.alerta
@@ -3905,10 +3947,11 @@ function abrirModal(tipo) {
 
 
     if (contenedorAlertas) {
-        contenedorAlertas.innerHTML = '';
+
+        contenedorAlertas.innerHTML =
+            '';
     }
 }
-
 
 // Cierra un modal.
 function cerrarModal(tipo) {

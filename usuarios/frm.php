@@ -28,52 +28,36 @@ if ($rolSesion === 'ADMINISTRADOR') {
 
 
 /* =========================================================
-   SOLO ADMIN
+   SOLO PROPIETARIO
    ========================================================= */
 
-if ($rolSesion !== 'ADMIN') {
+/*
+ * La creación de cuentas RRHH corresponde
+ * exclusivamente al PROPIETARIO.
+ *
+ * ADMIN no utiliza este formulario.
+ * RRHH tampoco puede acceder.
+ */
+
+if ($rolSesion !== 'PROPIETARIO') {
 
     http_response_code(403);
 
-    echo '<div class="alert alert-danger">
-            No tienes permiso para administrar usuarios.
-          </div>';
+    echo '
+        <div class="alert alert-danger">
+            No tienes permiso para crear cuentas de RRHH.
+        </div>
+    ';
 
     return;
 }
 
-
-/* =========================================================
-   CARGAR EMPRESAS SI EL FORMULARIO SE ABRE DIRECTAMENTE
-   ========================================================= */
-
-if (!isset($empresas)) {
-
-    require_once __DIR__ . "/../DB/db.php";
-    
-    $dbFrm = new db();
-
-    $dbFrm->conectar();
-
-
-    $empresas =
-        $dbFrm->obtenerRegistros(
-
-            "SELECT
-                id_empresa,
-                nombre_empresa
-
-             FROM empresas
-
-             ORDER BY nombre_empresa"
-        );
-
-
-    $dbFrm->desconectar();
-}
-
 ?>
 
+
+<!-- =========================================================
+     BOTÓN AGREGAR RRHH
+     ========================================================= -->
 
 <div class="table-header-title">
 
@@ -84,7 +68,7 @@ if (!isset($empresas)) {
             class="btn-agregar-op"
             onclick="abrirModalUsuario()"
         >
-            + Agregar Usuario
+            + Agregar RRHH
         </button>
 
     </div>
@@ -92,22 +76,30 @@ if (!isset($empresas)) {
 </div>
 
 
+<!-- =========================================================
+     MODAL RRHH
+     ========================================================= -->
+
 <div
     id="modalUsuario"
     class="modal-overlay"
 >
 
+
     <div class="modal-container">
 
 
-        <!-- =====================================================
-             ENCABEZADO DEL MODAL
-             ===================================================== -->
+        <!-- =================================================
+             ENCABEZADO
+             ================================================= -->
 
         <div class="modal-header">
 
+
             <h2 class="modal-title-text">
-                Nuevo Usuario
+
+                Nuevo RRHH
+
             </h2>
 
 
@@ -119,26 +111,32 @@ if (!isset($empresas)) {
                 &times;
             </button>
 
+
         </div>
 
 
-        <!-- =====================================================
-             CONTENIDO DEL MODAL
-             ===================================================== -->
+        <!-- =================================================
+             CONTENIDO
+             ================================================= -->
 
         <div class="modal-body-scroll">
 
+
+            <!--
+                El envío se habilitará cuando terminemos
+                la validación del backend para PROPIETARIO.
+            -->
 
             <form
                 id="formGuardarUsuario"
                 class="form-grid"
                 action="javascript:void(0);"
-                onsubmit="guardar('usuarios','formGuardarUsuario',event)"
+                onsubmit="return false;"
             >
 
 
                 <!-- =================================================
-                     ID DEL USUARIO
+                     ID
                      ================================================= -->
 
                 <input
@@ -171,8 +169,11 @@ if (!isset($empresas)) {
 
                     <div class="form-group">
 
+
                         <label class="form-label">
+
                             Nombre(s) *
+
                         </label>
 
 
@@ -183,8 +184,10 @@ if (!isset($empresas)) {
                             id="nombres"
                             maxlength="50"
                             required
+                            autocomplete="off"
                             placeholder="Ej. Juan Carlos"
                         >
+
 
                     </div>
 
@@ -193,8 +196,11 @@ if (!isset($empresas)) {
 
                     <div class="form-group">
 
+
                         <label class="form-label">
+
                             Primer Apellido *
+
                         </label>
 
 
@@ -205,8 +211,10 @@ if (!isset($empresas)) {
                             id="primer_apellido"
                             maxlength="50"
                             required
+                            autocomplete="off"
                             placeholder="Ej. Martínez"
                         >
+
 
                     </div>
 
@@ -215,8 +223,11 @@ if (!isset($empresas)) {
 
                     <div class="form-group">
 
+
                         <label class="form-label">
+
                             Segundo Apellido *
+
                         </label>
 
 
@@ -227,8 +238,10 @@ if (!isset($empresas)) {
                             id="segundo_apellido"
                             maxlength="50"
                             required
+                            autocomplete="off"
                             placeholder="Ej. López"
                         >
+
 
                     </div>
 
@@ -263,12 +276,15 @@ if (!isset($empresas)) {
                 <div class="form-row">
 
 
-                    <!-- NOMBRE DE USUARIO -->
+                    <!-- RFC / USUARIO -->
 
                     <div class="form-group">
 
+
                         <label class="form-label">
+
                             Nombre de Usuario (RFC / ID) *
+
                         </label>
 
 
@@ -279,18 +295,23 @@ if (!isset($empresas)) {
                             id="nombre_usuario"
                             maxlength="13"
                             required
+                            autocomplete="off"
                             placeholder="Ej. ABCD123456XYZ"
                         >
+
 
                     </div>
 
 
-                    <!-- CORREO ELECTRÓNICO -->
+                    <!-- CORREO -->
 
                     <div class="form-group">
 
+
                         <label class="form-label">
+
                             Correo Electrónico *
+
                         </label>
 
 
@@ -301,102 +322,9 @@ if (!isset($empresas)) {
                             id="correo_electronico"
                             maxlength="100"
                             required
+                            autocomplete="off"
                             placeholder="usuario@correo.com"
                         >
-
-                    </div>
-
-
-                    <!-- CONTRASEÑA -->
-
-                    <div class="form-group">
-
-                        <label class="form-label">
-                            Contraseña
-                        </label>
-
-
-                        <div class="password-wrapper">
-
-
-                            <input
-                                type="password"
-                                class="form-control"
-                                name="contrasena"
-                                id="contrasena"
-                                minlength="12"
-                                maxlength="12"
-                                placeholder="12 caracteres"
-                            >
-
-
-                            <button
-                                type="button"
-                                class="btn-toggle-password"
-                                onclick="togglePassword('contrasena',this)"
-                                title="Mostrar/Ocultar contraseña"
-                            >
-
-
-                                <svg
-                                    class="eye-icon eye-show"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-
-                                    <path
-                                        d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
-                                    ></path>
-
-                                    <circle
-                                        cx="12"
-                                        cy="12"
-                                        r="3"
-                                    ></circle>
-
-                                </svg>
-
-
-                                <svg
-                                    class="eye-icon eye-hide"
-                                    style="display:none;"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-
-                                    <path
-                                        d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8"
-                                    ></path>
-
-                                    <line
-                                        x1="1"
-                                        y1="1"
-                                        x2="23"
-                                        y2="23"
-                                    ></line>
-
-                                </svg>
-
-
-                            </button>
-
-
-                        </div>
-
-
-                        <small
-                            style="
-                                color:var(--texto-secundario);
-                            "
-                        >
-                            Nueva cuenta: obligatoria, 12 caracteres,
-                            mayúscula, minúscula y símbolo.
-                            Al editar puedes dejarla vacía.
-                        </small>
 
 
                     </div>
@@ -406,103 +334,45 @@ if (!isset($empresas)) {
 
 
                 <!-- =================================================
-                     ROL Y EMPRESA
+                     INFORMACIÓN DEL SISTEMA
                      ================================================= -->
 
-                <div class="form-row">
+                <div
+                    style="
+                        margin-top:18px;
+                        padding:14px 16px;
+                        border:1px solid var(--borde-sutil);
+                        border-radius:10px;
+                        background:var(--input-bg);
+                        color:var(--texto-secundario);
+                        font-size:.82rem;
+                        line-height:1.5;
+                    "
+                >
 
+                    <strong
+                        style="
+                            color:var(--texto-principal);
+                        "
+                    >
+                        🔐 Acceso protegido
+                    </strong>
 
-                    <!-- ROL -->
-
-                    <div class="form-group">
-
-                        <label class="form-label">
-                            Rol de Usuario *
-                        </label>
-
-
-                        <select
-                            class="form-control"
-                            id="rol"
-                            name="rol"
-                            required
-                            onchange="controlarDespliegueEmpresa()"
-                        >
-
-
-                            <option
-                                value=""
-                                selected
-                                disabled
-                            >
-                                -- Selecciona un Rol --
-                            </option>
-
-
-                            <option value="ADMINISTRADOR">
-                                Administrador
-                            </option>
-
-
-                            <option value="PROPIETARIO">
-                                Propietario
-                            </option>
-
-
-                            <option value="RRHH">
-                                RRHH
-                            </option>
-
-
-                        </select>
-
-                    </div>
-
-
-                    <!-- EMPRESA -->
 
                     <div
-                        class="form-group"
-                        id="seccion_empresa"
-                        style="display:none;"
+                        style="
+                            margin-top:5px;
+                        "
                     >
 
-                        <label class="form-label">
-                            Empresa / Transportista
-                        </label>
+                        El propietario no establecerá la contraseña
+                        del nuevo RRHH.
 
-
-                        <select
-                            class="form-control"
-                            id="id_empresa"
-                            name="id_empresa"
-                        >
-
-
-                            <option value="">
-                                -- Selecciona una Empresa --
-                            </option>
-
-
-                            <?php foreach ($empresas as $emp): ?>
-
-
-                                <option
-                                    value="<?= (int)$emp['id_empresa'] ?>"
-                                >
-                                    <?= htmlspecialchars(
-                                        $emp['nombre_empresa']
-                                    ) ?>
-                                </option>
-
-
-                            <?php endforeach; ?>
-
-
-                        </select>
+                        El sistema generará automáticamente una
+                        contraseña temporal segura y la cuenta deberá
+                        cambiarla durante su primer inicio de sesión.
 
                     </div>
-
 
                 </div>
 
@@ -538,15 +408,32 @@ if (!isset($empresas)) {
                         class="btn-action btn-delete"
                         onclick="cerrarModalUsuario()"
                     >
+
                         Cancelar
+
                     </button>
 
 
+                    <!--
+                        TEMPORALMENTE DESHABILITADO.
+
+                        Se habilitará cuando terminemos:
+
+                        - empresa automática
+                        - multiempresa
+                        - autorización backend
+                        - contraseña temporal
+                    -->
+
                     <button
-                        type="submit"
+                        type="button"
                         class="btn-prof-primary"
+                        disabled
+                        title="La creación se habilitará al terminar la configuración segura del RRHH."
                     >
-                        Grabar Usuario
+
+                        Crear RRHH
+
                     </button>
 
 
