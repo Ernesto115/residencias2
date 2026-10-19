@@ -2,8 +2,8 @@
 <?php
 
 /* =========================================================
-   COSAS NETTO2 - PASO 2D-D.4
-   VALIDAR EMPRESA AUTORIZADA PARA CREAR RRHH
+   COSAS NETTO2 - PASO 2D-E.2
+   GENERAR Y VERIFICAR HASH TEMPORAL SIN GUARDARLO
 
    IMPORTANTE:
    - No crea usuarios todavía.
@@ -40,6 +40,52 @@ function responderCrearRRHH($codigoHttp, $estado, $mensaje, $extra = [])
 
     exit;
 }
+
+/* =========================================================
+   2D-E.1 - GENERADOR DE CONTRASEÑA TEMPORAL
+
+   - Usa random_int() para seleccionar los caracteres.
+   - Genera exactamente 12 caracteres.
+   - Incluye mayúscula, minúscula, número y símbolo.
+   - Esta función NO guarda ni muestra contraseñas.
+   ========================================================= */
+
+function generarContrasenaTemporalRRHH(): string
+{
+    $mayusculas = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    $minusculas = 'abcdefghijkmnopqrstuvwxyz';
+    $numeros = '23456789';
+    $simbolos = '!@#$%&*?';
+
+    $elegir = static function (string $grupo): string {
+        return $grupo[random_int(0, strlen($grupo) - 1)];
+    };
+
+    // Garantizamos por lo menos uno de cada tipo.
+    $caracteres = [
+        $elegir($mayusculas),
+        $elegir($minusculas),
+        $elegir($numeros),
+        $elegir($simbolos)
+    ];
+
+    $todos = $mayusculas . $minusculas . $numeros . $simbolos;
+
+    while (count($caracteres) < 12) {
+        $caracteres[] = $elegir($todos);
+    }
+
+    // Mezcla Fisher-Yates con selecciones criptográficas.
+    for ($i = count($caracteres) - 1; $i > 0; $i--) {
+        $j = random_int(0, $i);
+        $temporal = $caracteres[$i];
+        $caracteres[$i] = $caracteres[$j];
+        $caracteres[$j] = $temporal;
+    }
+
+    return implode('', $caracteres);
+}
+
 
 /* =========================================================
    1. SOLO SOLICITUDES POST
@@ -300,13 +346,71 @@ $idEmpresaAutorizada = (int)$empresaAutorizada['id_empresa'];
 $nombreEmpresaAutorizada = (string)$empresaAutorizada['nombre_empresa'];
 
 /* =========================================================
-   8. GUARDADO TODAVÍA BLOQUEADO
+   8. GENERAR CONTRASEÑA Y COMPROBAR SU HASH
+
+   2D-E.2:
+   - Generar contraseña aleatoria.
+   - Validar los cuatro tipos de caracteres.
+   - Calcular hash con PASSWORD_DEFAULT.
+   - Comprobar coincidencia con password_verify().
+   - No devolver ni almacenar contraseña ni hash.
+   ========================================================= */
+
+$errorCredenciales = false;
+
+try {
+    $contrasenaTemporal = generarContrasenaTemporalRRHH();
+
+    $generacionValida =
+        strlen($contrasenaTemporal) === 12 &&
+        preg_match('/[A-Z]/', $contrasenaTemporal) === 1 &&
+        preg_match('/[a-z]/', $contrasenaTemporal) === 1 &&
+        preg_match('/[0-9]/', $contrasenaTemporal) === 1 &&
+        preg_match('/[^A-Za-z0-9]/', $contrasenaTemporal) === 1;
+
+    if (!$generacionValida) {
+        throw new RuntimeException('La contraseña temporal no cumple los requisitos.');
+    }
+
+    $hashTemporal = password_hash(
+        $contrasenaTemporal,
+        PASSWORD_DEFAULT
+    );
+
+    if (
+        !is_string($hashTemporal) ||
+        $hashTemporal === '' ||
+        !password_verify($contrasenaTemporal, $hashTemporal)
+    ) {
+        throw new RuntimeException('No se pudo comprobar el hash temporal.');
+    }
+
+} catch (Throwable $e) {
+    // Nunca registrar aquí la contraseña ni su hash.
+    error_log('Error al generar o verificar el hash temporal de RRHH.');
+    $errorCredenciales = true;
+
+} finally {
+    // Liberamos las variables de esta prueba. No se guardan ni devuelven.
+    unset($contrasenaTemporal, $hashTemporal);
+}
+
+if ($errorCredenciales) {
+    responderCrearRRHH(
+        500,
+        'ERROR_CREDENCIALES_TEMPORALES',
+        'No fue posible preparar las credenciales temporales.'
+    );
+}
+
+/* =========================================================
+   9. GUARDADO TODAVÍA BLOQUEADO
 
    Próximos pasos:
-   - 2D-E: Contraseña temporal segura.
+   - 2D-E.3: Verificaciones finales de seguridad.
    - 2D-F: Cambio obligatorio de contraseña.
    - 2D-G: Mostrar contraseña una sola vez.
-   - 2D-D.5: Integración y pruebas, antes de habilitar altas.
+   - 2D-D.5: Integración del guardado seguro.
 
    NO se ejecuta INSERT, UPDATE ni DELETE.
    ========================================================= */
@@ -319,6 +423,8 @@ responderCrearRRHH(
         'rol_servidor' => $rolNuevoUsuario,
         'id_empresa_autorizada' => $idEmpresaAutorizada,
         'nombre_empresa_autorizada' => $nombreEmpresaAutorizada,
-        'tipo_propietario' => $esMultiempresa ? 'MULTIEMPRESA' : 'UNICA'
+        'tipo_propietario' => $esMultiempresa ? 'MULTIEMPRESA' : 'UNICA',
+        'generador_temporal' => 'VALIDADO_SIN_GUARDAR',
+        'hash_temporal' => 'VERIFICADO_SIN_GUARDAR'
     ]
 );
