@@ -52,6 +52,236 @@ if ($rolSesion !== 'PROPIETARIO') {
     return;
 }
 
+
+/* =========================================================
+   CONSULTAR PROPIETARIO ACTUAL
+   ========================================================= */
+
+/*
+ * No confiamos solamente en:
+ *
+ * $_SESSION['id_empresa']
+ * $_SESSION['multiempresa']
+ *
+ * Consultamos nuevamente MySQL para conocer
+ * la situación actual del propietario.
+ */
+
+require_once __DIR__ . "/../DB/db.php";
+
+
+$dbFrm =
+    new db();
+
+
+$dbFrm->conectar();
+
+
+$idPropietario =
+    (int)(
+        $_SESSION['id_usuario']
+        ?? 0
+    );
+
+
+$stmtPropietario =
+    $dbFrm->conn->prepare(
+
+        "SELECT
+
+            u.id_usuario,
+
+            u.id_empresa,
+
+            u.multiempresa,
+
+            u.rol,
+
+            e.nombre_empresa
+
+         FROM usuarios u
+
+         LEFT JOIN empresas e
+            ON
+                e.id_empresa =
+                u.id_empresa
+
+         WHERE
+            u.id_usuario =
+            :id_usuario
+
+         LIMIT 1"
+    );
+
+
+$stmtPropietario->execute([
+
+    ':id_usuario' =>
+        $idPropietario
+
+]);
+
+
+$propietario =
+    $stmtPropietario->fetch(
+        PDO::FETCH_ASSOC
+    );
+
+
+/* =========================================================
+   VALIDAR PROPIETARIO
+   ========================================================= */
+
+if (
+    !$propietario ||
+    strtoupper(
+        trim(
+            $propietario['rol']
+            ?? ''
+        )
+    ) !== 'PROPIETARIO'
+) {
+
+    $dbFrm->desconectar();
+
+
+    http_response_code(403);
+
+
+    echo '
+        <div class="alert alert-danger">
+            No fue posible validar la cuenta del propietario.
+        </div>
+    ';
+
+
+    return;
+}
+
+
+/* =========================================================
+   DATOS DE EMPRESA
+   ========================================================= */
+
+$idEmpresaPropietario =
+    (int)(
+        $propietario[
+            'id_empresa'
+        ] ?? 0
+    );
+
+
+$esMultiempresa =
+    (int)(
+        $propietario[
+            'multiempresa'
+        ] ?? 0
+    ) === 1;
+
+
+$nombreEmpresaPropietario =
+    trim(
+        $propietario[
+            'nombre_empresa'
+        ] ?? ''
+    );
+
+
+$empresaUnicaValida =
+    !$esMultiempresa &&
+    $idEmpresaPropietario > 0 &&
+    $nombreEmpresaPropietario !== '';
+
+
+/* =========================================================
+   EMPRESAS AUTORIZADAS - MULTIEMPRESA
+   ========================================================= */
+
+/*
+ * Si el propietario es multiempresa,
+ * únicamente cargamos las empresas
+ * relacionadas mediante usuario_empresas.
+ *
+ * NO se consulta el catálogo global
+ * de empresas.
+ */
+
+$empresasAutorizadas =
+    [];
+
+
+if ($esMultiempresa) {
+
+    $stmtEmpresas =
+        $dbFrm->conn->prepare(
+
+            "SELECT
+
+                e.id_empresa,
+
+                e.nombre_empresa
+
+             FROM usuario_empresas ue
+
+             INNER JOIN empresas e
+                ON
+                    e.id_empresa =
+                    ue.id_empresa
+
+             WHERE
+                ue.id_usuario =
+                :id_usuario
+
+             ORDER BY
+                e.nombre_empresa"
+        );
+
+
+    $stmtEmpresas->execute([
+
+        ':id_usuario' =>
+            $idPropietario
+
+    ]);
+
+
+    $empresasAutorizadas =
+        $stmtEmpresas->fetchAll(
+            PDO::FETCH_ASSOC
+        );
+}
+
+
+/* =========================================================
+   VALIDAR EMPRESAS MULTIEMPRESA
+   ========================================================= */
+
+$tieneEmpresasAutorizadas =
+    $esMultiempresa &&
+    !empty(
+        $empresasAutorizadas
+    );
+
+
+/* =========================================================
+   CERRAR CONEXIÓN
+   ========================================================= */
+
+$dbFrm->desconectar();
+
+
+/* =========================================================
+   ESCAPAR HTML
+   ========================================================= */
+
+$h =
+    fn($valor) =>
+        htmlspecialchars(
+            (string)$valor,
+            ENT_QUOTES,
+            'UTF-8'
+        );
+
 ?>
 
 
@@ -61,17 +291,23 @@ if ($rolSesion !== 'PROPIETARIO') {
 
 <div class="table-header-title">
 
+
     <div class="table-tabs-wrapper">
+
 
         <button
             type="button"
             class="btn-agregar-op"
             onclick="abrirModalUsuario()"
         >
+
             + Agregar RRHH
+
         </button>
 
+
     </div>
+
 
 </div>
 
@@ -108,7 +344,9 @@ if ($rolSesion !== 'PROPIETARIO') {
                 class="btn-cerrar-modal"
                 onclick="cerrarModalUsuario()"
             >
+
                 &times;
+
             </button>
 
 
@@ -123,8 +361,14 @@ if ($rolSesion !== 'PROPIETARIO') {
 
 
             <!--
-                El envío se habilitará cuando terminemos
-                la validación del backend para PROPIETARIO.
+                El envío todavía se encuentra
+                deshabilitado.
+
+                Primero terminaremos:
+
+                - Seguridad backend
+                - Contraseña temporal
+                - Cambio obligatorio
             -->
 
             <form
@@ -158,7 +402,9 @@ if ($rolSesion !== 'PROPIETARIO') {
                         margin-bottom:10px;
                     "
                 >
+
                     👤 Datos Personales
+
                 </p>
 
 
@@ -269,7 +515,9 @@ if ($rolSesion !== 'PROPIETARIO') {
                         margin-bottom:10px;
                     "
                 >
+
                     🔐 Datos de Acceso
+
                 </p>
 
 
@@ -333,6 +581,300 @@ if ($rolSesion !== 'PROPIETARIO') {
                 </div>
 
 
+                <hr
+                    style="
+                        margin:15px 0;
+                        border:0;
+                        border-top:1px solid var(--borde-sutil);
+                    "
+                >
+
+
+                <!-- =================================================
+                     EMPRESA DEL RRHH
+                     ================================================= -->
+
+                <p
+                    style="
+                        font-weight:bold;
+                        color:var(--accent-color);
+                        margin-bottom:10px;
+                    "
+                >
+
+                    🏢 Empresa del RRHH
+
+                </p>
+
+
+                <!-- =================================================
+                     PROPIETARIO DE UNA EMPRESA
+                     ================================================= -->
+
+                <?php if ($empresaUnicaValida): ?>
+
+
+                    <div class="form-row">
+
+
+                        <div class="form-group">
+
+
+                            <label class="form-label">
+
+                                Empresa asignada
+
+                            </label>
+
+
+                            <!--
+                                IMPORTANTE:
+
+                                Este campo NO tiene atributo name.
+
+                                Es únicamente informativo.
+
+                                El backend obtendrá nuevamente
+                                el id_empresa desde la cuenta
+                                autenticada del propietario.
+                            -->
+
+                            <input
+                                type="text"
+                                class="form-control"
+                                value="<?= $h($nombreEmpresaPropietario) ?>"
+                                readonly
+                                aria-readonly="true"
+                            >
+
+
+                            <small
+                                style="
+                                    color:var(--texto-secundario);
+                                    display:block;
+                                    margin-top:6px;
+                                    line-height:1.45;
+                                "
+                            >
+
+                                El nuevo RRHH será vinculado
+                                automáticamente a esta empresa.
+
+                            </small>
+
+
+                        </div>
+
+
+                    </div>
+
+
+                <!-- =================================================
+                     PROPIETARIO MULTIEMPRESA
+                     ================================================= -->
+
+                <?php elseif (
+                    $esMultiempresa &&
+                    $tieneEmpresasAutorizadas
+                ): ?>
+
+
+                    <div class="form-row">
+
+
+                        <div class="form-group">
+
+
+                            <label class="form-label">
+
+                                Empresa / Transportista *
+
+                            </label>
+
+
+                            <!--
+                                En una cuenta multiempresa es necesario
+                                enviar una empresa seleccionada.
+
+                                IMPORTANTE:
+
+                                El backend NO confiará únicamente
+                                en este valor.
+
+                                Cuando habilitemos el guardado,
+                                PHP comprobará nuevamente que
+                                id_empresa pertenece al propietario
+                                mediante usuario_empresas.
+                            -->
+
+                            <select
+                                class="form-control"
+                                id="id_empresa"
+                                name="id_empresa"
+                                required
+                            >
+
+
+                                <option
+                                    value=""
+                                    selected
+                                    disabled
+                                >
+
+                                    -- Selecciona una Empresa --
+
+                                </option>
+
+
+                                <?php foreach (
+                                    $empresasAutorizadas
+                                    as
+                                    $empresa
+                                ): ?>
+
+
+                                    <option
+                                        value="<?= (int)$empresa['id_empresa'] ?>"
+                                    >
+
+                                        <?= $h(
+                                            $empresa[
+                                                'nombre_empresa'
+                                            ] ?? ''
+                                        ) ?>
+
+                                    </option>
+
+
+                                <?php endforeach; ?>
+
+
+                            </select>
+
+
+                            <small
+                                style="
+                                    color:var(--texto-secundario);
+                                    display:block;
+                                    margin-top:6px;
+                                    line-height:1.45;
+                                "
+                            >
+
+                                Solo se muestran las empresas
+                                autorizadas para su cuenta.
+
+                            </small>
+
+
+                        </div>
+
+
+                    </div>
+
+
+                <!-- =================================================
+                     MULTIEMPRESA SIN EMPRESAS AUTORIZADAS
+                     ================================================= -->
+
+                <?php elseif ($esMultiempresa): ?>
+
+
+                    <div
+                        style="
+                            padding:14px 16px;
+                            border:1px solid rgba(239,68,68,.35);
+                            border-radius:10px;
+                            background:rgba(239,68,68,.08);
+                            color:var(--texto-secundario);
+                            font-size:.82rem;
+                            line-height:1.5;
+                        "
+                    >
+
+
+                        <strong
+                            style="
+                                color:#ef4444;
+                            "
+                        >
+
+                            ⚠️ Sin empresas autorizadas
+
+                        </strong>
+
+
+                        <div
+                            style="
+                                margin-top:5px;
+                            "
+                        >
+
+                            Esta cuenta está configurada como
+                            multiempresa, pero no tiene empresas
+                            relacionadas actualmente.
+
+                            No se podrá crear un RRHH hasta corregir
+                            esta asignación.
+
+                        </div>
+
+
+                    </div>
+
+
+                <!-- =================================================
+                     SIN EMPRESA VÁLIDA
+                     ================================================= -->
+
+                <?php else: ?>
+
+
+                    <div
+                        style="
+                            padding:14px 16px;
+                            border:1px solid rgba(239,68,68,.35);
+                            border-radius:10px;
+                            background:rgba(239,68,68,.08);
+                            color:var(--texto-secundario);
+                            font-size:.82rem;
+                            line-height:1.5;
+                        "
+                    >
+
+
+                        <strong
+                            style="
+                                color:#ef4444;
+                            "
+                        >
+
+                            ⚠️ Empresa no disponible
+
+                        </strong>
+
+
+                        <div
+                            style="
+                                margin-top:5px;
+                            "
+                        >
+
+                            No fue posible identificar una empresa
+                            válida asociada a esta cuenta.
+
+                            No se podrá crear un RRHH hasta corregir
+                            esta asignación.
+
+                        </div>
+
+
+                    </div>
+
+
+                <?php endif; ?>
+
+
                 <!-- =================================================
                      INFORMACIÓN DEL SISTEMA
                      ================================================= -->
@@ -350,12 +892,15 @@ if ($rolSesion !== 'PROPIETARIO') {
                     "
                 >
 
+
                     <strong
                         style="
                             color:var(--texto-principal);
                         "
                     >
+
                         🔐 Acceso protegido
+
                     </strong>
 
 
@@ -373,6 +918,7 @@ if ($rolSesion !== 'PROPIETARIO') {
                         cambiarla durante su primer inicio de sesión.
 
                     </div>
+
 
                 </div>
 
@@ -417,12 +963,11 @@ if ($rolSesion !== 'PROPIETARIO') {
                     <!--
                         TEMPORALMENTE DESHABILITADO.
 
-                        Se habilitará cuando terminemos:
+                        Se habilitará después de terminar:
 
-                        - empresa automática
-                        - multiempresa
-                        - autorización backend
-                        - contraseña temporal
+                        2D-D Seguridad backend
+                        2D-E Contraseña temporal
+                        2D-F Cambio obligatorio
                     -->
 
                     <button

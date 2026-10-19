@@ -1,3 +1,4 @@
+
 <?php
 
 /* =========================================================
@@ -101,14 +102,53 @@ if ($rolSesion === 'ADMINISTRADOR') {
 }
 
 
-if ($rolSesion !== 'ADMIN') {
+/* =========================================================
+   2D-D.2 - BLOQUEO DE ESCRITURA EN USUARIOS
+
+   ADMINISTRADOR:
+   - Solo consulta y cambia el estatus desde estatus.php.
+   - No puede crear ni editar cuentas desde este archivo.
+
+   PROPIETARIO:
+   - La creación de RRHH sigue temporalmente bloqueada.
+   - Se habilitará al terminar la seguridad del backend.
+
+   RRHH Y OTROS ROLES:
+   - No pueden crear ni editar cuentas.
+
+   IMPORTANTE:
+   Este bloqueo es temporal durante el paso 2D-D.
+   No modifica usuarios/estatus.php ni el módulo Empresas.
+   ========================================================= */
+
+if ($rolSesion === 'ADMIN') {
+
+    http_response_code(403);
 
     errorUsuario(
-        'No tienes permiso para administrar usuarios.',
+        'ADMINISTRADOR solo puede supervisar usuarios y cambiar su estatus.',
         $db
     );
 
 }
+
+if ($rolSesion === 'PROPIETARIO') {
+
+    http_response_code(403);
+
+    errorUsuario(
+        'La creación de cuentas RRHH todavía no está habilitada. Estamos completando su seguridad.',
+        $db
+    );
+
+}
+
+http_response_code(403);
+
+errorUsuario(
+    'No tienes permiso para crear o editar cuentas de usuario.',
+    $db
+);
 
 
 
