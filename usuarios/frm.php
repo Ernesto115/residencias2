@@ -1,3 +1,4 @@
+
 <?php
 
 /* =========================================================
@@ -271,6 +272,27 @@ $dbFrm->desconectar();
 
 
 /* =========================================================
+   2D-G.1C.2 - TOKEN CSRF PARA CREAR RRHH
+
+   - Token exclusivo de la sesion del propietario.
+   - Se genera con random_bytes() solo cuando no existe.
+   - Se conserva al volver a cargar el formulario.
+   - crear_rrhh.php lo validara con hash_equals().
+   - No habilita el guardado real de usuarios.
+   ========================================================= */
+
+if (
+    !isset($_SESSION['csrf_crear_rrhh']) ||
+    !is_string($_SESSION['csrf_crear_rrhh']) ||
+    preg_match('/^[a-f0-9]{64}$/D', $_SESSION['csrf_crear_rrhh']) !== 1
+) {
+    $_SESSION['csrf_crear_rrhh'] = bin2hex(random_bytes(32));
+}
+
+$tokenCsrfCrearRRHH = $_SESSION['csrf_crear_rrhh'];
+
+
+/* =========================================================
    ESCAPAR HTML
    ========================================================= */
 
@@ -388,6 +410,15 @@ $h =
                     id="id_usuario"
                     name="id_usuario"
                     value=""
+                >
+
+
+                <!-- TOKEN CSRF DEL FORMULARIO RRHH -->
+                <input
+                    type="hidden"
+                    id="csrf_token_rrhh"
+                    name="csrf_token_rrhh"
+                    value="<?= $h($tokenCsrfCrearRRHH) ?>"
                 >
 
 

@@ -2,8 +2,8 @@
 <?php
 
 /* =========================================================
-   COSAS NETTO2 - PASO 2D-E.2
-   GENERAR Y VERIFICAR HASH TEMPORAL SIN GUARDARLO
+   COSAS NETTO2 - PASO 2D-G.1C.1
+   VALIDAR TOKEN CSRF RRHH SIN GUARDAR
 
    IMPORTANTE:
    - No crea usuarios todavía.
@@ -130,6 +130,33 @@ if (
         403,
         'EDICION_PROHIBIDA',
         'Este archivo solo permite preparar cuentas nuevas de RRHH.'
+    );
+}
+
+/* =========================================================
+   3A. VALIDAR TOKEN CSRF DEL NUEVO RRHH
+
+   - La sesion debe contener un token creado por frm.php.
+   - El POST debe enviar el mismo token.
+   - Comparamos mediante hash_equals().
+   - Se comprueba ANTES de consultar MySQL.
+   - El guardado sigue bloqueado.
+   ========================================================= */
+
+$tokenSesionRRHH = $_SESSION['csrf_crear_rrhh'] ?? null;
+$tokenRecibidoRRHH = $_POST['csrf_token_rrhh'] ?? null;
+
+if (
+    !is_string($tokenSesionRRHH) ||
+    $tokenSesionRRHH === '' ||
+    !is_string($tokenRecibidoRRHH) ||
+    $tokenRecibidoRRHH === '' ||
+    !hash_equals($tokenSesionRRHH, $tokenRecibidoRRHH)
+) {
+    responderCrearRRHH(
+        403,
+        'CSRF_INVALIDO',
+        'La solicitud no tiene un token de seguridad valido. Vuelve a abrir el formulario de RRHH.'
     );
 }
 
@@ -346,6 +373,173 @@ $idEmpresaAutorizada = (int)$empresaAutorizada['id_empresa'];
 $nombreEmpresaAutorizada = (string)$empresaAutorizada['nombre_empresa'];
 
 /* =========================================================
+   2D-G.1A - VALIDAR DATOS DEL NUEVO RRHH (SIN GUARDAR)
+
+   Validamos los campos en PHP, aunque el navegador ya tenga
+   validaciones HTML. No realizamos INSERT ni UPDATE.
+
+   NOTA: La proteccion CSRF se incorporara y probara
+   antes de habilitar cualquier creacion real.
+   ========================================================= */
+
+$camposNombreRRHH = [
+    'nombres' => 'nombres',
+    'primer_apellido' => 'primer_apellido',
+    'segundo_apellido' => 'segundo_apellido'
+];
+
+$camposInvalidosRRHH = [];
+$datosNuevoRRHH = [];
+
+foreach ($camposNombreRRHH as $clave => $etiqueta) {
+    $recibido = $_POST[$clave] ?? null;
+
+    if (!is_string($recibido)) {
+        $camposInvalidosRRHH[] = $etiqueta;
+        continue;
+    }
+
+    $valor = trim($recibido);
+    $longitud = preg_match_all('/./us', $valor);
+
+    // Aceptamos letras con acentos, espacios, guiones y apostrofes.
+    // Rechazamos digitos, etiquetas HTML y caracteres de control.
+    if (
+        $valor === '' ||
+        $longitud === false ||
+        $longitud > 50 ||
+        preg_match('/^[\p{L}\p{M}][\p{L}\p{M} .\'\x{2019}-]*$/uD', $valor) !== 1
+    ) {
+        $camposInvalidosRRHH[] = $etiqueta;
+        continue;
+    }
+
+    $datosNuevoRRHH[$clave] = $valor;
+}
+
+$nombreUsuarioRecibido = $_POST['nombre_usuario'] ?? null;
+
+if (!is_string($nombreUsuarioRecibido)) {
+    $camposInvalidosRRHH[] = 'nombre_usuario';
+} else {
+    $nombreUsuarioRRHH = strtoupper(trim($nombreUsuarioRecibido));
+
+    // Campo VARCHAR(13): RFC / ID sin espacios ni caracteres especiales.
+    if (
+        preg_match('/^[A-Z0-9][A-Z0-9._-]{0,12}$/D', $nombreUsuarioRRHH) !== 1
+    ) {
+        $camposInvalidosRRHH[] = 'nombre_usuario';
+    } else {
+        $datosNuevoRRHH['nombre_usuario'] = $nombreUsuarioRRHH;
+    }
+}
+
+$correoRecibido = $_POST['correo_electronico'] ?? null;
+
+if (!is_string($correoRecibido)) {
+    $camposInvalidosRRHH[] = 'correo_electronico';
+} else {
+    $correoRRHH = strtolower(trim($correoRecibido));
+
+    if (
+        $correoRRHH === '' ||
+        strlen($correoRRHH) > 100 ||
+        filter_var($correoRRHH, FILTER_VALIDATE_EMAIL) === false
+    ) {
+        $camposInvalidosRRHH[] = 'correo_electronico';
+    } else {
+        $datosNuevoRRHH['correo_electronico'] = $correoRRHH;
+    }
+}
+
+if (!empty($camposInvalidosRRHH)) {
+    responderCrearRRHH(
+        422,
+        'DATOS_INVALIDOS',
+        'Revisa los datos personales y de acceso del nuevo RRHH.',
+        ['campos_invalidos' => $camposInvalidosRRHH]
+    );
+}
+
+/* =========================================================
+   2D-G.1B - VERIFICAR USUARIO Y CORREO DUPLICADOS
+
+   - Solo consultas SELECT.
+   - Incluye cuentas activas e inactivas.
+   - No permite reutilizar nombres de usuario ni correos.
+   - Comparamos sin diferenciar mayusculas/minusculas.
+   - La BD tambien conserva sus restricciones UNIQUE.
+   - NO se realiza INSERT, UPDATE ni DELETE.
+   ========================================================= */
+
+$camposDuplicadosRRHH = [];
+$errorConsultaDuplicadosRRHH = false;
+$dbDuplicadosRRHH = new db();
+
+try {
+    $dbDuplicadosRRHH->conectar();
+
+    if (!($dbDuplicadosRRHH->conn instanceof PDO)) {
+        throw new RuntimeException('No fue posible conectar con MySQL.');
+    }
+
+    // Buscamos en todas las cuentas, sin filtrar estatus ni empresa.
+    $stmtUsuarioDuplicado = $dbDuplicadosRRHH->conn->prepare(
+        'SELECT 1
+         FROM usuarios
+         WHERE UPPER(nombre_usuario) = :nombre_usuario
+         LIMIT 1'
+    );
+
+    $stmtUsuarioDuplicado->execute([
+        ':nombre_usuario' => $datosNuevoRRHH['nombre_usuario']
+    ]);
+
+    if ($stmtUsuarioDuplicado->fetchColumn() !== false) {
+        $camposDuplicadosRRHH[] = 'nombre_usuario';
+    }
+
+    $stmtCorreoDuplicado = $dbDuplicadosRRHH->conn->prepare(
+        'SELECT 1
+         FROM usuarios
+         WHERE LOWER(correo_electronico) = :correo_electronico
+         LIMIT 1'
+    );
+
+    $stmtCorreoDuplicado->execute([
+        ':correo_electronico' => $datosNuevoRRHH['correo_electronico']
+    ]);
+
+    if ($stmtCorreoDuplicado->fetchColumn() !== false) {
+        $camposDuplicadosRRHH[] = 'correo_electronico';
+    }
+
+} catch (Throwable $e) {
+    // No incluir nombres de usuario, correos ni datos privados en el log.
+    error_log('Error al comprobar duplicados en crear_rrhh.php.');
+    $errorConsultaDuplicadosRRHH = true;
+} finally {
+    $dbDuplicadosRRHH->desconectar();
+}
+
+if ($errorConsultaDuplicadosRRHH) {
+    responderCrearRRHH(
+        500,
+        'ERROR_CONSULTA_DUPLICADOS',
+        'No fue posible comprobar la disponibilidad de los datos del RRHH.'
+    );
+}
+
+if (!empty($camposDuplicadosRRHH)) {
+    responderCrearRRHH(
+        409,
+        'DATOS_DUPLICADOS',
+        'El nombre de usuario o el correo ya se encuentra registrado.',
+        ['campos_duplicados' => $camposDuplicadosRRHH]
+    );
+}
+
+/* =========================================================
    8. GENERAR CONTRASEÑA Y COMPROBAR SU HASH
 
    2D-E.2:
@@ -406,11 +600,10 @@ if ($errorCredenciales) {
 /* =========================================================
    9. GUARDADO TODAVÍA BLOQUEADO
 
-   Próximos pasos:
-   - 2D-E.3: Verificaciones finales de seguridad.
-   - 2D-F: Cambio obligatorio de contraseña.
-   - 2D-G: Mostrar contraseña una sola vez.
-   - 2D-D.5: Integración del guardado seguro.
+   Proximos pasos:
+   - Crear el token CSRF en frm.php y probarlo.
+   - 2D-G: Mostrar contraseña una sola vez al crear RRHH.
+   - 2D-D.5: Integracion del guardado seguro.
 
    NO se ejecuta INSERT, UPDATE ni DELETE.
    ========================================================= */
@@ -424,6 +617,8 @@ responderCrearRRHH(
         'id_empresa_autorizada' => $idEmpresaAutorizada,
         'nombre_empresa_autorizada' => $nombreEmpresaAutorizada,
         'tipo_propietario' => $esMultiempresa ? 'MULTIEMPRESA' : 'UNICA',
+        'datos_rrhh' => 'VALIDOS_SIN_GUARDAR',
+        'duplicados_rrhh' => 'NO_DETECTADOS_SIN_GUARDAR',
         'generador_temporal' => 'VALIDADO_SIN_GUARDAR',
         'hash_temporal' => 'VERIFICADO_SIN_GUARDAR'
     ]
