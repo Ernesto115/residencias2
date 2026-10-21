@@ -383,14 +383,10 @@ $h =
 
 
             <!--
-                El envío todavía se encuentra
-                deshabilitado.
-
-                Primero terminaremos:
-
-                - Seguridad backend
-                - Contraseña temporal
-                - Cambio obligatorio
+                2D-D.5C.2:
+                El boton permite probar el envio del formulario.
+                El alta REAL sigue bloqueada por el servidor PHP
+                mediante ALTAS_RRHH_HABILITADAS = false.
             -->
 
             <form
@@ -562,7 +558,7 @@ $h =
 
                         <label class="form-label">
 
-                            Nombre de Usuario (RFC / ID) *
+                            Nombre de Usuario (RFC) *
 
                         </label>
 
@@ -992,20 +988,25 @@ $h =
 
 
                     <!--
-                        TEMPORALMENTE DESHABILITADO.
+                        2D-D.5C.2 - PRUEBA DEL BOTON DE RRHH.
 
-                        Se habilitará después de terminar:
+                        El boton llama a enviarNuevoRRHH(), cuyo
+                        JavaScript se carga desde index.php.
 
-                        2D-D Seguridad backend
-                        2D-E Contraseña temporal
-                        2D-F Cambio obligatorio
+                        IMPORTANTE:
+                        El servidor mantiene ALTAS_RRHH_HABILITADAS = false.
+                        Por ahora NO se crean usuarios en MySQL.
+                        Sin empresa autorizada, el boton permanece deshabilitado.
                     -->
 
                     <button
                         type="button"
                         class="btn-prof-primary"
-                        disabled
-                        title="La creación se habilitará al terminar la configuración segura del RRHH."
+                        onclick="enviarNuevoRRHH()"
+                        <?php if (!$empresaUnicaValida && !$tieneEmpresasAutorizadas): ?>
+                            disabled
+                        <?php endif; ?>
+                        title="Probar el formulario RRHH; el registro real permanece bloqueado en el servidor."
                     >
 
                         Crear RRHH

@@ -1395,6 +1395,16 @@ $dbDashboard->desconectar();
 ></script>
 
 
+
+<?php if ($puedeAdministrarRRHH): ?>
+
+<script
+    src="/JS/credenciales_rrhh.js?v=2DD5B"
+></script>
+
+<?php endif; ?>
+
+
 <script
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
 ></script>
