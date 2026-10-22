@@ -2,15 +2,17 @@
 <?php
 
 /* =========================================================
-   COSAS NETTO2 - PASO 2D-D.5A
-   PREPARAR INSERCION SEGURA DE RRHH (DESACTIVADA)
+   COSAS NETTO2 - PASO 2D-I.2
+   PILOTO MULTIEMPRESA: VALIDACIONES SIN GUARDAR
 
    IMPORTANTE:
-   - No crea usuarios todavía.
-   - No edita ni elimina cuentas.
-   - No modifica empresas ni contraseñas.
-   - Prepara guardado transaccional y entrega de credenciales.
-   - Mantiene el alta real DESACTIVADA para continuar las pruebas.
+   - NO crea usuarios: el guardado permanece desactivado.
+   - Piloto exclusivo del PROPIETARIO #2, multiempresa.
+   - Empresa de prueba autorizada: ID #3.
+   - Solo acepta la identidad ficticia de Ana Luz Perez Gomez.
+   - No edita ni elimina cuentas existentes.
+   - Conserva contrasenas temporales y guardado transaccional
+     para una futura prueba real, que se autorizara aparte.
    ========================================================= */
 
 require_once __DIR__ . '/../configuracion/sesion.php';
@@ -22,13 +24,28 @@ header('Pragma: no-cache');
 header('X-Content-Type-Options: nosniff');
 
 /* =========================================================
-   INTERRUPTOR DE SEGURIDAD PARA ESTE CHECKPOINT
+   INTERRUPTOR DE SEGURIDAD DEL PILOTO MULTIEMPRESA
 
-   No cambiar a true en este subpaso.
-   Mientras sea false, el endpoint NO ejecuta INSERT.
+   Mantener en false durante la validacion sin guardado.
+   Con false, ningun flujo llega al INSERT.
+   No activar hasta verificar autorizaciones y datos.
    ========================================================= */
 
 const ALTAS_RRHH_HABILITADAS = false;
+
+/* =========================================================
+   LIMITES DEL PILOTO (OBLIGATORIOS PARA EL GUARDADO)
+
+   Solo PROPIETARIO multiempresa #2 y empresa #3 autorizada.
+   Solo se permite una identidad de RRHH de prueba exacta.
+   MySQL conserva sus restricciones UNIQUE para el futuro INSERT.
+   NO eliminar ninguna restriccion ni habilitar guardado aun.
+   ========================================================= */
+
+const RRHH_PILOTO_ID_PROPIETARIO = 2;
+const RRHH_PILOTO_ID_EMPRESA = 3;
+const RRHH_PILOTO_USUARIO = 'RRHHMULTI2601';
+const RRHH_PILOTO_CORREO = 'rrhh.multi.piloto.20261022@example.com';
 
 /* =========================================================
    RESPUESTAS CONTROLADAS
@@ -56,12 +73,15 @@ function responderCrearRRHH($codigoHttp, $estado, $mensaje, $extra = [])
 /* =========================================================
    RESPUESTA DE EXITO (SOLO TRAS COMMIT CONFIRMADO)
 
-   Esta respuesta no se ejecuta mientras el interruptor
-   ALTAS_RRHH_HABILITADAS permanezca en false.
+   Solo se ejecuta al confirmar el COMMIT del alta.
    ========================================================= */
 
-function responderRRHHCreado($idUsuario, $usuario, $empresa, $contrasenaTemporal)
-{
+function responderRRHHCreado(
+    $idUsuario,
+    $usuario,
+    $empresa,
+    $contrasenaTemporal
+) {
     http_response_code(201);
 
     echo json_encode(
@@ -179,7 +199,7 @@ if (
    - El POST debe enviar el mismo token.
    - Comparamos mediante hash_equals().
    - Se comprueba ANTES de consultar MySQL.
-   - El guardado sigue bloqueado.
+   - La validacion CSRF aplica tambien al guardado activo.
    ========================================================= */
 
 $tokenSesionRRHH = $_SESSION['csrf_crear_rrhh'] ?? null;
@@ -196,6 +216,21 @@ if (
         403,
         'CSRF_INVALIDO',
         'La solicitud no tiene un token de seguridad valido. Vuelve a abrir el formulario de RRHH.'
+    );
+}
+
+/* =========================================================
+   3B. PILOTO: BLOQUEAR TODAS LAS DEMAS CUENTAS
+
+   La verificacion en MySQL del rol activo sigue mas adelante.
+   Esta comprobacion NO reemplaza la autorizacion de empresa.
+   ========================================================= */
+
+if ($idSesion !== RRHH_PILOTO_ID_PROPIETARIO) {
+    responderCrearRRHH(
+        403,
+        'PILOTO_NO_AUTORIZADO',
+        'Esta prueba esta limitada al propietario multiempresa autorizado.'
     );
 }
 
@@ -412,13 +447,28 @@ $idEmpresaAutorizada = (int)$empresaAutorizada['id_empresa'];
 $nombreEmpresaAutorizada = (string)$empresaAutorizada['nombre_empresa'];
 
 /* =========================================================
-   2D-G.1A - VALIDAR DATOS DEL NUEVO RRHH (SIN GUARDAR)
+   7A. PILOTO: PROPIETARIO MULTIEMPRESA #2 / EMPRESA #3
+
+   La empresa debe venir de la relacion usuario_empresas.
+   Se rechazan cuentas de una empresa y otras empresas.
+   La autorizacion se verifico en MySQL, no solo por POST.
+   ========================================================= */
+
+if (!$esMultiempresa || $idEmpresaAutorizada !== RRHH_PILOTO_ID_EMPRESA) {
+    responderCrearRRHH(
+        403,
+        'PILOTO_EMPRESA_NO_AUTORIZADA',
+        'El piloto requiere un propietario multiempresa autorizado para la empresa de prueba ID 3.'
+    );
+}
+
+/* =========================================================
+   2D-G.1A - VALIDAR DATOS DEL NUEVO RRHH
 
    Validamos los campos en PHP, aunque el navegador ya tenga
-   validaciones HTML. No realizamos INSERT ni UPDATE.
+   validaciones HTML. Las altas solo se activan para el piloto.
 
-   NOTA: La proteccion CSRF se incorporara y probara
-   antes de habilitar cualquier creacion real.
+   NOTA: La proteccion CSRF ya fue incorporada y probada.
    ========================================================= */
 
 $camposNombreRRHH = [
@@ -501,6 +551,28 @@ if (!empty($camposInvalidosRRHH)) {
 }
 
 /* =========================================================
+   2D-I.2 - SOLO DATOS FICTICIOS DE ANA LUZ PEREZ GOMEZ
+
+   Aun no permite registrar la cuenta: solo valida esta
+   identidad y devuelve CREACION_PENDIENTE.
+   Las restricciones UNIQUE se mantendran para el INSERT.
+   ========================================================= */
+
+if (
+    $datosNuevoRRHH['nombres'] !== 'Ana Luz' ||
+    $datosNuevoRRHH['primer_apellido'] !== 'Perez' ||
+    $datosNuevoRRHH['segundo_apellido'] !== 'Gomez' ||
+    $datosNuevoRRHH['nombre_usuario'] !== RRHH_PILOTO_USUARIO ||
+    $datosNuevoRRHH['correo_electronico'] !== RRHH_PILOTO_CORREO
+) {
+    responderCrearRRHH(
+        403,
+        'DATOS_FUERA_DEL_PILOTO',
+        'El piloto solo acepta la identidad ficticia de prueba multiempresa definida.'
+    );
+}
+
+/* =========================================================
    2D-G.1B - VERIFICAR USUARIO Y CORREO DUPLICADOS
 
    - Solo consultas SELECT.
@@ -508,7 +580,7 @@ if (!empty($camposInvalidosRRHH)) {
    - No permite reutilizar nombres de usuario ni correos.
    - Comparamos sin diferenciar mayusculas/minusculas.
    - La BD tambien conserva sus restricciones UNIQUE.
-   - NO se realiza INSERT, UPDATE ni DELETE.
+   - Esta comprobacion solo hace SELECT; el INSERT esta despues.
    ========================================================= */
 
 $camposDuplicadosRRHH = [];
@@ -586,7 +658,7 @@ if (!empty($camposDuplicadosRRHH)) {
    - Validar los cuatro tipos de caracteres.
    - Calcular hash con PASSWORD_DEFAULT.
    - Comprobar coincidencia con password_verify().
-   - No devolver ni almacenar contraseña ni hash.
+   - Guardar solo el hash; mostrar la temporal tras COMMIT.
    ========================================================= */
 
 $errorCredenciales = false;
@@ -635,10 +707,10 @@ if ($errorCredenciales) {
 }
 
 /* =========================================================
-   9. INTERRUPTOR DE SEGURIDAD — ESCRITURAS DESACTIVADAS
+   9. INTERRUPTOR DE SEGURIDAD
 
-   IMPORTANTE: en esta version NO se crea ningun RRHH.
-   Mantenemos el mismo CREACION_PENDIENTE ya probado.
+   Este piloto esta DESACTIVADO para escrituras.
+   Despues de todas las validaciones responde CREACION_PENDIENTE.
    ========================================================= */
 
 if (ALTAS_RRHH_HABILITADAS !== true) {
@@ -662,10 +734,10 @@ if (ALTAS_RRHH_HABILITADAS !== true) {
 }
 
 /* =========================================================
-   10. INSERCION SEGURA PREPARADA (NO ACTIVA EN ESTE PASO)
+   10. INSERCION TRANSACCIONAL PREPARADA (NO ACTIVA)
 
-   Solo funcionara tras habilitar expresamente el interruptor
-   en una etapa posterior y probar la entrega de credenciales.
+   Solo se utilizara en un siguiente paso tras autorizar
+   expresamente una unica alta real multiempresa.
 
    - Verificacion final de propietario y empresa con bloqueo.
    - Transaccion PDO con INSERT preparado.
@@ -701,7 +773,11 @@ try {
          LIMIT 1
          FOR UPDATE'
     );
-    $stmtPropietarioFinal->execute([':id_usuario' => $idSesion]);
+
+    $stmtPropietarioFinal->execute([
+        ':id_usuario' => $idSesion
+    ]);
+
     $propietarioFinal = $stmtPropietarioFinal->fetch(PDO::FETCH_ASSOC);
 
     if (
@@ -732,16 +808,19 @@ try {
             $stmtEmpresaFinal = $pdoAltaRRHH->prepare(
                 'SELECT e.id_empresa
                  FROM usuario_empresas ue
-                 INNER JOIN empresas e ON e.id_empresa = ue.id_empresa
+                 INNER JOIN empresas e
+                   ON e.id_empresa = ue.id_empresa
                  WHERE ue.id_usuario = :id_usuario
                    AND ue.id_empresa = :id_empresa
                  LIMIT 1
                  FOR UPDATE'
             );
+
             $stmtEmpresaFinal->execute([
                 ':id_usuario' => $idSesion,
                 ':id_empresa' => $idEmpresaAutorizada
             ]);
+
         } else {
             $stmtEmpresaFinal = $pdoAltaRRHH->prepare(
                 'SELECT id_empresa
@@ -750,6 +829,7 @@ try {
                  LIMIT 1
                  FOR UPDATE'
             );
+
             $stmtEmpresaFinal->execute([
                 ':id_empresa' => $idEmpresaAutorizada
             ]);
@@ -766,7 +846,9 @@ try {
 
     if ($rechazoAltaRRHH !== null) {
         $pdoAltaRRHH->rollBack();
+
     } else {
+
         // El servidor decide el rol y los indicadores: no vienen de POST.
         $stmtInsertRRHH = $pdoAltaRRHH->prepare(
             'INSERT INTO usuarios (
@@ -808,14 +890,19 @@ try {
         ]);
 
         $idRRHHCreado = (int)$pdoAltaRRHH->lastInsertId();
+
         if ($idRRHHCreado <= 0) {
-            throw new RuntimeException('No se pudo confirmar el ID del nuevo RRHH.');
+            throw new RuntimeException(
+                'No se pudo confirmar el ID del nuevo RRHH.'
+            );
         }
 
         $pdoAltaRRHH->commit();
         $altaConfirmadaRRHH = true;
     }
+
 } catch (PDOException $e) {
+
     if (isset($pdoAltaRRHH) && $pdoAltaRRHH->inTransaction()) {
         $pdoAltaRRHH->rollBack();
     }
@@ -827,13 +914,16 @@ try {
         error_log('Fallo PDO al insertar RRHH.');
         $errorAltaRRHH = true;
     }
+
 } catch (Throwable $e) {
+
     if (isset($pdoAltaRRHH) && $pdoAltaRRHH->inTransaction()) {
         $pdoAltaRRHH->rollBack();
     }
 
     error_log('Fallo general al insertar RRHH.');
     $errorAltaRRHH = true;
+
 } finally {
     $dbAltaRRHH->desconectar();
 }

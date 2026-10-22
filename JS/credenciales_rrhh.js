@@ -4,12 +4,11 @@
    VENTANA DE ENTREGA UNICA DE CREDENCIALES RRHH
 
    IMPORTANTE:
-   - Solo prepara la interfaz para mostrar credenciales.
-   - NO crea cuentas ni solicita datos al servidor.
-   - NO modifica usuarios, empresas o contraseñas.
-   - NO utiliza console.log, localStorage ni sessionStorage.
-   - La vista previa se hace con datos totalmente ficticios.
-   - Solo conectaremos el modo real despues del INSERT seguro.
+   - Muestra credenciales solo tras confirmacion del servidor.
+   - NO modifica usuarios, empresas ni contraseñas por si misma.
+   - NO registra contraseñas en consola ni storage.
+   - La vista previa utiliza datos ficticios.
+   - Cierra el formulario y recarga la tabla al confirmar.
    ========================================================= */
 
 function mostrarCredencialesTemporalesRRHH(datos, opciones = {}) {
@@ -110,8 +109,9 @@ function mostrarCredencialesTemporalesRRHH(datos, opciones = {}) {
         </div>
     `;
 
-    // No persistimos ni registramos las credenciales en el navegador.
-    // Al cerrar la ventana, SweetAlert elimina su contenido visual.
+    // La ventana debe permanecer visible hasta que el propietario
+    // confirme que guardo las credenciales. Solo despues se cierra
+    // Nuevo RRHH y se actualiza el listado, sin recargar el sitio.
     Swal.fire({
         icon: vistaPrevia ? 'info' : 'success',
         title: vistaPrevia
@@ -126,14 +126,64 @@ function mostrarCredencialesTemporalesRRHH(datos, opciones = {}) {
         allowOutsideClick: false,
         allowEscapeKey: false,
         showCloseButton: false
+    }).then((respuesta) => {
+        // Una vista previa no debe cerrar formularios ni recargar tablas.
+        if (!vistaPrevia && respuesta.isConfirmed) {
+            finalizarAltaRRHHInterfaz();
+        }
     });
 
     return true;
 }
 
 /* =========================================================
+   COSAS NETTO2 - PASO 2D-H.3B
+   FINALIZAR INTERFAZ DESPUES DE GUARDAR CREDENCIALES
+
+   - Se ejecuta solo tras una confirmacion de alta real.
+   - Cierra el formulario Nuevo RRHH.
+   - Limpia sus datos y avisos.
+   - Reutiliza la paginacion existente para actualizar RRHH.
+   - NO envia solicitudes de creacion, ni altera MySQL.
+   ========================================================= */
+
+function finalizarAltaRRHHInterfaz() {
+    // Son funciones que ya ofrece JS/funciones.js.
+    if (typeof cerrarModalUsuario !== 'function') {
+        return false;
+    }
+
+    // La paginacion existente actualiza #contenedor3 con tabla.php.
+    if (
+        typeof cambiarPaginaUsuarios !== 'function' ||
+        !document.getElementById('contenedor3')
+    ) {
+        return false;
+    }
+
+    // Cerramos exclusivamente el modal Nuevo RRHH.
+    cerrarModalUsuario();
+
+    const formulario = document.getElementById('formGuardarUsuario');
+    if (formulario && typeof formulario.reset === 'function') {
+        formulario.reset();
+    }
+
+    const avisos = document.getElementById('contenedor-alertas-usuarios');
+    if (avisos) {
+        avisos.replaceChildren();
+    }
+
+    // Volver a la primera pagina: alli aparece la cuenta mas reciente.
+    // El filtro RRHH tambien mantiene el comportamiento de PROPIETARIO.
+    cambiarPaginaUsuarios(1, 'RRHH');
+
+    return true;
+}
+
+/* =========================================================
    COSAS NETTO2 - PASO 2D-D.5B
-   PREPARAR ENVIO DE FORMULARIO RRHH (SIN HABILITAR ALTAS)
+   PREPARAR ENVIO DE FORMULARIO RRHH
 
    - Usa usuarios/crear_rrhh.php, no usuarios/guardar.php.
    - Envia el token CSRF incluido en el formulario.
@@ -141,8 +191,8 @@ function mostrarCredencialesTemporalesRRHH(datos, opciones = {}) {
    - Nunca imprime ni almacena credenciales en consola/storage.
    - Solo muestra credenciales tras HTTP 201 + RRHH_CREADO.
    - Evita solicitudes simultaneas desde este controlador.
-   - El boton Crear RRHH sigue DESHABILITADO en frm.php.
-   - El backend debe conservar ALTAS_RRHH_HABILITADAS=false.
+   - El boton Crear RRHH envia datos al endpoint autorizado.
+   - El backend controla la activacion y permisos de altas.
    ========================================================= */
 
 let solicitudAltaRRHHEnCurso = false;
@@ -187,6 +237,7 @@ async function enviarSolicitudAltaRRHH(datos) {
     }
 
     const token = datos.get('csrf_token_rrhh');
+
     if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
         mostrarAvisoFormularioRRHH(
             'No se encontro el token de seguridad. Vuelve a cargar el formulario.',
@@ -219,6 +270,7 @@ async function enviarSolicitudAltaRRHH(datos) {
         }
 
         const tipoContenido = respuesta.headers.get('content-type') || '';
+
         if (!tipoContenido.toLowerCase().includes('application/json')) {
             mostrarAvisoFormularioRRHH(
                 'El servidor devolvio una respuesta inesperada. No repitas el envio; verifica primero si la cuenta fue registrada.',
@@ -228,6 +280,7 @@ async function enviarSolicitudAltaRRHH(datos) {
         }
 
         let resultado;
+
         try {
             resultado = await respuesta.json();
         } catch (_) {
@@ -269,10 +322,10 @@ async function enviarSolicitudAltaRRHH(datos) {
             return respuestaResumen(respuesta.status, 'EXITO_NO_CONFIRMADO');
         }
 
-        // 403 CREACION_PENDIENTE es el resultado esperado hoy.
         const estado = typeof resultado?.estado === 'string'
             ? resultado.estado
             : 'RESPUESTA_NO_RECONOCIDA';
+
         const mensaje = typeof resultado?.mensaje === 'string'
             ? resultado.mensaje
             : 'No fue posible completar la solicitud RRHH.';
@@ -283,6 +336,7 @@ async function enviarSolicitudAltaRRHH(datos) {
         );
 
         return respuestaResumen(respuesta.status, estado);
+
     } catch (_) {
         // Un fallo de red no demuestra que el servidor no haya guardado.
         mostrarAvisoFormularioRRHH(
@@ -290,12 +344,13 @@ async function enviarSolicitudAltaRRHH(datos) {
             'danger'
         );
         return respuestaResumen(null, 'RESULTADO_DESCONOCIDO');
+
     } finally {
         solicitudAltaRRHHEnCurso = false;
     }
 }
 
-// Funcion que usara el boton al habilitarse en una etapa futura.
+// Funcion conectada con el boton Crear RRHH del formulario.
 async function enviarNuevoRRHH() {
     const formulario = document.getElementById('formGuardarUsuario');
 
